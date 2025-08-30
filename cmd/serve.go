@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
 )
 
@@ -42,17 +43,17 @@ func init() {
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
-	// Load config (lazy loading - only when serve command is run)
-	if err := loadConfig(); err != nil {
+	// Initialize config (lazy loading - only when serve command is run)
+	if err := config.Init(); err != nil {
 		return err
 	}
 
 	// Use config values if flags not provided
 	if serverHost == "" {
-		serverHost = appConfig.Server.Host
+		serverHost = config.GetString("server.host")
 	}
 	if serverPort == 0 {
-		serverPort = appConfig.Server.Port
+		serverPort = config.GetInt("server.port")
 	}
 
 	// TODO: Initialize database and run GORM AutoMigrate here
@@ -71,9 +72,9 @@ func runServer(cmd *cobra.Command, args []string) error {
 	srv := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", serverHost, serverPort),
 		Handler:        setupRoutes(),
-		ReadTimeout:    appConfig.Server.ReadTimeout,
-		WriteTimeout:   appConfig.Server.WriteTimeout,
-		MaxHeaderBytes: appConfig.Server.MaxHeaderBytes,
+		ReadTimeout:    config.GetDuration("server.read_timeout"),
+		WriteTimeout:   config.GetDuration("server.write_timeout"),
+		MaxHeaderBytes: config.GetInt("server.max_header_bytes"),
 	}
 
 	// Channel to listen for interrupt signals
@@ -102,7 +103,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create a context with timeout for shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), appConfig.Server.ShutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), config.GetDuration("server.shutdown_timeout"))
 	defer cancel()
 
 	// Attempt graceful shutdown

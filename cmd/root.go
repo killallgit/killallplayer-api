@@ -1,14 +1,10 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
-	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
 )
-
-var appConfig *config.Config
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -46,20 +42,4 @@ func init() {
 	// Global flags (no config file flag since it's always ./config/settings.yaml)
 	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().Bool("json-logs", false, "enable JSON formatted logs")
-}
-
-// loadConfig loads configuration from ./config/settings.yaml
-// This should be called only by commands that need the config
-func loadConfig() error {
-	if appConfig != nil {
-		return nil // Already loaded
-	}
-
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("error loading config: %w", err)
-	}
-
-	appConfig = cfg
-	return nil
 }

@@ -2,19 +2,24 @@ package config
 
 import (
 	"os"
+	"sync"
 	"testing"
 )
 
-func TestLoad(t *testing.T) {
+func TestInit(t *testing.T) {
 	tests := []struct {
 		name    string
 		setup   func()
 		cleanup func()
 		wantErr bool
+		check   func(t *testing.T)
 	}{
 		{
 			name: "load from settings.yaml",
 			setup: func() {
+				// Reset the once to allow reinit
+				once = sync.Once{}
+				initErr = nil
 				// Create config directory
 				_ = os.Mkdir("config", 0755)
 				content := `
@@ -31,10 +36,18 @@ database:
 				os.Remove("config")
 			},
 			wantErr: false,
+			check: func(t *testing.T) {
+				if GetString("server.host") != "127.0.0.1" {
+					t.Errorf("Expected server.host to be 127.0.0.1, got %s", GetString("server.host"))
+				}
+			},
 		},
 		{
 			name: "environment variable override",
 			setup: func() {
+				// Reset the once to allow reinit
+				once = sync.Once{}
+				initErr = nil
 				// Create config directory
 				_ = os.Mkdir("config", 0755)
 				content := `
@@ -51,12 +64,27 @@ server:
 				os.Unsetenv("KILLALL_SERVER_PORT")
 			},
 			wantErr: false,
+			check: func(t *testing.T) {
+				if GetInt("server.port") != 9090 {
+					t.Errorf("Expected server.port to be overridden to 9090, got %d", GetInt("server.port"))
+				}
+			},
 		},
 		{
-			name:    "missing config file with defaults",
-			setup:   func() {},
+			name: "missing config file with defaults",
+			setup: func() {
+				// Reset the once to allow reinit
+				once = sync.Once{}
+				initErr = nil
+			},
 			cleanup: func() {},
 			wantErr: false,
+			check: func(t *testing.T) {
+				// Should use defaults
+				if GetInt("server.port") != 8080 {
+					t.Errorf("Expected default server.port to be 8080, got %d", GetInt("server.port"))
+				}
+			},
 		},
 	}
 
@@ -65,9 +93,13 @@ server:
 			tt.setup()
 			defer tt.cleanup()
 
-			_, err := Load()
+			err := Init()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Load() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			
+			if tt.check != nil && err == nil {
+				tt.check(t)
 			}
 		})
 	}
