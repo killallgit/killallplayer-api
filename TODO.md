@@ -6,17 +6,17 @@ This document contains the complete implementation roadmap broken down into acti
 ## Phase 1: Foundation & Core Structure ⚙️
 
 ### Project Setup
-- [ ] Create internal package structure (`internal/api`, `internal/models`, `internal/services`, `internal/database`)
-- [ ] Create pkg directory for reusable packages (`pkg/config`, `pkg/ffmpeg`, `pkg/cache`)
-- [ ] Set up .gitignore for Go project
-- [ ] Initialize Go workspace settings
+- [x] Create internal package structure (`internal/api`, `internal/models`, `internal/services`, `internal/database`)
+- [x] Create pkg directory for reusable packages (`pkg/config`, `pkg/ffmpeg`, `pkg/cache`)
+- [x] Set up .gitignore for Go project
+- [x] Initialize Go workspace settings
 
 ### Configuration Management
-- [ ] Implement Viper configuration loader in `pkg/config/config.go`
-- [ ] Create config struct with all settings
-- [ ] Add environment variable override support
-- [ ] Implement config validation
-- [ ] Create config loader tests
+- [x] Implement Viper configuration loader in `pkg/config/config.go`
+- [x] Create config struct with all settings
+- [x] Add environment variable override support
+- [x] Implement config validation
+- [x] Create config loader tests
 
 ### CLI Structure
 - [ ] Create `cmd/serve.go` for server command
