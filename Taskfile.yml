@@ -213,12 +213,13 @@ tasks:
   setup:
     desc: Set up development environment
     cmds:
-      - cp .env.example .env
-      - cp config/config.example.yaml config/config.yaml
+      - cp .env.example .env || true
+      - cp config/settings.yaml.example config/settings.yaml || true
       - mkdir -p data tmp cache logs
       - task: deps
       - task: install-tools
-      - echo "Development environment ready! Edit .env with your API keys."
+      - echo "Development environment ready!"
+      - echo "Edit config/settings.yaml with your API keys."
       - echo "Database will be auto-migrated when you start the server"
 
   info:

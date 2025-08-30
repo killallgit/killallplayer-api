@@ -54,17 +54,24 @@ func TestRootCommand(t *testing.T) {
 	}
 }
 
-func TestConfigFlag(t *testing.T) {
+func TestLogFlags(t *testing.T) {
 	cmd := NewRootCmd()
 
-	// Test that config flag is registered
-	configFlag := cmd.PersistentFlags().Lookup("config")
-	if configFlag == nil {
-		t.Error("Expected config flag to be registered")
+	// Test that log-level flag is registered
+	logFlag := cmd.PersistentFlags().Lookup("log-level")
+	if logFlag == nil {
+		t.Error("Expected log-level flag to be registered")
 		return
 	}
 
-	if configFlag.Value.String() != "" {
-		t.Errorf("Expected default config value to be empty, got %s", configFlag.Value.String())
+	if logFlag.DefValue != "info" {
+		t.Errorf("Expected default log-level to be 'info', got %s", logFlag.DefValue)
+	}
+
+	// Test that json-logs flag is registered
+	jsonFlag := cmd.PersistentFlags().Lookup("json-logs")
+	if jsonFlag == nil {
+		t.Error("Expected json-logs flag to be registered")
+		return
 	}
 }
