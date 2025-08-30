@@ -95,7 +95,14 @@ func validate() error {
 
 	dbPath := viper.GetString("database.path")
 	if dbPath == "" {
-		return fmt.Errorf("database path cannot be empty")
+		// Database is optional, so we don't return an error
+		// but we log a warning
+		fmt.Println("Warning: No database path configured")
+	}
+
+	// Validate API keys aren't using placeholder values
+	if err := validateAPIKeys(); err != nil {
+		return err
 	}
 
 	// Auto-correct invalid worker count
@@ -111,14 +118,74 @@ func validate() error {
 	return nil
 }
 
+// validateAPIKeys validates that API keys are not using placeholder values
+func validateAPIKeys() error {
+	// Check for production environment
+	env := viper.GetString("environment")
+	isProduction := env == "production" || env == "prod"
+	
+	// List of placeholder values that shouldn't be used
+	placeholders := []string{
+		"YOUR_KEY_HERE",
+		"YOUR_SECRET_HERE",
+		"YOUR_API_KEY",
+		"YOUR_API_SECRET",
+		"changeme",
+		"CHANGEME",
+		"",
+	}
+	
+	// Check Podcast Index API credentials
+	podcastKey := viper.GetString("podcast_index.api_key")
+	podcastSecret := viper.GetString("podcast_index.api_secret")
+	
+	for _, placeholder := range placeholders {
+		if podcastKey == placeholder || podcastSecret == placeholder {
+			if isProduction {
+				return fmt.Errorf("invalid Podcast Index API credentials: cannot use placeholder values in production")
+			}
+			fmt.Println("Warning: Podcast Index API credentials are using placeholder values")
+			break
+		}
+	}
+	
+	// Check OpenAI API key
+	openaiKey := viper.GetString("ai.openai_api_key")
+	for _, placeholder := range placeholders {
+		if openaiKey == placeholder {
+			if isProduction {
+				return fmt.Errorf("invalid OpenAI API key: cannot use placeholder values in production")
+			}
+			fmt.Println("Warning: OpenAI API key is using a placeholder value")
+			break
+		}
+	}
+	
+	// Check JWT secret
+	jwtSecret := viper.GetString("auth.jwt_secret")
+	for _, placeholder := range placeholders {
+		if jwtSecret == placeholder {
+			if isProduction {
+				return fmt.Errorf("invalid JWT secret: cannot use placeholder values in production")
+			}
+			fmt.Println("Warning: JWT secret is using a placeholder value - this is insecure!")
+			break
+		}
+	}
+	
+	return nil
+}
+
 // Validate validates a Config struct (for testing)
 func (c *Config) Validate() error {
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
 		return fmt.Errorf("invalid server port: %d", c.Server.Port)
 	}
 
+	// Database is optional
 	if c.Database.Path == "" {
-		return fmt.Errorf("database path cannot be empty")
+		// Just log a warning in the struct validation too
+		// This is mainly used for testing
 	}
 
 	if c.Processing.Workers <= 0 {
@@ -134,6 +201,9 @@ func (c *Config) Validate() error {
 
 // setDefaults sets default configuration values
 func setDefaults() {
+	// Environment defaults
+	viper.SetDefault("environment", "development")
+	
 	// Server defaults
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8080)
@@ -158,6 +228,7 @@ func setDefaults() {
 	viper.SetDefault("database.enable_wal", true)
 	viper.SetDefault("database.enable_foreign_keys", true)
 	viper.SetDefault("database.log_queries", false)
+	viper.SetDefault("database.verbose", false)
 
 	// Processing defaults
 	viper.SetDefault("processing.workers", 2)

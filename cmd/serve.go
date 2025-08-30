@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/killallgit/player-api/internal/database"
+	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
 )
@@ -56,14 +58,43 @@ func runServer(cmd *cobra.Command, args []string) error {
 		serverPort = config.GetInt("server.port")
 	}
 
-	// TODO: Initialize database and run GORM AutoMigrate here
-	// db, err := database.Initialize(appConfig.Database)
-	// if err != nil {
-	//     return fmt.Errorf("failed to initialize database: %w", err)
-	// }
-	// if err := db.AutoMigrate(&models.Podcast{}, &models.Episode{}, ...); err != nil {
-	//     return fmt.Errorf("failed to auto-migrate database: %w", err)
-	// }
+	// Initialize database with graceful fallback
+	var db *database.DB
+	dbPath := config.GetString("database.path")
+	dbVerbose := config.GetBool("database.verbose")
+	
+	if dbPath != "" {
+		var err error
+		db, err = database.Initialize(dbPath, dbVerbose)
+		if err != nil {
+			// Log the error but continue without database
+			fmt.Fprintf(os.Stderr, "Warning: Database initialization failed: %v\n", err)
+			fmt.Println("Continuing without database functionality...")
+		} else {
+			// Run auto-migration for all models
+			if err := db.AutoMigrate(
+				&models.Podcast{},
+				&models.Episode{},
+				&models.User{},
+				&models.Subscription{},
+				&models.PlaybackState{},
+			); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Database migration failed: %v\n", err)
+				// Close the database connection if migration fails
+				_ = db.Close()
+				db = nil
+			} else {
+				// Ensure database is closed on shutdown
+				defer func() {
+					if db != nil {
+						_ = db.Close()
+					}
+				}()
+			}
+		}
+	} else {
+		fmt.Println("No database path configured, running without database...")
+	}
 
 	// Log server startup
 	fmt.Printf("Starting Podcast Player API server on %s:%d\n", serverHost, serverPort)
@@ -71,7 +102,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 	// Create HTTP server
 	srv := &http.Server{
 		Addr:           fmt.Sprintf("%s:%d", serverHost, serverPort),
-		Handler:        setupRoutes(),
+		Handler:        setupRoutes(db),
 		ReadTimeout:    config.GetDuration("server.read_timeout"),
 		WriteTimeout:   config.GetDuration("server.write_timeout"),
 		MaxHeaderBytes: config.GetInt("server.max_header_bytes"),
@@ -118,14 +149,37 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 // setupRoutes configures and returns the HTTP handler
 // This is a placeholder that will be expanded when we implement the HTTP server
-func setupRoutes() http.Handler {
+func setupRoutes(db *database.DB) http.Handler {
 	mux := http.NewServeMux()
+
+	// Add security headers middleware
+	handler := addSecurityHeaders(mux)
 
 	// Health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		
+		health := map[string]any{
+			"status":    "healthy",
+			"timestamp": time.Now().Format(time.RFC3339),
+		}
+		
+		// Check database health if available
+		if db != nil {
+			if err := db.HealthCheck(); err != nil {
+				health["database"] = "unhealthy"
+				health["database_error"] = err.Error()
+			} else {
+				health["database"] = "healthy"
+			}
+		} else {
+			health["database"] = "not_configured"
+		}
+		
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"healthy","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`))
+		response := fmt.Sprintf(`{"status":"%s","timestamp":"%s","database":"%s"}`, 
+			health["status"], health["timestamp"], health["database"])
+		_, _ = w.Write([]byte(response))
 	})
 
 	// Root endpoint with version info
@@ -136,5 +190,20 @@ func setupRoutes() http.Handler {
 		_, _ = w.Write([]byte(response))
 	})
 
-	return mux
+	return handler
+}
+
+// addSecurityHeaders adds security headers to all responses
+func addSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Add security headers
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'")
+		
+		// Call the next handler
+		next.ServeHTTP(w, r)
+	})
 }

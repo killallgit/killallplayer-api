@@ -135,7 +135,7 @@ func TestConfig_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "empty database path",
+			name: "empty database path (now allowed)",
 			config: &Config{
 				Server: ServerConfig{
 					Host: "localhost",
@@ -145,7 +145,7 @@ func TestConfig_Validate(t *testing.T) {
 					Path: "",
 				},
 			},
-			wantErr: true,
+			wantErr: false, // Database is now optional
 		},
 	}
 
