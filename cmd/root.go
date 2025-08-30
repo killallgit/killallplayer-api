@@ -43,21 +43,23 @@ func NewRootCmd() *cobra.Command {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
 	// Global flags (no config file flag since it's always ./config/settings.yaml)
 	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().Bool("json-logs", false, "enable JSON formatted logs")
 }
 
-// initConfig loads configuration from ./config/settings.yaml
-func initConfig() {
-	// Load configuration from fixed location
+// loadConfig loads configuration from ./config/settings.yaml
+// This should be called only by commands that need the config
+func loadConfig() error {
+	if appConfig != nil {
+		return nil // Already loaded
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error loading config: %w", err)
 	}
 
 	appConfig = cfg
+	return nil
 }

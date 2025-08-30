@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,8 +22,8 @@ func Load() (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	// Load config from fixed location
-	configPath := "./config/settings.yaml"
+	// Load config from fixed location (cleaned for safety)
+	configPath := filepath.Clean("./config/settings.yaml")
 	v.SetConfigFile(configPath)
 	
 	// Try to read the config file

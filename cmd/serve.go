@@ -42,6 +42,11 @@ func init() {
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
+	// Load config (lazy loading - only when serve command is run)
+	if err := loadConfig(); err != nil {
+		return err
+	}
+
 	// Use config values if flags not provided
 	if serverHost == "" {
 		serverHost = appConfig.Server.Host
@@ -75,22 +80,26 @@ func runServer(cmd *cobra.Command, args []string) error {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	// Channel to notify when server has shut down
-	serverShutdown := make(chan struct{})
+	// Channel to receive server errors
+	serverErr := make(chan error, 1)
 
 	// Start server in a goroutine
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
-			os.Exit(1)
+			serverErr <- fmt.Errorf("server error: %w", err)
 		}
 	}()
 
 	fmt.Printf("Server is ready to handle requests at %s:%d\n", serverHost, serverPort)
 
-	// Wait for interrupt signal
-	<-stop
-	fmt.Println("\nShutting down server...")
+	// Wait for interrupt signal or server error
+	select {
+	case <-stop:
+		fmt.Println("\nShutting down server...")
+	case err := <-serverErr:
+		fmt.Fprintf(os.Stderr, "\n%v\n", err)
+		fmt.Println("Shutting down server...")
+	}
 
 	// Create a context with timeout for shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), appConfig.Server.ShutdownTimeout)
@@ -102,7 +111,6 @@ func runServer(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	close(serverShutdown)
 	fmt.Println("Server gracefully stopped")
 	return nil
 }
@@ -119,11 +127,12 @@ func setupRoutes() http.Handler {
 		_, _ = w.Write([]byte(`{"status":"healthy","timestamp":"` + time.Now().Format(time.RFC3339) + `"}`))
 	})
 
-	// Placeholder for other routes
+	// Root endpoint with version info
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"message":"Podcast Player API","version":"0.1.0"}`))
+		response := fmt.Sprintf(`{"message":"Podcast Player API","version":"%s","commit":"%s"}`, Version, GitCommit)
+		_, _ = w.Write([]byte(response))
 	})
 
 	return mux
