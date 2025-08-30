@@ -101,21 +101,11 @@ tasks:
       - task: test
 
   # Database tasks
-  db:migrate:
-    desc: Run database migrations
-    cmds:
-      - go run {{.MAIN_PATH}} migrate up
-
-  db:rollback:
-    desc: Rollback last database migration
-    cmds:
-      - go run {{.MAIN_PATH}} migrate down
-
   db:reset:
     desc: Reset database (drop and recreate)
     cmds:
       - rm -f ./data/podcast.db
-      - task: db:migrate
+      - echo "Database will be auto-migrated on server startup"
 
   db:seed:
     desc: Seed database with test data
@@ -223,13 +213,14 @@ tasks:
   setup:
     desc: Set up development environment
     cmds:
-      - cp .env.example .env
-      - cp config/config.example.yaml config/config.yaml
+      - cp .env.example .env || true
+      - cp config/settings.yaml.example config/settings.yaml || true
       - mkdir -p data tmp cache logs
       - task: deps
       - task: install-tools
-      - task: db:migrate
-      - echo "Development environment ready! Edit .env with your API keys."
+      - echo "Development environment ready!"
+      - echo "Edit config/settings.yaml with your API keys."
+      - echo "Database will be auto-migrated when you start the server"
 
   info:
     desc: Show project information

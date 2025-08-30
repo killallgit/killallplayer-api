@@ -33,6 +33,11 @@ go.work.sum
 # env file
 .env
 
+# Config file (but not the example)
+config/settings.yaml
+
 # Editor/IDE
 # .idea/
 # .vscode/
+.task
+bin

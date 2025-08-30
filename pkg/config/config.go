@@ -9,27 +9,29 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Load loads configuration from the specified file and environment variables
-func Load(configPath string) (*Config, error) {
+// Load loads configuration from ./config/settings.yaml
+func Load() (*Config, error) {
 	v := viper.New()
 
 	// Set default values
 	setDefaults(v)
 
-	// Set up environment variable reading
-	v.SetEnvPrefix("")
+	// Set up environment variable reading for overrides
+	v.SetEnvPrefix("KILLALL")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	// Try to read config file if it exists
-	if configPath != "" {
-		v.SetConfigFile(configPath)
-		if err := v.ReadInConfig(); err != nil {
-			// If the config file doesn't exist, just use defaults and env vars
-			if !os.IsNotExist(err) {
-				return nil, fmt.Errorf("error reading config file: %w", err)
-			}
+	// Load config from fixed location
+	configPath := "./config/settings.yaml"
+	v.SetConfigFile(configPath)
+	
+	// Try to read the config file
+	if err := v.ReadInConfig(); err != nil {
+		// If the config file doesn't exist, just use defaults and env vars
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("error reading config file %s: %w", configPath, err)
 		}
+		// Config file doesn't exist, which is fine - we'll use defaults
 	}
 
 	var config Config
@@ -43,16 +45,6 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	return &config, nil
-}
-
-// GetConfigPath finds the first existing config file from the provided paths
-func GetConfigPath(paths ...string) (string, error) {
-	for _, path := range paths {
-		if _, err := os.Stat(path); err == nil {
-			return path, nil
-		}
-	}
-	return "", fmt.Errorf("no config file found in paths: %v", paths)
 }
 
 // Validate validates the configuration

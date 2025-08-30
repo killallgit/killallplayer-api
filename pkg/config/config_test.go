@@ -13,8 +13,10 @@ func TestLoad(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "load from valid config file",
+			name: "load from settings.yaml",
 			setup: func() {
+				// Create config directory
+				_ = os.Mkdir("config", 0755)
 				content := `
 server:
   host: "127.0.0.1"
@@ -22,27 +24,31 @@ server:
 database:
   path: "./test.db"
 `
-				_ = os.WriteFile("test_config.yaml", []byte(content), 0644)
+				_ = os.WriteFile("./config/settings.yaml", []byte(content), 0644)
 			},
 			cleanup: func() {
-				os.Remove("test_config.yaml")
+				os.Remove("./config/settings.yaml")
+				os.Remove("config")
 			},
 			wantErr: false,
 		},
 		{
 			name: "environment variable override",
 			setup: func() {
+				// Create config directory
+				_ = os.Mkdir("config", 0755)
 				content := `
 server:
   host: "127.0.0.1"
   port: 8080
 `
-				_ = os.WriteFile("test_config.yaml", []byte(content), 0644)
-				os.Setenv("SERVER_PORT", "9090")
+				_ = os.WriteFile("./config/settings.yaml", []byte(content), 0644)
+				os.Setenv("KILLALL_SERVER_PORT", "9090")
 			},
 			cleanup: func() {
-				os.Remove("test_config.yaml")
-				os.Unsetenv("SERVER_PORT")
+				os.Remove("./config/settings.yaml")
+				os.Remove("config")
+				os.Unsetenv("KILLALL_SERVER_PORT")
 			},
 			wantErr: false,
 		},
@@ -59,12 +65,7 @@ server:
 			tt.setup()
 			defer tt.cleanup()
 
-			configPath := "test_config.yaml"
-			if tt.name == "missing config file with defaults" {
-				configPath = "nonexistent.yaml"
-			}
-
-			_, err := Load(configPath)
+			_, err := Load()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Load() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -125,50 +126,3 @@ func TestConfig_Validate(t *testing.T) {
 	}
 }
 
-func TestGetConfigPath(t *testing.T) {
-	tests := []struct {
-		name    string
-		paths   []string
-		setup   func()
-		cleanup func()
-		want    string
-		wantErr bool
-	}{
-		{
-			name:  "find existing config",
-			paths: []string{"./test_config.yaml", "./config/config.yaml"},
-			setup: func() {
-				_ = os.WriteFile("test_config.yaml", []byte("test"), 0644)
-			},
-			cleanup: func() {
-				os.Remove("test_config.yaml")
-			},
-			want:    "./test_config.yaml",
-			wantErr: false,
-		},
-		{
-			name:    "no config found",
-			paths:   []string{"./nonexistent1.yaml", "./nonexistent2.yaml"},
-			setup:   func() {},
-			cleanup: func() {},
-			want:    "",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.setup()
-			defer tt.cleanup()
-
-			got, err := GetConfigPath(tt.paths...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetConfigPath() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("GetConfigPath() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
