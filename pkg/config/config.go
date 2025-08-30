@@ -17,7 +17,7 @@ func Load() (*Config, error) {
 	setDefaults(v)
 
 	// Set up environment variable reading for overrides
-	v.SetEnvPrefix("PLAYER_API")
+	v.SetEnvPrefix("KILLALL")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 

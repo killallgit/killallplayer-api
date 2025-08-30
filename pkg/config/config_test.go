@@ -43,12 +43,12 @@ server:
   port: 8080
 `
 				_ = os.WriteFile("./config/settings.yaml", []byte(content), 0644)
-				os.Setenv("PLAYER_API_SERVER_PORT", "9090")
+				os.Setenv("KILLALL_SERVER_PORT", "9090")
 			},
 			cleanup: func() {
 				os.Remove("./config/settings.yaml")
 				os.Remove("config")
-				os.Unsetenv("PLAYER_API_SERVER_PORT")
+				os.Unsetenv("KILLALL_SERVER_PORT")
 			},
 			wantErr: false,
 		},
