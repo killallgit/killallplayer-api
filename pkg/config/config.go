@@ -51,8 +51,16 @@ func Init() error {
 	return initErr
 }
 
+// Load loads configuration from ./config/settings.yaml
+// Deprecated: Use Init() instead for better control
+func Load() (*Config, error) {
+	if err := Init(); err != nil {
+		return nil, err
+	}
+	return GetConfig()
+}
+
 // GetConfig returns the current configuration as a struct
-// Init() must be called before using this
 func GetConfig() (*Config, error) {
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
@@ -81,7 +89,7 @@ func GetBool(key string) bool {
 	return viper.GetBool(key)
 }
 
-// GetDuration returns a time.Duration config value
+// GetDuration returns a duration config value
 func GetDuration(key string) time.Duration {
 	return viper.GetDuration(key)
 }
@@ -233,97 +241,126 @@ func setDefaults() {
 	// Processing defaults
 	viper.SetDefault("processing.workers", 2)
 	viper.SetDefault("processing.max_queue_size", 100)
-	viper.SetDefault("processing.job_timeout", 30*time.Minute)
+	viper.SetDefault("processing.batch_size", 10)
+	viper.SetDefault("processing.timeout", 5*time.Minute)
 	viper.SetDefault("processing.retry_attempts", 3)
-	viper.SetDefault("processing.retry_delay", 5*time.Second)
-	viper.SetDefault("processing.ffmpeg_path", "/usr/local/bin/ffmpeg")
-	viper.SetDefault("processing.ffprobe_path", "/usr/local/bin/ffprobe")
-	viper.SetDefault("processing.ffmpeg_timeout", 5*time.Minute)
-	viper.SetDefault("processing.audiowaveform_path", "/usr/local/bin/audiowaveform")
-	viper.SetDefault("processing.waveform_resolutions", []int{256, 512, 1024})
-	viper.SetDefault("processing.waveform_bits", 8)
+	viper.SetDefault("processing.retry_delay", 1*time.Second)
 
-	// Podcast Index defaults
-	viper.SetDefault("podcast_index.base_url", "https://api.podcastindex.org/api/1.0")
-	viper.SetDefault("podcast_index.timeout", 10*time.Second)
-	viper.SetDefault("podcast_index.retry_attempts", 3)
-	viper.SetDefault("podcast_index.rate_limit", 10)
-	viper.SetDefault("podcast_index.cache_ttl", 1*time.Hour)
-	viper.SetDefault("podcast_index.user_agent", "PodcastPlayerAPI/1.0")
+	// Podcast Index API defaults
+	viper.SetDefault("podcast_index.api_key", "YOUR_KEY_HERE")
+	viper.SetDefault("podcast_index.api_secret", "YOUR_SECRET_HERE")
+	viper.SetDefault("podcast_index.api_url", "https://api.podcastindex.org/api/1.0")
+	viper.SetDefault("podcast_index.timeout", 30*time.Second)
+	viper.SetDefault("podcast_index.max_retries", 3)
 
-	// Whisper defaults
-	viper.SetDefault("whisper.api_url", "https://api.openai.com/v1/audio/transcriptions")
-	viper.SetDefault("whisper.model", "whisper-1")
-	viper.SetDefault("whisper.temperature", 0)
-	viper.SetDefault("whisper.timeout", 5*time.Minute)
-	viper.SetDefault("whisper.max_file_size", 26214400)
-	viper.SetDefault("whisper.chunk_duration", 600)
-	viper.SetDefault("whisper.cost_per_minute", 0.006)
-	viper.SetDefault("whisper.monthly_quota", 100.0)
+	// AI defaults
+	viper.SetDefault("ai.provider", "openai")
+	viper.SetDefault("ai.openai_api_key", "YOUR_API_KEY")
+	viper.SetDefault("ai.openai_model", "gpt-3.5-turbo")
+	viper.SetDefault("ai.openai_max_tokens", 2000)
+	viper.SetDefault("ai.openai_temperature", 0.7)
+	viper.SetDefault("ai.request_timeout", 60*time.Second)
 
-	// Storage defaults
-	viper.SetDefault("storage.temp_dir", "./tmp")
-	viper.SetDefault("storage.cache_dir", "./cache")
-	viper.SetDefault("storage.max_temp_age", 24*time.Hour)
-	viper.SetDefault("storage.cleanup_interval", 1*time.Hour)
-	viper.SetDefault("storage.max_cache_size", 10737418240)
+	// Transcription defaults
+	viper.SetDefault("transcription.service", "whisper")
+	viper.SetDefault("transcription.whisper_model", "whisper-1")
+	viper.SetDefault("transcription.whisper_language", "en")
+	viper.SetDefault("transcription.max_file_size", 25*1024*1024)
+	viper.SetDefault("transcription.allowed_formats", []string{"mp3", "m4a", "wav", "ogg", "flac"})
+	viper.SetDefault("transcription.output_format", "json")
+	viper.SetDefault("transcription.enable_timestamps", true)
+	viper.SetDefault("transcription.monthly_quota", 100.0)
+
+	// FFmpeg defaults
+	viper.SetDefault("ffmpeg.path", "ffmpeg")
+	viper.SetDefault("ffmpeg.ffprobe_path", "ffprobe")
+	viper.SetDefault("ffmpeg.max_processes", 5)
+	viper.SetDefault("ffmpeg.timeout", 5*time.Minute)
+	viper.SetDefault("ffmpeg.hardware_accel", "auto")
+	viper.SetDefault("ffmpeg.output_format", "mp3")
+	viper.SetDefault("ffmpeg.audio_codec", "libmp3lame")
+	viper.SetDefault("ffmpeg.audio_bitrate", "128k")
+	viper.SetDefault("ffmpeg.audio_sample_rate", 44100)
+	viper.SetDefault("ffmpeg.audio_channels", 2)
 
 	// Cache defaults
-	viper.SetDefault("cache.memory.default_ttl", 10*time.Minute)
-	viper.SetDefault("cache.memory.cleanup_interval", 5*time.Minute)
-	viper.SetDefault("cache.memory.max_entries", 1000)
-	viper.SetDefault("cache.api.search_ttl", 1*time.Hour)
-	viper.SetDefault("cache.api.podcast_ttl", 24*time.Hour)
-	viper.SetDefault("cache.api.episode_ttl", 24*time.Hour)
+	viper.SetDefault("cache.type", "memory")
+	viper.SetDefault("cache.ttl", 1*time.Hour)
+	viper.SetDefault("cache.max_size", 100)
+	viper.SetDefault("cache.cleanup_interval", 10*time.Minute)
+	viper.SetDefault("cache.redis_addr", "localhost:6379")
+	viper.SetDefault("cache.redis_password", "")
+	viper.SetDefault("cache.redis_db", 0)
+	viper.SetDefault("cache.redis_pool_size", 10)
 
-	// Streaming defaults
-	viper.SetDefault("streaming.buffer_size", 32768)
-	viper.SetDefault("streaming.enable_range_requests", true)
-	viper.SetDefault("streaming.max_concurrent_streams", 10)
-	viper.SetDefault("streaming.bandwidth_limit", 0)
-
-	// Rate limiting defaults
-	viper.SetDefault("rate_limiting.enabled", true)
-	viper.SetDefault("rate_limiting.endpoints", map[string]int{
-		"search":     60,
-		"stream":     100,
-		"processing": 10,
-		"websocket":  100,
-		"default":    120,
-	})
+	// Storage defaults
+	viper.SetDefault("storage.type", "local")
+	viper.SetDefault("storage.local_path", "./storage")
+	viper.SetDefault("storage.temp_dir", "./tmp")
+	viper.SetDefault("storage.max_file_size", 100*1024*1024)
+	viper.SetDefault("storage.allowed_extensions", []string{"mp3", "m4a", "wav", "ogg", "flac", "aac"})
+	viper.SetDefault("storage.s3_bucket", "")
+	viper.SetDefault("storage.s3_region", "us-east-1")
+	viper.SetDefault("storage.s3_access_key", "")
+	viper.SetDefault("storage.s3_secret_key", "")
+	viper.SetDefault("storage.s3_endpoint", "")
 
 	// Security defaults
-	viper.SetDefault("security.enable_cors", true)
+	viper.SetDefault("security.cors_enabled", true)
 	viper.SetDefault("security.cors_origins", []string{"*"})
 	viper.SetDefault("security.cors_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
-	viper.SetDefault("security.cors_headers", []string{"Content-Type", "Authorization", "Range"})
-	viper.SetDefault("security.enable_request_id", true)
-	viper.SetDefault("security.enable_recovery", true)
+	viper.SetDefault("security.cors_headers", []string{"Content-Type", "Authorization"})
+	viper.SetDefault("security.cors_credentials", false)
+	viper.SetDefault("security.cors_max_age", 86400)
+	viper.SetDefault("security.rate_limit_enabled", true)
+	viper.SetDefault("security.rate_limit_rps", 10)
+	viper.SetDefault("security.rate_limit_burst", 20)
+	viper.SetDefault("security.api_key_header", "X-API-Key")
+	viper.SetDefault("security.api_key_required", false)
+
+	// Auth defaults
+	viper.SetDefault("auth.jwt_secret", "changeme")
+	viper.SetDefault("auth.jwt_expiry", 24*time.Hour)
+	viper.SetDefault("auth.jwt_refresh_expiry", 7*24*time.Hour)
+	viper.SetDefault("auth.bcrypt_cost", 10)
+	viper.SetDefault("auth.session_name", "podcast_session")
+	viper.SetDefault("auth.session_lifetime", 24*time.Hour)
+	viper.SetDefault("auth.oauth_google_client_id", "")
+	viper.SetDefault("auth.oauth_google_client_secret", "")
+	viper.SetDefault("auth.oauth_github_client_id", "")
+	viper.SetDefault("auth.oauth_github_client_secret", "")
+
+	// Monitoring defaults
+	viper.SetDefault("monitoring.enabled", false)
+	viper.SetDefault("monitoring.metrics_enabled", false)
+	viper.SetDefault("monitoring.metrics_path", "/metrics")
+	viper.SetDefault("monitoring.health_path", "/health")
+	viper.SetDefault("monitoring.pprof_enabled", false)
+	viper.SetDefault("monitoring.pprof_path", "/debug/pprof")
+	viper.SetDefault("monitoring.tracing_enabled", false)
+	viper.SetDefault("monitoring.tracing_service_name", "podcast-api")
+	viper.SetDefault("monitoring.tracing_jaeger_endpoint", "http://localhost:14268/api/traces")
 
 	// Logging defaults
 	viper.SetDefault("logging.level", "info")
 	viper.SetDefault("logging.format", "json")
 	viper.SetDefault("logging.output", "stdout")
 	viper.SetDefault("logging.file_path", "./logs/app.log")
-	viper.SetDefault("logging.max_size", 100)
-	viper.SetDefault("logging.max_backups", 10)
-	viper.SetDefault("logging.max_age", 30)
-	viper.SetDefault("logging.compress", true)
-	viper.SetDefault("logging.enable_caller", false)
-	viper.SetDefault("logging.enable_stacktrace", true)
+	viper.SetDefault("logging.file_max_size", 100)
+	viper.SetDefault("logging.file_max_backups", 7)
+	viper.SetDefault("logging.file_max_age", 30)
+	viper.SetDefault("logging.enable_console", true)
+	viper.SetDefault("logging.enable_file", false)
 
-	// Monitoring defaults
-	viper.SetDefault("monitoring.enabled", false)
-	viper.SetDefault("monitoring.metrics_path", "/metrics")
-	viper.SetDefault("monitoring.health_path", "/health")
-	viper.SetDefault("monitoring.pprof_enabled", false)
-	viper.SetDefault("monitoring.pprof_path", "/debug/pprof")
-
-	// Features defaults
+	// Feature flags
 	viper.SetDefault("features.enable_transcription", true)
 	viper.SetDefault("features.enable_waveform", true)
+	viper.SetDefault("features.enable_chapters", true)
 	viper.SetDefault("features.enable_tagging", true)
-	viper.SetDefault("features.enable_caching", true)
-	viper.SetDefault("features.enable_websocket", true)
+	viper.SetDefault("features.enable_search", true)
+	viper.SetDefault("features.enable_recommendations", false)
+	viper.SetDefault("features.enable_social", false)
+	viper.SetDefault("features.enable_analytics", false)
 	viper.SetDefault("features.maintenance_mode", false)
+	viper.SetDefault("features.beta_features", false)
 }

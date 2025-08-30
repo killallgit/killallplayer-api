@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
+	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
 )
 
@@ -39,7 +41,28 @@ func NewRootCmd() *cobra.Command {
 }
 
 func init() {
-	// Global flags (no config file flag since it's always ./config/settings.yaml)
-	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().Bool("json-logs", false, "enable JSON formatted logs")
+	// Set up configuration loading with lazy initialization
+	cobra.OnInitialize(loadConfig)
+}
+
+// loadConfig loads the configuration when a command needs it
+// This is called lazily only when a command that needs config runs
+func loadConfig() {
+	// Skip config loading for commands that don't need it
+	cmd, _, _ := rootCmd.Find(os.Args[1:])
+	if cmd != nil && (cmd.Name() == "version" || cmd.Name() == "help") {
+		// Skip loading config for version and help commands
+		if len(os.Args) > 2 && os.Args[2] == "--help" {
+			return // Skip for subcommand help too
+		}
+		if cmd.Name() == "version" {
+			return // Version command doesn't need config
+		}
+	}
+
+	// Initialize the configuration
+	if err := config.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing config: %v\n", err)
+		os.Exit(1)
+	}
 }

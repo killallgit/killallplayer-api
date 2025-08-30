@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestInit(t *testing.T) {
+func TestConfig(t *testing.T) {
 	tests := []struct {
 		name    string
 		setup   func()
@@ -32,8 +32,7 @@ database:
 				_ = os.WriteFile("./config/settings.yaml", []byte(content), 0644)
 			},
 			cleanup: func() {
-				os.Remove("./config/settings.yaml")
-				os.Remove("config")
+				_ = os.RemoveAll("config")
 			},
 			wantErr: false,
 			check: func(t *testing.T) {
@@ -59,8 +58,7 @@ server:
 				os.Setenv("KILLALL_SERVER_PORT", "9090")
 			},
 			cleanup: func() {
-				os.Remove("./config/settings.yaml")
-				os.Remove("config")
+				_ = os.RemoveAll("config")
 				os.Unsetenv("KILLALL_SERVER_PORT")
 			},
 			wantErr: false,
@@ -76,8 +74,11 @@ server:
 				// Reset the once to allow reinit
 				once = sync.Once{}
 				initErr = nil
+				// No config file created
 			},
-			cleanup: func() {},
+			cleanup: func() {
+				// Nothing to clean up
+			},
 			wantErr: false,
 			check: func(t *testing.T) {
 				// Should use defaults
@@ -112,7 +113,7 @@ func TestConfig_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid configuration",
+			name: "valid config",
 			config: &Config{
 				Server: ServerConfig{
 					Host: "localhost",
@@ -157,4 +158,3 @@ func TestConfig_Validate(t *testing.T) {
 		})
 	}
 }
-
