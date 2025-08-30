@@ -59,7 +59,7 @@ func repeatString(s string, n int) string {
 		return ""
 	}
 	result := ""
-	for i := 0; i < n; i++ {
+	for range n {
 		result += s
 	}
 	return result
