@@ -1,31 +1,35 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
+	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-var cfgFile string
+var (
+	cfgFile   string
+	appConfig *config.Config
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "player-api",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Short: "Podcast Player API server",
+	Long: `Podcast Player API - A comprehensive podcast streaming and processing API
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+This API provides podcast discovery, audio streaming, real-time updates,
+and audio processing capabilities including waveform generation and transcription.
+
+Features:
+  • Podcast discovery via Podcast Index API
+  • Audio streaming with range request support
+  • Real-time updates via WebSocket
+  • Audio processing (waveform generation, transcription)
+  • Audio tagging system`,
+	SilenceUsage: true,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -37,40 +41,54 @@ func Execute() {
 	}
 }
 
+// NewRootCmd creates a new root command (exported for testing)
+func NewRootCmd() *cobra.Command {
+	return rootCmd
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.player-api.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Global flags
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ./config/config.yaml)")
+	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().Bool("json-logs", false, "enable JSON formatted logs")
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+	// Determine config file path
+	configPaths := []string{}
 
-		// Search config in home directory with name ".player-api" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".player-api")
+	if cfgFile != "" {
+		// Use config file from the flag
+		configPaths = append(configPaths, cfgFile)
+	} else {
+		// Default config locations
+		configPaths = append(configPaths,
+			"./config/config.yaml",
+			"./config.yaml",
+			filepath.Join(os.Getenv("HOME"), ".player-api.yaml"),
+		)
 	}
 
-	viper.AutomaticEnv() // read in environment variables that match
+	// Try to find and load config
+	configPath, err := config.GetConfigPath(configPaths...)
+	if err != nil {
+		// No config file found, will use defaults
+		configPath = ""
+	}
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	// Load configuration
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+
+	appConfig = cfg
+
+	if configPath != "" {
+		fmt.Fprintf(os.Stderr, "Using config file: %s\n", configPath)
 	}
 }
