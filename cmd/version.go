@@ -52,3 +52,15 @@ func runVersion(cmd *cobra.Command, args []string) {
 	fmt.Fprintf(out, "OS/Arch:      %s/%s\n", OS, Arch)
 	fmt.Fprintln(out, repeatString("-", 40))
 }
+
+// repeatString repeats a string n times
+func repeatString(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	result := ""
+	for i := 0; i < n; i++ {
+		result += s
+	}
+	return result
+}

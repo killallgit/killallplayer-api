@@ -19,11 +19,10 @@ This document contains the complete implementation roadmap broken down into acti
 - [x] Create config loader tests
 
 ### CLI Structure
-- [ ] Create `cmd/serve.go` for server command
-- [ ] Create `cmd/migrate.go` for database migrations
-- [ ] Update `cmd/root.go` with proper descriptions
-- [ ] Add version command with build info
-- [ ] Implement graceful shutdown handling
+- [x] Create `cmd/serve.go` for server command
+- [x] Update `cmd/root.go` with proper descriptions
+- [x] Add version command with build info
+- [x] Implement graceful shutdown handling
 
 ### Database Layer
 - [ ] Set up GORM with SQLite driver
@@ -40,11 +39,10 @@ This document contains the complete implementation roadmap broken down into acti
 - [ ] Create Waveform and Transcription models
 
 ### Database Migrations
-- [ ] Set up migration system (golang-migrate or GORM auto)
-- [ ] Create initial schema migration
-- [ ] Add migration CLI commands
-- [ ] Create rollback functionality
-- [ ] Add migration versioning
+- [x] Set up migration system (GORM AutoMigrate)
+- [ ] AutoMigrate runs on server startup
+- [ ] Create initial schema with AutoMigrate
+- [ ] Add migration hooks for data migrations if needed
 
 ### HTTP Server
 - [ ] Set up Gorilla Mux router

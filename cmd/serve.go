@@ -50,6 +50,15 @@ func runServer(cmd *cobra.Command, args []string) error {
 		serverPort = appConfig.Server.Port
 	}
 
+	// TODO: Initialize database and run GORM AutoMigrate here
+	// db, err := database.Initialize(appConfig.Database)
+	// if err != nil {
+	//     return fmt.Errorf("failed to initialize database: %w", err)
+	// }
+	// if err := db.AutoMigrate(&models.Podcast{}, &models.Episode{}, ...); err != nil {
+	//     return fmt.Errorf("failed to auto-migrate database: %w", err)
+	// }
+
 	// Log server startup
 	fmt.Printf("Starting Podcast Player API server on %s:%d\n", serverHost, serverPort)
 
