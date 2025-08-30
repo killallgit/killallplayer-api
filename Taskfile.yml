@@ -1,0 +1,283 @@
+version: '3'
+
+dotenv: ['.env']
+
+vars:
+  BINARY_NAME: player-api
+  MAIN_PATH: ./main.go
+  BUILD_DIR: ./bin
+  DOCKER_IMAGE: player-api
+  DOCKER_TAG: latest
+  TEST_TIMEOUT: 10m
+  COVERAGE_FILE: coverage.out
+
+tasks:
+  # Development tasks
+  dev:
+    desc: Run the application in development mode with hot reload
+    deps: [install-tools]
+    cmds:
+      - air
+
+  run:
+    desc: Run the application
+    cmds:
+      - go run {{.MAIN_PATH}} serve
+
+  build:
+    desc: Build the application binary
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PATH}}
+    sources:
+      - ./**/*.go
+      - go.mod
+      - go.sum
+    generates:
+      - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
+
+  clean:
+    desc: Clean build artifacts and temporary files
+    cmds:
+      - rm -rf {{.BUILD_DIR}}
+      - rm -rf tmp/
+      - rm -rf cache/
+      - rm -f {{.COVERAGE_FILE}}
+      - find . -name "*.test" -delete
+      - find . -name "*.out" -delete
+
+  # Testing tasks
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -v -race -timeout {{.TEST_TIMEOUT}} ./...
+
+  test:unit:
+    desc: Run unit tests only
+    cmds:
+      - go test -v -race -short ./...
+
+  test:integration:
+    desc: Run integration tests
+    cmds:
+      - go test -v -race -tags=integration -timeout {{.TEST_TIMEOUT}} ./tests/...
+
+  test:coverage:
+    desc: Run tests with coverage report
+    cmds:
+      - go test -v -race -coverprofile={{.COVERAGE_FILE}} -covermode=atomic ./...
+      - go tool cover -html={{.COVERAGE_FILE}} -o coverage.html
+      - echo "Coverage report generated at coverage.html"
+
+  test:bench:
+    desc: Run benchmark tests
+    cmds:
+      - go test -bench=. -benchmem ./...
+
+  # Linting and formatting
+  lint:
+    desc: Run golangci-lint
+    deps: [install-tools]
+    cmds:
+      - golangci-lint run ./...
+
+  fmt:
+    desc: Format Go code
+    cmds:
+      - go fmt ./...
+      - goimports -w .
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  check:
+    desc: Run all checks (fmt, vet, lint, test)
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: lint
+      - task: test
+
+  # Database tasks
+  db:migrate:
+    desc: Run database migrations
+    cmds:
+      - go run {{.MAIN_PATH}} migrate up
+
+  db:rollback:
+    desc: Rollback last database migration
+    cmds:
+      - go run {{.MAIN_PATH}} migrate down
+
+  db:reset:
+    desc: Reset database (drop and recreate)
+    cmds:
+      - rm -f ./data/podcast.db
+      - task: db:migrate
+
+  db:seed:
+    desc: Seed database with test data
+    cmds:
+      - go run {{.MAIN_PATH}} seed
+
+  # Docker tasks
+  docker:build:
+    desc: Build Docker image
+    cmds:
+      - docker build -t {{.DOCKER_IMAGE}}:{{.DOCKER_TAG}} .
+
+  docker:run:
+    desc: Run application in Docker
+    deps: [docker:build]
+    cmds:
+      - |
+        docker run -d \
+          --name {{.BINARY_NAME}} \
+          -p 8080:8080 \
+          -v $(pwd)/data:/app/data \
+          -v $(pwd)/config:/app/config \
+          --env-file .env \
+          {{.DOCKER_IMAGE}}:{{.DOCKER_TAG}}
+
+  docker:stop:
+    desc: Stop Docker container
+    cmds:
+      - docker stop {{.BINARY_NAME}} || true
+      - docker rm {{.BINARY_NAME}} || true
+
+  docker:logs:
+    desc: Show Docker container logs
+    cmds:
+      - docker logs -f {{.BINARY_NAME}}
+
+  docker:compose:up:
+    desc: Start services with docker-compose
+    cmds:
+      - docker-compose up -d
+
+  docker:compose:down:
+    desc: Stop services with docker-compose
+    cmds:
+      - docker-compose down
+
+  # Dependency management
+  deps:
+    desc: Download and verify dependencies
+    cmds:
+      - go mod download
+      - go mod verify
+
+  deps:update:
+    desc: Update dependencies
+    cmds:
+      - go get -u ./...
+      - go mod tidy
+
+  deps:tidy:
+    desc: Clean up dependencies
+    cmds:
+      - go mod tidy
+
+  # Tool installation
+  install-tools:
+    desc: Install development tools
+    cmds:
+      - go install github.com/air-verse/air@latest
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - go install golang.org/x/tools/cmd/goimports@latest
+      - go install github.com/vektra/mockery/v2@latest
+
+  # Code generation
+  generate:
+    desc: Generate code (mocks, etc.)
+    cmds:
+      - go generate ./...
+
+  mocks:
+    desc: Generate mocks for testing
+    deps: [install-tools]
+    cmds:
+      - mockery --all --output=mocks
+
+  # API documentation
+  docs:api:
+    desc: Generate API documentation
+    cmds:
+      - echo "Generating API documentation..."
+      # Add swagger or other doc generation here
+
+  # Release tasks
+  release:build:
+    desc: Build release binaries for multiple platforms
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}/release
+      - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-linux-amd64 {{.MAIN_PATH}}
+      - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-linux-arm64 {{.MAIN_PATH}}
+      - GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-darwin-amd64 {{.MAIN_PATH}}
+      - GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-darwin-arm64 {{.MAIN_PATH}}
+      - GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-windows-amd64.exe {{.MAIN_PATH}}
+
+  # Utility tasks
+  setup:
+    desc: Set up development environment
+    cmds:
+      - cp .env.example .env
+      - cp config/config.example.yaml config/config.yaml
+      - mkdir -p data tmp cache logs
+      - task: deps
+      - task: install-tools
+      - task: db:migrate
+      - echo "Development environment ready! Edit .env with your API keys."
+
+  info:
+    desc: Show project information
+    cmds:
+      - echo "Podcast Player API"
+      - echo "==================="
+      - go version
+      - echo "Dependencies:"
+      - go list -m all | head -20
+
+  serve:
+    desc: Start the API server
+    deps: [build]
+    cmds:
+      - ./{{.BUILD_DIR}}/{{.BINARY_NAME}} serve
+
+  health:
+    desc: Check service health
+    cmds:
+      - curl -s http://localhost:8080/health | jq '.'
+
+  ws:test:
+    desc: Test WebSocket connection
+    cmds:
+      - echo "Testing WebSocket connection..."
+      - wscat -c ws://localhost:8080/ws
+
+  # Monitoring tasks
+  metrics:
+    desc: Show Prometheus metrics
+    cmds:
+      - curl -s http://localhost:8080/metrics
+
+  pprof:
+    desc: Run pprof profiling
+    cmds:
+      - go tool pprof -http=:8081 http://localhost:8080/debug/pprof/profile
+
+  # Git hooks
+  pre-commit:
+    desc: Run pre-commit checks
+    cmds:
+      - task: fmt
+      - task: lint
+      - task: test:unit
+
+  # Default task
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
