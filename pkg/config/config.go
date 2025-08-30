@@ -62,7 +62,7 @@ func GetConfig() (*Config, error) {
 }
 
 // Get returns a config value by key using Viper directly
-func Get(key string) interface{} {
+func Get(key string) any {
 	return viper.Get(key)
 }
 
