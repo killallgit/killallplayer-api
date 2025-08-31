@@ -23,32 +23,25 @@ type Server struct {
 	episodeCache episodes.EpisodeCache // Store cache for proper cleanup
 }
 
-// Engine returns the server's gin engine for testing
-func (s *Server) Engine() *gin.Engine {
-	return s.engine
-}
-
 // NewServer creates a new HTTP server
-func NewServer(addr string) *Server {
-	// Set Gin mode based on environment
-	if config.GetString("environment") == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
+func NewServer(address string) *Server {
+	// Create Gin engine with default middleware (logger, recovery)
 	engine := gin.New()
+	engine.Use(gin.Recovery())
 
 	server := &Server{
 		engine: engine,
 		httpServer: &http.Server{
-			Addr:           addr,
+			Addr:           address,
 			Handler:        engine,
-			ReadTimeout:    config.GetDuration("server.read_timeout"),
-			WriteTimeout:   config.GetDuration("server.write_timeout"),
+			ReadTimeout:    30 * time.Second,
+			WriteTimeout:   30 * time.Second,
 			IdleTimeout:    30 * time.Second,
-			MaxHeaderBytes: config.GetInt("server.max_header_bytes"),
+			MaxHeaderBytes: 1 << 20, // 1 MB
 		},
 	}
 
+	// Setup routes and middleware
 	server.setupMiddleware()
 	server.setupRoutes()
 
@@ -60,93 +53,93 @@ func (s *Server) SetDatabase(db *database.DB) {
 	s.db = db
 }
 
-// setupMiddleware configures middleware
-func (s *Server) setupMiddleware() {
-	// Recovery middleware - must be first
-	s.engine.Use(gin.Recovery())
+// Engine returns the Gin engine for testing
+func (s *Server) Engine() *gin.Engine {
+	return s.engine
+}
 
+// setupMiddleware configures global middleware
+func (s *Server) setupMiddleware() {
 	// Logger middleware
 	s.engine.Use(gin.Logger())
 
-	// CORS middleware
-	s.engine.Use(s.corsMiddleware())
+	// Global CORS for preflight requests
+	s.engine.Use(corsMiddleware())
 
-	// Request size limiting middleware
-	s.engine.Use(s.requestSizeLimitMiddleware())
-
-	// Rate limiting middleware for API endpoints
-	s.engine.Use(s.rateLimitMiddleware())
+	// Global request size limit
+	s.engine.Use(requestSizeLimitMiddleware())
 }
 
-// setupRoutes configures all API routes
+// setupRoutes configures all API routes with proper middleware
 func (s *Server) setupRoutes() {
-	// Health check endpoint
+	// Public endpoints (no rate limiting)
 	s.engine.GET("/health", s.healthHandler)
-
-	// Version endpoint
 	s.engine.GET("/", s.versionHandler)
 
-	// API v1 routes
+	// Create rate limiters
+	generalLimiter := createRateLimiter(10, 20)    // 10 req/s, burst of 20
+	syncLimiter := createRateLimiter(1, 2)         // 1 req/s, burst of 2
+	searchLimiter := createRateLimiter(5, 10)      // 5 req/s, burst of 10
+
+	// API v1 routes with rate limiting
 	v1 := s.engine.Group("/api/v1")
 	{
-		// Search endpoint - create podcast client and handler
+		// Load config once for all routes
 		cfg, err := config.GetConfig()
 		if err != nil {
-			// Log error but don't fail server startup - search endpoint will be disabled
-			fmt.Fprintf(gin.DefaultWriter, "Warning: Failed to load config, search endpoint disabled: %v\n", err)
-		} else if cfg != nil {
-			podcastClient := podcastindex.NewClient(podcastindex.Config{
-				APIKey:    cfg.PodcastIndex.APIKey,
-				APISecret: cfg.PodcastIndex.APISecret,
-				BaseURL:   cfg.PodcastIndex.BaseURL,
-			})
-			searchHandler := handlers.NewSearchHandler(podcastClient)
-			v1.POST("/search", searchHandler.HandleSearch)
+			fmt.Fprintf(gin.DefaultWriter, "Warning: Failed to load config, some endpoints disabled: %v\n", err)
+			return
+		}
 
-			// Episode endpoints - only if database is configured
-			if s.db != nil && s.db.DB != nil {
-				// Create dependencies - reuse the same podcastindex client
-				episodeFetcher := episodes.NewPodcastIndexAdapter(podcastClient)
-				episodeRepo := episodes.NewRepository(s.db.DB)
-				episodeCache := episodes.NewCache(time.Hour)
-				s.episodeCache = episodeCache // Store for cleanup
+		if cfg == nil {
+			fmt.Fprintf(gin.DefaultWriter, "Warning: Config is nil, API endpoints disabled\n")
+			return
+		}
 
-				// Create service layer with configurable options
-				maxConcurrentSync := config.GetInt("episodes.max_concurrent_sync")
-				if maxConcurrentSync <= 0 {
-					maxConcurrentSync = 5 // default
-				}
-				syncTimeout := config.GetDuration("episodes.sync_timeout")
-				if syncTimeout <= 0 {
-					syncTimeout = 30 * time.Second // default
-				}
+		// Initialize podcast client
+		podcastClient := podcastindex.NewClient(podcastindex.Config{
+			APIKey:    cfg.PodcastIndex.APIKey,
+			APISecret: cfg.PodcastIndex.APISecret,
+			BaseURL:   cfg.PodcastIndex.BaseURL,
+		})
 
-				episodeService := episodes.NewService(
-					episodeFetcher,
-					episodeRepo,
-					episodeCache,
-					episodes.WithMaxConcurrentSync(maxConcurrentSync),
-					episodes.WithSyncTimeout(syncTimeout),
-				)
-				episodeTransformer := episodes.NewTransformer()
+		// Search endpoint with dedicated rate limiter
+		searchHandler := handlers.NewSearchHandler(podcastClient)
+		v1.POST("/search", rateLimitMiddleware(searchLimiter), searchHandler.HandleSearch)
 
-				// Use V3 handler with service layer
-				episodeHandler := handlers.NewEpisodeHandlerV3(episodeService, episodeTransformer)
+		// Episode endpoints - only if database is configured
+		if s.db != nil && s.db.DB != nil {
+			// Initialize episode service
+			episodeService, episodeTransformer := s.initializeEpisodeService(podcastClient)
+			episodeHandler := handlers.NewEpisodeHandlerV3(episodeService, episodeTransformer)
 
-				// Episode routes (Podcast Index compatible)
-				v1.GET("/episodes/byfeedid", func(c *gin.Context) {
+			// Episode routes with general rate limiting
+			episodesGroup := v1.Group("/episodes")
+			episodesGroup.Use(rateLimitMiddleware(generalLimiter))
+			{
+				episodesGroup.GET("/byfeedid", func(c *gin.Context) {
 					// Convert query param to path param for compatibility
 					c.Params = append(c.Params, gin.Param{Key: "id", Value: c.Query("id")})
 					episodeHandler.GetEpisodesByPodcastID(c)
 				})
-				v1.GET("/episodes/byguid", episodeHandler.GetEpisodeByGUID)
-				v1.GET("/episodes/recent", episodeHandler.GetRecentEpisodes)
+				episodesGroup.GET("/byguid", episodeHandler.GetEpisodeByGUID)
+				episodesGroup.GET("/recent", episodeHandler.GetRecentEpisodes)
+				episodesGroup.GET("/:id", episodeHandler.GetEpisodeByID)
+				episodesGroup.PUT("/:id/playback", episodeHandler.UpdatePlaybackState)
+			}
 
-				// Additional routes for our API
-				v1.GET("/podcasts/:id/episodes", episodeHandler.GetEpisodesByPodcastID)
-				v1.POST("/podcasts/:id/episodes/sync", episodeHandler.SyncEpisodesFromPodcastIndex)
-				v1.GET("/episodes/:id", episodeHandler.GetEpisodeByID)
-				v1.PUT("/episodes/:id/playback", episodeHandler.UpdatePlaybackState)
+			// Podcast routes with mixed rate limiting
+			podcastsGroup := v1.Group("/podcasts")
+			{
+				// Regular endpoints with general rate limiting
+				podcastsGroup.GET("/:id/episodes", 
+					rateLimitMiddleware(generalLimiter), 
+					episodeHandler.GetEpisodesByPodcastID)
+				
+				// Sync endpoint with strict rate limiting
+				podcastsGroup.POST("/:id/episodes/sync", 
+					rateLimitMiddleware(syncLimiter), 
+					episodeHandler.SyncEpisodesFromPodcastIndex)
 			}
 		}
 	}
@@ -155,8 +148,40 @@ func (s *Server) setupRoutes() {
 	s.engine.NoRoute(s.notFoundHandler)
 }
 
-// corsMiddleware returns CORS middleware
-func (s *Server) corsMiddleware() gin.HandlerFunc {
+// initializeEpisodeService creates and configures the episode service
+func (s *Server) initializeEpisodeService(podcastClient *podcastindex.Client) (episodes.EpisodeService, episodes.EpisodeTransformer) {
+	// Create dependencies
+	episodeFetcher := episodes.NewPodcastIndexAdapter(podcastClient)
+	episodeRepo := episodes.NewRepository(s.db.DB)
+	episodeCache := episodes.NewCache(time.Hour)
+	s.episodeCache = episodeCache // Store for cleanup
+
+	// Get configuration
+	maxConcurrentSync := config.GetInt("episodes.max_concurrent_sync")
+	if maxConcurrentSync <= 0 {
+		maxConcurrentSync = 5
+	}
+	syncTimeout := config.GetDuration("episodes.sync_timeout")
+	if syncTimeout <= 0 {
+		syncTimeout = 30 * time.Second
+	}
+
+	// Create service
+	episodeService := episodes.NewService(
+		episodeFetcher,
+		episodeRepo,
+		episodeCache,
+		episodes.WithMaxConcurrentSync(maxConcurrentSync),
+		episodes.WithSyncTimeout(syncTimeout),
+	)
+
+	return episodeService, episodes.NewTransformer()
+}
+
+// Middleware functions
+
+// corsMiddleware handles CORS headers
+func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -172,106 +197,83 @@ func (s *Server) corsMiddleware() gin.HandlerFunc {
 	}
 }
 
-// requestSizeLimitMiddleware returns request size limiting middleware
-func (s *Server) requestSizeLimitMiddleware() gin.HandlerFunc {
+// requestSizeLimitMiddleware limits request body size
+func requestSizeLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Limit request body size to 1MB for API endpoints
-		if c.Request.Method == http.MethodPost || c.Request.Method == http.MethodPut || c.Request.Method == http.MethodPatch {
-			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1024*1024) // 1MB limit
+		// Only limit body size for methods that have a body
+		if c.Request.Method == http.MethodPost || 
+		   c.Request.Method == http.MethodPut || 
+		   c.Request.Method == http.MethodPatch {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1024*1024) // 1MB
 		}
 		c.Next()
 	}
 }
 
-// rateLimitMiddleware returns rate limiting middleware
-func (s *Server) rateLimitMiddleware() gin.HandlerFunc {
-	// Create rate limiters for different endpoint categories
-	generalLimiter := rate.NewLimiter(rate.Every(time.Second/10), 20) // 10 req/s, burst of 20
-	syncLimiter := rate.NewLimiter(rate.Every(time.Second), 2)        // 1 req/s for sync endpoints, burst of 2
-
+// rateLimitMiddleware creates a rate limiting middleware for a specific limiter
+func rateLimitMiddleware(limiter *rate.Limiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Skip rate limiting for health checks
-		if c.Request.URL.Path == "/health" || c.Request.URL.Path == "/" {
-			c.Next()
+		if !limiter.Allow() {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": "Rate limit exceeded. Please slow down your requests.",
+			})
+			c.Abort()
 			return
 		}
-
-		// Apply stricter rate limiting for sync endpoints
-		if c.Request.Method == http.MethodPost &&
-			(c.Request.URL.Path == "/api/v1/episodes/sync" ||
-				len(c.Request.URL.Path) > 20 && c.Request.URL.Path[len(c.Request.URL.Path)-5:] == "/sync") {
-			if !syncLimiter.Allow() {
-				c.JSON(http.StatusTooManyRequests, gin.H{
-					"error": "Rate limit exceeded for sync operations. Please wait before trying again.",
-				})
-				c.Abort()
-				return
-			}
-		} else {
-			// Apply general rate limiting for other endpoints
-			if !generalLimiter.Allow() {
-				c.JSON(http.StatusTooManyRequests, gin.H{
-					"error": "Rate limit exceeded. Please slow down your requests.",
-				})
-				c.Abort()
-				return
-			}
-		}
-
 		c.Next()
 	}
 }
+
+// createRateLimiter creates a new rate limiter
+func createRateLimiter(rps int, burst int) *rate.Limiter {
+	return rate.NewLimiter(rate.Every(time.Second/time.Duration(rps)), burst)
+}
+
+// Handler functions
 
 // healthHandler handles health check requests
 func (s *Server) healthHandler(c *gin.Context) {
 	response := gin.H{
 		"status":    "ok",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"database":  s.getDatabaseStatus(),
 	}
+
+	// Add database status - always include it for consistency
+	response["database"] = s.getDatabaseStatus()
 
 	c.JSON(http.StatusOK, response)
 }
 
-// getDatabaseStatus returns the database status
+// getDatabaseStatus returns the database connection status
 func (s *Server) getDatabaseStatus() gin.H {
-	if s.db == nil {
-		return gin.H{
-			"status": "not configured",
-		}
+	if s.db == nil || s.db.DB == nil {
+		return gin.H{"status": "not configured"}
 	}
 
 	if err := s.db.HealthCheck(); err != nil {
-		return gin.H{
-			"status": "unhealthy",
-			"error":  err.Error(),
-		}
+		return gin.H{"status": "unhealthy", "error": err.Error()}
 	}
 
-	return gin.H{
-		"status": "healthy",
-	}
+	return gin.H{"status": "healthy"}
 }
 
 // versionHandler handles version requests
 func (s *Server) versionHandler(c *gin.Context) {
-	response := gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"name":        "Podcast Player API",
 		"version":     "1.0.0",
-		"description": "A comprehensive podcast streaming and processing API",
-	}
-
-	c.JSON(http.StatusOK, response)
+		"description": "API for managing and streaming podcasts",
+		"status":      "running",
+	})
 }
 
-// notFoundHandler handles 404 responses
+// notFoundHandler handles 404 errors
 func (s *Server) notFoundHandler(c *gin.Context) {
-	response := gin.H{
+	c.JSON(http.StatusNotFound, gin.H{
 		"status":  "error",
-		"message": "Resource not found",
-	}
-
-	c.JSON(http.StatusNotFound, response)
+		"message": "The requested endpoint was not found",
+		"path":    c.Request.URL.Path,
+	})
 }
 
 // Start starts the HTTP server
