@@ -232,13 +232,6 @@ func setDefaults() {
 	viper.SetDefault("server.shutdown_timeout", 10*time.Second)
 	viper.SetDefault("server.max_header_bytes", 1048576)
 
-	// WebSocket defaults
-	viper.SetDefault("websocket.heartbeat_interval", 30*time.Second)
-	viper.SetDefault("websocket.max_message_size", 10485760)
-	viper.SetDefault("websocket.read_buffer_size", 1024)
-	viper.SetDefault("websocket.write_buffer_size", 1024)
-	viper.SetDefault("websocket.handshake_timeout", 10*time.Second)
-	viper.SetDefault("websocket.enable_compression", true)
 
 	// Database defaults
 	viper.SetDefault("database.path", "./data/podcast.db")

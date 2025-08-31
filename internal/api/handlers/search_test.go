@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/stretchr/testify/assert"
@@ -187,8 +188,10 @@ func TestSearchHandler_ServeHTTP(t *testing.T) {
 			// Create response recorder
 			rr := httptest.NewRecorder()
 
-			// Call handler
-			handler.ServeHTTP(rr, req)
+			// Create gin context and call handler
+			c, _ := gin.CreateTestContext(rr)
+			c.Request = req
+			handler.HandleSearch(c)
 
 			// Check status code
 			assert.Equal(t, tt.expectedStatus, rr.Code)

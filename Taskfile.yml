@@ -251,11 +251,6 @@ tasks:
     cmds:
       - curl -s http://localhost:8080/health | jq '.'
 
-  ws:test:
-    desc: Test WebSocket connection
-    cmds:
-      - echo "Testing WebSocket connection..."
-      - wscat -c ws://localhost:8080/ws
 
   # Monitoring tasks
   metrics:
