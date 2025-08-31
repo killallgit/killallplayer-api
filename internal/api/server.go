@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/internal/api/handlers"
 	"github.com/killallgit/player-api/internal/database"
+	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/pkg/config"
 )
@@ -96,6 +97,23 @@ func (s *Server) setupRoutes() {
 			})
 			searchHandler := handlers.NewSearchHandler(podcastClient)
 			v1.POST("/search", searchHandler.HandleSearch)
+			
+			// Episode endpoints - only if database is configured
+			if s.db != nil && s.db.DB != nil {
+				episodeFetcher := episodes.NewFetcher(cfg)
+				episodeRepo := episodes.NewRepository(s.db.DB)
+				episodeCache := episodes.NewCache(time.Hour)
+				cachedRepo := episodes.NewCachedRepository(episodeRepo, episodeCache)
+				episodeHandler := handlers.NewEpisodeHandler(episodeFetcher, cachedRepo)
+				
+				// Episode routes
+				v1.GET("/podcasts/:id/episodes", episodeHandler.GetEpisodesByPodcastID)
+				v1.POST("/podcasts/:id/episodes/sync", episodeHandler.SyncEpisodesFromPodcastIndex)
+				v1.GET("/episodes/:id", episodeHandler.GetEpisodeByID)
+				v1.PUT("/episodes/:id/playback", episodeHandler.UpdatePlaybackState)
+				v1.GET("/episodes/:id/metadata", episodeHandler.GetEpisodeMetadata)
+				v1.POST("/episodes/search", episodeHandler.SearchEpisodes)
+			}
 		}
 	}
 	
