@@ -98,7 +98,7 @@ server:
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			
+
 			if tt.check != nil && err == nil {
 				tt.check(t)
 			}

@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	once sync.Once
+	once    sync.Once
 	initErr error
 )
 
@@ -31,7 +31,7 @@ func Init() error {
 		// Load config from fixed location (cleaned for safety)
 		configPath := filepath.Clean("./config/settings.yaml")
 		viper.SetConfigFile(configPath)
-		
+
 		// Try to read the config file
 		if err := viper.ReadInConfig(); err != nil {
 			// If the config file doesn't exist, just use defaults and env vars
@@ -47,7 +47,7 @@ func Init() error {
 			initErr = fmt.Errorf("invalid configuration: %w", err)
 		}
 	})
-	
+
 	return initErr
 }
 
@@ -131,7 +131,7 @@ func validateAPIKeys() error {
 	// Check for production environment
 	env := viper.GetString("environment")
 	isProduction := env == "production" || env == "prod"
-	
+
 	// List of placeholder values that shouldn't be used
 	placeholders := []string{
 		"YOUR_KEY_HERE",
@@ -142,11 +142,11 @@ func validateAPIKeys() error {
 		"CHANGEME",
 		"",
 	}
-	
+
 	// Check Podcast Index API credentials
 	podcastKey := viper.GetString("podcast_index.api_key")
 	podcastSecret := viper.GetString("podcast_index.api_secret")
-	
+
 	for _, placeholder := range placeholders {
 		if podcastKey == placeholder || podcastSecret == placeholder {
 			if isProduction {
@@ -156,7 +156,7 @@ func validateAPIKeys() error {
 			break
 		}
 	}
-	
+
 	// Check OpenAI API key
 	openaiKey := viper.GetString("ai.openai_api_key")
 	for _, placeholder := range placeholders {
@@ -168,7 +168,7 @@ func validateAPIKeys() error {
 			break
 		}
 	}
-	
+
 	// Check JWT secret
 	jwtSecret := viper.GetString("auth.jwt_secret")
 	for _, placeholder := range placeholders {
@@ -180,7 +180,7 @@ func validateAPIKeys() error {
 			break
 		}
 	}
-	
+
 	return nil
 }
 
@@ -211,7 +211,7 @@ func (c *Config) Validate() error {
 func setDefaults() {
 	// Environment defaults
 	viper.SetDefault("environment", "development")
-	
+
 	// Server defaults
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8080)

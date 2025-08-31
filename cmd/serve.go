@@ -9,8 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/killallgit/player-api/internal/api/handlers"
 	"github.com/killallgit/player-api/internal/database"
 	"github.com/killallgit/player-api/internal/models"
+	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
 )
@@ -62,7 +64,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 	var db *database.DB
 	dbPath := config.GetString("database.path")
 	dbVerbose := config.GetBool("database.verbose")
-	
+
 	if dbPath != "" {
 		var err error
 		db, err = database.Initialize(dbPath, dbVerbose)
@@ -148,22 +150,41 @@ func runServer(cmd *cobra.Command, args []string) error {
 }
 
 // setupRoutes configures and returns the HTTP handler
-// This is a placeholder that will be expanded when we implement the HTTP server
 func setupRoutes(db *database.DB) http.Handler {
 	mux := http.NewServeMux()
 
 	// Add security headers middleware
 	handler := addSecurityHeaders(mux)
 
+	// Initialize Podcast Index client
+	apiKey := config.GetString("podcast_index.api_key")
+	apiSecret := config.GetString("podcast_index.api_secret")
+
+	// Debug logging
+	fmt.Printf("DEBUG: API Key from config: %s\n", apiKey)
+	fmt.Printf("DEBUG: API Secret length: %d\n", len(apiSecret))
+
+	podcastConfig := podcastindex.Config{
+		APIKey:    apiKey,
+		APISecret: apiSecret,
+		BaseURL:   config.GetString("podcast_index.base_url"),
+		UserAgent: config.GetString("podcast_index.user_agent"),
+		Timeout:   config.GetDuration("podcast_index.timeout"),
+	}
+	podcastClient := podcastindex.NewClient(podcastConfig)
+
+	// Create search handler
+	searchHandler := handlers.NewSearchHandler(podcastClient)
+
 	// Health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		health := map[string]any{
 			"status":    "healthy",
 			"timestamp": time.Now().Format(time.RFC3339),
 		}
-		
+
 		// Check database health if available
 		if db != nil {
 			if err := db.HealthCheck(); err != nil {
@@ -175,9 +196,9 @@ func setupRoutes(db *database.DB) http.Handler {
 		} else {
 			health["database"] = "not_configured"
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
-		response := fmt.Sprintf(`{"status":"%s","timestamp":"%s","database":"%s"}`, 
+		response := fmt.Sprintf(`{"status":"%s","timestamp":"%s","database":"%s"}`,
 			health["status"], health["timestamp"], health["database"])
 		_, _ = w.Write([]byte(response))
 	})
@@ -189,6 +210,9 @@ func setupRoutes(db *database.DB) http.Handler {
 		response := fmt.Sprintf(`{"message":"Podcast Player API","version":"%s","commit":"%s"}`, Version, GitCommit)
 		_, _ = w.Write([]byte(response))
 	})
+
+	// Search endpoint
+	mux.Handle("/api/v1/search", searchHandler)
 
 	return handler
 }
@@ -202,7 +226,7 @@ func addSecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'")
-		
+
 		// Call the next handler
 		next.ServeHTTP(w, r)
 	})
