@@ -224,4 +224,3 @@ func (h *EpisodeHandlerV3) UpdatePlaybackState(c *gin.Context) {
 func IsNotFound(err error) bool {
 	return episodes.IsNotFound(err)
 }
-

@@ -77,13 +77,8 @@ type EpisodeTransformer interface {
 	CreateErrorResponse(message string) PodcastIndexErrorResponse
 }
 
-// PodcastIndexClient defines the interface for making HTTP requests to Podcast Index API
-type PodcastIndexClient interface {
-	Get(ctx context.Context, endpoint string, params map[string]string) ([]byte, error)
-	Head(ctx context.Context, url string) (*HTTPHeaders, error)
-}
-
 // HTTPHeaders represents HTTP response headers
+// This is kept for compatibility with existing code
 type HTTPHeaders struct {
 	ContentType   string
 	ContentLength int64

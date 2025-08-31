@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/time/rate"
 	"github.com/killallgit/player-api/internal/api/handlers"
 	"github.com/killallgit/player-api/internal/database"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/pkg/config"
+	"golang.org/x/time/rate"
 )
 
 // Server represents the HTTP server
@@ -73,7 +73,7 @@ func (s *Server) setupMiddleware() {
 
 	// Request size limiting middleware
 	s.engine.Use(s.requestSizeLimitMiddleware())
-	
+
 	// Rate limiting middleware for API endpoints
 	s.engine.Use(s.rateLimitMiddleware())
 }
@@ -105,8 +105,8 @@ func (s *Server) setupRoutes() {
 
 			// Episode endpoints - only if database is configured
 			if s.db != nil && s.db.DB != nil {
-				// Create dependencies
-				episodeFetcher := episodes.NewFetcher(cfg)
+				// Create dependencies - reuse the same podcastindex client
+				episodeFetcher := episodes.NewPodcastIndexAdapter(podcastClient)
 				episodeRepo := episodes.NewRepository(s.db.DB)
 				episodeCache := episodes.NewCache(time.Hour)
 				s.episodeCache = episodeCache // Store for cleanup
@@ -120,10 +120,10 @@ func (s *Server) setupRoutes() {
 				if syncTimeout <= 0 {
 					syncTimeout = 30 * time.Second // default
 				}
-				
+
 				episodeService := episodes.NewService(
-					episodeFetcher, 
-					episodeRepo, 
+					episodeFetcher,
+					episodeRepo,
 					episodeCache,
 					episodes.WithMaxConcurrentSync(maxConcurrentSync),
 					episodes.WithSyncTimeout(syncTimeout),
@@ -186,20 +186,20 @@ func (s *Server) requestSizeLimitMiddleware() gin.HandlerFunc {
 // rateLimitMiddleware returns rate limiting middleware
 func (s *Server) rateLimitMiddleware() gin.HandlerFunc {
 	// Create rate limiters for different endpoint categories
-	generalLimiter := rate.NewLimiter(rate.Every(time.Second/10), 20)  // 10 req/s, burst of 20
-	syncLimiter := rate.NewLimiter(rate.Every(time.Second), 2)         // 1 req/s for sync endpoints, burst of 2
-	
+	generalLimiter := rate.NewLimiter(rate.Every(time.Second/10), 20) // 10 req/s, burst of 20
+	syncLimiter := rate.NewLimiter(rate.Every(time.Second), 2)        // 1 req/s for sync endpoints, burst of 2
+
 	return func(c *gin.Context) {
 		// Skip rate limiting for health checks
 		if c.Request.URL.Path == "/health" || c.Request.URL.Path == "/" {
 			c.Next()
 			return
 		}
-		
+
 		// Apply stricter rate limiting for sync endpoints
-		if c.Request.Method == http.MethodPost && 
-		   (c.Request.URL.Path == "/api/v1/episodes/sync" || 
-		    len(c.Request.URL.Path) > 20 && c.Request.URL.Path[len(c.Request.URL.Path)-5:] == "/sync") {
+		if c.Request.Method == http.MethodPost &&
+			(c.Request.URL.Path == "/api/v1/episodes/sync" ||
+				len(c.Request.URL.Path) > 20 && c.Request.URL.Path[len(c.Request.URL.Path)-5:] == "/sync") {
 			if !syncLimiter.Allow() {
 				c.JSON(http.StatusTooManyRequests, gin.H{
 					"error": "Rate limit exceeded for sync operations. Please wait before trying again.",
@@ -217,7 +217,7 @@ func (s *Server) rateLimitMiddleware() gin.HandlerFunc {
 				return
 			}
 		}
-		
+
 		c.Next()
 	}
 }
@@ -288,4 +288,3 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 	return s.httpServer.Shutdown(ctx)
 }
-

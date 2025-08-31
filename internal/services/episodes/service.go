@@ -50,12 +50,12 @@ func NewService(fetcher EpisodeFetcher, repository EpisodeRepository, cache Epis
 		maxConcurrentSync: DefaultMaxConcurrentSyncs,
 		syncTimeout:       DefaultSyncTimeout,
 	}
-	
+
 	// Apply options
 	for _, opt := range opts {
 		opt(s)
 	}
-	
+
 	return s
 }
 
@@ -245,4 +245,3 @@ const (
 	DefaultSyncTimeout        = 30 * time.Second
 	DefaultMaxConcurrentSyncs = 5 // default max concurrent sync operations
 )
-
