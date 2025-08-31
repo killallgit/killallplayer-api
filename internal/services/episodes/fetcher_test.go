@@ -56,20 +56,23 @@ func TestFetcher_GetEpisodesByPodcastID(t *testing.T) {
 	}
 
 	fetcher := NewFetcher(cfg)
-	episodes, err := fetcher.GetEpisodesByPodcastID(context.Background(), 123, 10)
+	response, err := fetcher.GetEpisodesByPodcastID(context.Background(), 123, 10)
 
 	require.NoError(t, err)
-	assert.Len(t, episodes, 2)
+	require.NotNil(t, response)
+	assert.Equal(t, "true", response.Status)
+	assert.Len(t, response.Items, 2)
 
-	assert.Equal(t, "Episode 1", episodes[0].Title)
-	assert.Equal(t, "First episode", episodes[0].Description)
-	assert.Equal(t, "https://example.com/episode1.mp3", episodes[0].AudioURL)
-	assert.Equal(t, 3600, episodes[0].Duration)
-	assert.Equal(t, "guid-1", episodes[0].GUID)
-	assert.Equal(t, time.Unix(1609459200, 0), episodes[0].PublishedAt)
+	assert.Equal(t, "Episode 1", response.Items[0].Title)
+	assert.Equal(t, "First episode", response.Items[0].Description)
+	assert.Equal(t, "https://example.com/episode1.mp3", response.Items[0].EnclosureURL)
+	duration1 := 3600
+	assert.Equal(t, &duration1, response.Items[0].Duration)
+	assert.Equal(t, "guid-1", response.Items[0].GUID)
+	assert.Equal(t, int64(1609459200), response.Items[0].DatePublished)
 
-	assert.Equal(t, "Episode 2", episodes[1].Title)
-	assert.Equal(t, "https://example.com/episode2.mp3", episodes[1].AudioURL)
+	assert.Equal(t, "Episode 2", response.Items[1].Title)
+	assert.Equal(t, "https://example.com/episode2.mp3", response.Items[1].EnclosureURL)
 }
 
 func TestFetcher_GetEpisodeByGUID(t *testing.T) {
@@ -104,17 +107,20 @@ func TestFetcher_GetEpisodeByGUID(t *testing.T) {
 	}
 
 	fetcher := NewFetcher(cfg)
-	episode, err := fetcher.GetEpisodeByGUID(context.Background(), "test-guid")
+	response, err := fetcher.GetEpisodeByGUID(context.Background(), "test-guid")
 
 	require.NoError(t, err)
-	require.NotNil(t, episode)
+	require.NotNil(t, response)
+	assert.Equal(t, "true", response.Status)
+	require.NotNil(t, response.Episode)
 
-	assert.Equal(t, "Test Episode", episode.Title)
-	assert.Equal(t, "Test description", episode.Description)
-	assert.Equal(t, "https://example.com/test.mp3", episode.AudioURL)
-	assert.Equal(t, 2400, episode.Duration)
-	assert.Equal(t, "test-guid", episode.GUID)
-	assert.Equal(t, time.Unix(1609459200, 0), episode.PublishedAt)
+	assert.Equal(t, "Test Episode", response.Episode.Title)
+	assert.Equal(t, "Test description", response.Episode.Description)
+	assert.Equal(t, "https://example.com/test.mp3", response.Episode.EnclosureURL)
+	duration2 := 2400
+	assert.Equal(t, &duration2, response.Episode.Duration)
+	assert.Equal(t, "test-guid", response.Episode.GUID)
+	assert.Equal(t, int64(1609459200), response.Episode.DatePublished)
 }
 
 func TestFetcher_GetEpisodeMetadata(t *testing.T) {

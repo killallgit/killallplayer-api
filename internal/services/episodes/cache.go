@@ -242,3 +242,51 @@ func (cr *CachedRepository) DeleteEpisode(ctx context.Context, id uint) error {
 	cr.cache.InvalidatePattern(fmt.Sprintf("episodes:podcast:%d:*", episode.PodcastID))
 	return nil
 }
+
+func (cr *CachedRepository) GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error) {
+	key := fmt.Sprintf("episodes:recent:limit:%d", limit)
+	
+	if episodes, _, found := cr.cache.GetEpisodeList(key); found {
+		return episodes, nil
+	}
+	
+	episodes, err := cr.repo.GetRecentEpisodes(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	
+	cr.cache.SetEpisodeList(key, episodes, int64(len(episodes)))
+	return episodes, nil
+}
+
+func (cr *CachedRepository) MarkEpisodeAsPlayed(ctx context.Context, id uint, played bool) error {
+	err := cr.repo.MarkEpisodeAsPlayed(ctx, id, played)
+	if err != nil {
+		return err
+	}
+	
+	cr.cache.Invalidate(fmt.Sprintf("episode:id:%d", id))
+	return nil
+}
+
+func (cr *CachedRepository) UpdatePlaybackPosition(ctx context.Context, id uint, position int) error {
+	err := cr.repo.UpdatePlaybackPosition(ctx, id, position)
+	if err != nil {
+		return err
+	}
+	
+	cr.cache.Invalidate(fmt.Sprintf("episode:id:%d", id))
+	return nil
+}
+
+func (cr *CachedRepository) UpsertEpisode(ctx context.Context, episode *models.Episode) error {
+	err := cr.repo.UpsertEpisode(ctx, episode)
+	if err != nil {
+		return err
+	}
+	
+	cr.cache.Invalidate(fmt.Sprintf("episode:id:%d", episode.ID))
+	cr.cache.Invalidate(fmt.Sprintf("episode:guid:%s", episode.GUID))
+	cr.cache.InvalidatePattern(fmt.Sprintf("episodes:podcast:%d:*", episode.PodcastID))
+	return nil
+}

@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/pkg/config"
 )
 
@@ -33,7 +32,7 @@ func NewFetcher(cfg *config.Config) *Fetcher {
 	}
 }
 
-func (f *Fetcher) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) ([]models.Episode, error) {
+func (f *Fetcher) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) (*PodcastIndexResponse, error) {
 	endpoint := fmt.Sprintf("%s/episodes/byfeedid", f.apiURL)
 	
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
@@ -61,24 +60,7 @@ func (f *Fetcher) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, l
 		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		Status      string `json:"status"`
-		Description string `json:"description"`
-		Items       []struct {
-			ID              int64  `json:"id"`
-			Title           string `json:"title"`
-			Description     string `json:"description"`
-			EnclosureURL    string `json:"enclosureUrl"`
-			EnclosureLength int    `json:"enclosureLength"`
-			Duration        int    `json:"duration"`
-			DatePublished   int64  `json:"datePublished"`
-			GUID            string `json:"guid"`
-			Link            string `json:"link"`
-			Image           string `json:"image"`
-			FeedID          int64  `json:"feedId"`
-		} `json:"items"`
-	}
-
+	var result PodcastIndexResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
@@ -87,27 +69,10 @@ func (f *Fetcher) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, l
 		return nil, fmt.Errorf("API error: %s", result.Description)
 	}
 
-	episodes := make([]models.Episode, 0, len(result.Items))
-	for _, item := range result.Items {
-		episode := models.Episode{
-			Title:       item.Title,
-			Description: item.Description,
-			AudioURL:    item.EnclosureURL,
-			Duration:    item.Duration,
-			GUID:        item.GUID,
-		}
-		
-		if item.DatePublished > 0 {
-			episode.PublishedAt = time.Unix(item.DatePublished, 0)
-		}
-		
-		episodes = append(episodes, episode)
-	}
-
-	return episodes, nil
+	return &result, nil
 }
 
-func (f *Fetcher) GetEpisodeByGUID(ctx context.Context, guid string) (*models.Episode, error) {
+func (f *Fetcher) GetEpisodeByGUID(ctx context.Context, guid string) (*EpisodeByGUIDResponse, error) {
 	endpoint := fmt.Sprintf("%s/episodes/byguid", f.apiURL)
 	
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
@@ -132,24 +97,7 @@ func (f *Fetcher) GetEpisodeByGUID(ctx context.Context, guid string) (*models.Ep
 		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		Status      string `json:"status"`
-		Description string `json:"description"`
-		Episode     struct {
-			ID              int64  `json:"id"`
-			Title           string `json:"title"`
-			Description     string `json:"description"`
-			EnclosureURL    string `json:"enclosureUrl"`
-			EnclosureLength int    `json:"enclosureLength"`
-			Duration        int    `json:"duration"`
-			DatePublished   int64  `json:"datePublished"`
-			GUID            string `json:"guid"`
-			Link            string `json:"link"`
-			Image           string `json:"image"`
-			FeedID          int64  `json:"feedId"`
-		} `json:"episode"`
-	}
-
+	var result EpisodeByGUIDResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
@@ -158,19 +106,7 @@ func (f *Fetcher) GetEpisodeByGUID(ctx context.Context, guid string) (*models.Ep
 		return nil, fmt.Errorf("API error: %s", result.Description)
 	}
 
-	episode := &models.Episode{
-		Title:       result.Episode.Title,
-		Description: result.Episode.Description,
-		AudioURL:    result.Episode.EnclosureURL,
-		Duration:    result.Episode.Duration,
-		GUID:        result.Episode.GUID,
-	}
-	
-	if result.Episode.DatePublished > 0 {
-		episode.PublishedAt = time.Unix(result.Episode.DatePublished, 0)
-	}
-
-	return episode, nil
+	return &result, nil
 }
 
 func (f *Fetcher) setAuthHeaders(req *http.Request) {

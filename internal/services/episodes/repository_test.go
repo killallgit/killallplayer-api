@@ -27,12 +27,13 @@ func TestRepository_CreateEpisode(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewRepository(db)
 
+	duration := 3600
 	episode := &models.Episode{
 		PodcastID:   1,
 		Title:       "Test Episode",
 		Description: "Test Description",
 		AudioURL:    "https://example.com/test.mp3",
-		Duration:    3600,
+		Duration:    &duration,
 		PublishedAt: time.Now(),
 		GUID:        "test-guid-123",
 	}
@@ -54,12 +55,13 @@ func TestRepository_UpdateEpisode(t *testing.T) {
 	repo := NewRepository(db)
 
 	// Create an episode first
+	duration := 3600
 	episode := &models.Episode{
 		PodcastID:   1,
 		Title:       "Original Title",
 		Description: "Original Description",
 		AudioURL:    "https://example.com/original.mp3",
-		Duration:    3600,
+		Duration:    &duration,
 		GUID:        "update-test-guid",
 	}
 	
@@ -69,7 +71,8 @@ func TestRepository_UpdateEpisode(t *testing.T) {
 	// Update the episode
 	episode.Title = "Updated Title"
 	episode.Description = "Updated Description"
-	episode.Duration = 7200
+	newDuration := 7200
+	episode.Duration = &newDuration
 
 	err = repo.UpdateEpisode(context.Background(), episode)
 	require.NoError(t, err)
@@ -80,7 +83,8 @@ func TestRepository_UpdateEpisode(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Updated Title", retrieved.Title)
 	assert.Equal(t, "Updated Description", retrieved.Description)
-	assert.Equal(t, 7200, retrieved.Duration)
+	require.NotNil(t, retrieved.Duration)
+	assert.Equal(t, 7200, *retrieved.Duration)
 }
 
 func TestRepository_GetEpisodeByID(t *testing.T) {
@@ -147,11 +151,12 @@ func TestRepository_GetEpisodesByPodcastID(t *testing.T) {
 	podcastID := uint(1)
 	for i := 1; i <= 5; i++ {
 		episode := &models.Episode{
-			PodcastID:   podcastID,
-			Title:       fmt.Sprintf("Episode %d", i),
-			AudioURL:    fmt.Sprintf("https://example.com/episode%d.mp3", i),
-			GUID:        fmt.Sprintf("guid-%d", i),
-			PublishedAt: time.Now().Add(time.Duration(-i) * time.Hour),
+			PodcastID:      podcastID,
+			PodcastIndexID: int64(i * 1000), // Unique ID for each episode
+			Title:          fmt.Sprintf("Episode %d", i),
+			AudioURL:       fmt.Sprintf("https://example.com/episode%d.mp3", i),
+			GUID:           fmt.Sprintf("guid-%d", i),
+			PublishedAt:    time.Now().Add(time.Duration(-i) * time.Hour),
 		}
 		err := repo.CreateEpisode(context.Background(), episode)
 		require.NoError(t, err)

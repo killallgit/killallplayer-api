@@ -104,14 +104,24 @@ func (s *Server) setupRoutes() {
 				episodeRepo := episodes.NewRepository(s.db.DB)
 				episodeCache := episodes.NewCache(time.Hour)
 				cachedRepo := episodes.NewCachedRepository(episodeRepo, episodeCache)
-				episodeHandler := handlers.NewEpisodeHandler(episodeFetcher, cachedRepo)
 				
-				// Episode routes
+				// Use V2 handler with Podcast Index compatible responses
+				episodeHandler := handlers.NewEpisodeHandlerV2(episodeFetcher, cachedRepo)
+				
+				// Episode routes (Podcast Index compatible)
+				v1.GET("/episodes/byfeedid", func(c *gin.Context) {
+					// Convert query param to path param for compatibility
+					c.Params = append(c.Params, gin.Param{Key: "id", Value: c.Query("id")})
+					episodeHandler.GetEpisodesByPodcastID(c)
+				})
+				v1.GET("/episodes/byguid", episodeHandler.GetEpisodeByGUID)
+				v1.GET("/episodes/recent", episodeHandler.GetRecentEpisodes)
+				
+				// Additional routes for our API
 				v1.GET("/podcasts/:id/episodes", episodeHandler.GetEpisodesByPodcastID)
 				v1.POST("/podcasts/:id/episodes/sync", episodeHandler.SyncEpisodesFromPodcastIndex)
 				v1.GET("/episodes/:id", episodeHandler.GetEpisodeByID)
 				v1.PUT("/episodes/:id/playback", episodeHandler.UpdatePlaybackState)
-				v1.GET("/episodes/:id/metadata", episodeHandler.GetEpisodeMetadata)
 				v1.POST("/episodes/search", episodeHandler.SearchEpisodes)
 			}
 		}
