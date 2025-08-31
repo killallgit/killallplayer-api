@@ -11,20 +11,52 @@ import (
 
 // Service implements the EpisodeService interface with business logic
 type Service struct {
-	fetcher    EpisodeFetcher
-	repository EpisodeRepository
-	cache      EpisodeCache
-	keyGen     CacheKeyGenerator
+	fetcher           EpisodeFetcher
+	repository        EpisodeRepository
+	cache             EpisodeCache
+	keyGen            CacheKeyGenerator
+	maxConcurrentSync int
+	syncTimeout       time.Duration
 }
 
-// NewService creates a new episode service
-func NewService(fetcher EpisodeFetcher, repository EpisodeRepository, cache EpisodeCache) *Service {
-	return &Service{
-		fetcher:    fetcher,
-		repository: repository,
-		cache:      cache,
-		keyGen:     NewKeyGenerator("episode"),
+// ServiceOption is a functional option for configuring the service
+type ServiceOption func(*Service)
+
+// WithMaxConcurrentSync sets the maximum concurrent sync operations
+func WithMaxConcurrentSync(max int) ServiceOption {
+	return func(s *Service) {
+		if max > 0 {
+			s.maxConcurrentSync = max
+		}
 	}
+}
+
+// WithSyncTimeout sets the timeout for sync operations
+func WithSyncTimeout(timeout time.Duration) ServiceOption {
+	return func(s *Service) {
+		if timeout > 0 {
+			s.syncTimeout = timeout
+		}
+	}
+}
+
+// NewService creates a new episode service with optional configuration
+func NewService(fetcher EpisodeFetcher, repository EpisodeRepository, cache EpisodeCache, opts ...ServiceOption) *Service {
+	s := &Service{
+		fetcher:           fetcher,
+		repository:        repository,
+		cache:             cache,
+		keyGen:            NewKeyGenerator("episode"),
+		maxConcurrentSync: DefaultMaxConcurrentSyncs,
+		syncTimeout:       DefaultSyncTimeout,
+	}
+	
+	// Apply options
+	for _, opt := range opts {
+		opt(s)
+	}
+	
+	return s
 }
 
 // FetchAndSyncEpisodes fetches episodes from external API and syncs to database
@@ -35,10 +67,11 @@ func (s *Service) FetchAndSyncEpisodes(ctx context.Context, podcastID int64, lim
 		return nil, fmt.Errorf("fetching episodes from API: %w", err)
 	}
 
-	// Sync to database in background
+	// Sync to database in background with detached context but respecting cancellation
 	go func() {
-		// Create a new context for background operation with timeout
-		syncCtx, cancel := context.WithTimeout(context.Background(), DefaultSyncTimeout)
+		// Create a new context that inherits values but not cancellation from parent
+		// This allows the sync to continue even if the HTTP request is cancelled
+		syncCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), s.syncTimeout)
 		defer cancel()
 
 		_, _ = s.SyncEpisodesToDatabase(syncCtx, response.Items, uint(podcastID))
@@ -58,7 +91,7 @@ func (s *Service) SyncEpisodesToDatabase(ctx context.Context, episodes []Podcast
 	)
 
 	// Use a semaphore to limit concurrent operations
-	sem := make(chan struct{}, MaxConcurrentSyncs)
+	sem := make(chan struct{}, s.maxConcurrentSync)
 
 	transformer := NewTransformer()
 
@@ -207,9 +240,9 @@ func (s *Service) UpdatePlaybackState(ctx context.Context, id uint, position int
 	return nil
 }
 
-// Constants for configuration
+// Constants for default configuration
 const (
-	DefaultSyncTimeout = 30 * time.Second
-	MaxConcurrentSyncs = 5 // max concurrent sync operations
+	DefaultSyncTimeout        = 30 * time.Second
+	DefaultMaxConcurrentSyncs = 5 // default max concurrent sync operations
 )
 

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/killallgit/player-api/pkg/config"
@@ -138,10 +139,24 @@ func (f *Fetcher) GetEpisodeMetadata(ctx context.Context, episodeURL string) (*E
 	}
 	defer resp.Body.Close()
 
+	// Extract filename from URL path, handling edge cases
+	var fileName string
+	if parsedURL.Path != "" {
+		// Extract the last part of the path after the final slash
+		parts := strings.Split(parsedURL.Path, "/")
+		fileName = parts[len(parts)-1]
+		// If empty or just a slash, use a default
+		if fileName == "" {
+			fileName = "episode"
+		}
+	} else {
+		fileName = "episode"
+	}
+
 	metadata := &EpisodeMetadata{
 		URL:         episodeURL,
 		ContentType: resp.Header.Get("Content-Type"),
-		FileName:    parsedURL.Path[len(parsedURL.Path)-1:],
+		FileName:    fileName,
 	}
 
 	if contentLength := resp.Header.Get("Content-Length"); contentLength != "" {

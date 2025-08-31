@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -53,6 +54,7 @@ func (h *EpisodeHandlerV3) GetEpisodesByPodcastID(c *gin.Context) {
 	page := 1
 	episodes, total, dbErr := h.service.GetEpisodesByPodcastID(c.Request.Context(), uint(podcastID), page, max)
 	if dbErr != nil {
+		log.Printf("[ERROR] Failed to fetch episodes from database for podcast %d: %v", podcastID, dbErr)
 		c.JSON(http.StatusInternalServerError, h.transformer.CreateErrorResponse("Failed to fetch episodes"))
 		return
 	}
@@ -82,6 +84,7 @@ func (h *EpisodeHandlerV3) GetEpisodeByID(c *gin.Context) {
 		if IsNotFound(err) {
 			c.JSON(http.StatusNotFound, h.transformer.CreateErrorResponse("Episode not found"))
 		} else {
+			log.Printf("[ERROR] Failed to fetch episode %d: %v", episodeID, err)
 			c.JSON(http.StatusInternalServerError, h.transformer.CreateErrorResponse("Failed to fetch episode"))
 		}
 		return
@@ -104,6 +107,7 @@ func (h *EpisodeHandlerV3) GetEpisodeByGUID(c *gin.Context) {
 		if IsNotFound(err) {
 			c.JSON(http.StatusNotFound, h.transformer.CreateErrorResponse("Episode not found"))
 		} else {
+			log.Printf("[ERROR] Failed to fetch episode by GUID %s: %v", guid, err)
 			c.JSON(http.StatusInternalServerError, h.transformer.CreateErrorResponse("Failed to fetch episode"))
 		}
 		return
@@ -122,6 +126,7 @@ func (h *EpisodeHandlerV3) GetRecentEpisodes(c *gin.Context) {
 
 	episodes, err := h.service.GetRecentEpisodes(c.Request.Context(), max)
 	if err != nil {
+		log.Printf("[ERROR] Failed to fetch recent episodes (limit %d): %v", max, err)
 		c.JSON(http.StatusInternalServerError, h.transformer.CreateErrorResponse("Failed to fetch recent episodes"))
 		return
 	}
@@ -147,6 +152,7 @@ func (h *EpisodeHandlerV3) SyncEpisodesFromPodcastIndex(c *gin.Context) {
 	// Fetch and sync
 	response, err := h.service.FetchAndSyncEpisodes(c.Request.Context(), podcastID, max)
 	if err != nil {
+		log.Printf("[ERROR] Failed to sync episodes for podcast %d: %v", podcastID, err)
 		c.JSON(http.StatusInternalServerError, h.transformer.CreateErrorResponse("Failed to sync episodes"))
 		return
 	}
@@ -173,18 +179,37 @@ func (h *EpisodeHandlerV3) UpdatePlaybackState(c *gin.Context) {
 		return
 	}
 
-	err = h.service.UpdatePlaybackState(c.Request.Context(), uint(episodeID), request.Position, request.Played)
+	// Validate position is not negative
+	if request.Position < 0 {
+		c.JSON(http.StatusBadRequest, h.transformer.CreateErrorResponse("Position cannot be negative"))
+		return
+	}
+
+	// Optionally fetch episode to validate position doesn't exceed duration
+	episode, err := h.service.GetEpisodeByID(c.Request.Context(), uint(episodeID))
 	if err != nil {
 		if IsNotFound(err) {
 			c.JSON(http.StatusNotFound, h.transformer.CreateErrorResponse("Episode not found"))
 		} else {
-			c.JSON(http.StatusInternalServerError, h.transformer.CreateErrorResponse("Failed to update playback state"))
+			log.Printf("[ERROR] Failed to fetch episode %d: %v", episodeID, err)
+			c.JSON(http.StatusInternalServerError, h.transformer.CreateErrorResponse("Failed to fetch episode"))
 		}
 		return
 	}
 
-	// Return success response
-	episode, _ := h.service.GetEpisodeByID(c.Request.Context(), uint(episodeID))
+	// Validate position doesn't exceed duration if duration is available
+	if episode.Duration != nil && *episode.Duration > 0 && request.Position > *episode.Duration {
+		c.JSON(http.StatusBadRequest, h.transformer.CreateErrorResponse("Position exceeds episode duration"))
+		return
+	}
+
+	err = h.service.UpdatePlaybackState(c.Request.Context(), uint(episodeID), request.Position, request.Played)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, h.transformer.CreateErrorResponse("Failed to update playback state"))
+		return
+	}
+
+	// Return success response with updated episode
 	response := episodes.PodcastIndexResponse{
 		Status:      "true",
 		Items:       []episodes.PodcastIndexEpisode{h.transformer.ModelToPodcastIndex(episode)},
