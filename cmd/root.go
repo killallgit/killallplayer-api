@@ -43,6 +43,10 @@ func NewRootCmd() *cobra.Command {
 func init() {
 	// Set up configuration loading with lazy initialization
 	cobra.OnInitialize(loadConfig)
+	
+	// Add persistent flags for logging configuration
+	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().Bool("json-logs", false, "enable JSON formatted logs")
 }
 
 // loadConfig loads the configuration when a command needs it
