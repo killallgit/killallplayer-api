@@ -17,7 +17,7 @@ func TestFetcher_GetEpisodesByPodcastID(t *testing.T) {
 		assert.Equal(t, "/api/1.0/episodes/byfeedid", r.URL.Path)
 		assert.Equal(t, "123", r.URL.Query().Get("id"))
 		assert.Equal(t, "10", r.URL.Query().Get("max"))
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{
@@ -50,7 +50,7 @@ func TestFetcher_GetEpisodesByPodcastID(t *testing.T) {
 		PodcastIndex: config.PodcastIndexConfig{
 			APIKey:    "test-key",
 			APISecret: "test-secret",
-			BaseURL:    server.URL + "/api/1.0",
+			BaseURL:   server.URL + "/api/1.0",
 			Timeout:   5 * time.Second,
 		},
 	}
@@ -79,7 +79,7 @@ func TestFetcher_GetEpisodeByGUID(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/1.0/episodes/byguid", r.URL.Path)
 		assert.Equal(t, "test-guid", r.URL.Query().Get("guid"))
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{
@@ -101,7 +101,7 @@ func TestFetcher_GetEpisodeByGUID(t *testing.T) {
 		PodcastIndex: config.PodcastIndexConfig{
 			APIKey:    "test-key",
 			APISecret: "test-secret",
-			BaseURL:    server.URL + "/api/1.0",
+			BaseURL:   server.URL + "/api/1.0",
 			Timeout:   5 * time.Second,
 		},
 	}
@@ -126,7 +126,7 @@ func TestFetcher_GetEpisodeByGUID(t *testing.T) {
 func TestFetcher_GetEpisodeMetadata(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "HEAD", r.Method)
-		
+
 		w.Header().Set("Content-Type", "audio/mpeg")
 		w.Header().Set("Content-Length", "5242880")
 		w.Header().Set("Last-Modified", "Mon, 02 Jan 2006 15:04:05 GMT")
@@ -138,7 +138,7 @@ func TestFetcher_GetEpisodeMetadata(t *testing.T) {
 		PodcastIndex: config.PodcastIndexConfig{
 			APIKey:    "test-key",
 			APISecret: "test-secret",
-			BaseURL:    "https://api.podcastindex.org/api/1.0",
+			BaseURL:   "https://api.podcastindex.org/api/1.0",
 			Timeout:   5 * time.Second,
 		},
 	}
@@ -171,7 +171,7 @@ func TestFetcher_ErrorHandling(t *testing.T) {
 			PodcastIndex: config.PodcastIndexConfig{
 				APIKey:    "invalid-key",
 				APISecret: "invalid-secret",
-				BaseURL:    server.URL + "/api/1.0",
+				BaseURL:   server.URL + "/api/1.0",
 				Timeout:   5 * time.Second,
 			},
 		}
@@ -194,7 +194,7 @@ func TestFetcher_ErrorHandling(t *testing.T) {
 			PodcastIndex: config.PodcastIndexConfig{
 				APIKey:    "test-key",
 				APISecret: "test-secret",
-				BaseURL:    server.URL + "/api/1.0",
+				BaseURL:   server.URL + "/api/1.0",
 				Timeout:   5 * time.Second,
 			},
 		}

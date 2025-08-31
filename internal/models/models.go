@@ -23,43 +23,43 @@ type Podcast struct {
 type Episode struct {
 	gorm.Model
 	// Core episode fields
-	PodcastID     uint      `json:"podcast_id" gorm:"not null;index"`
-	PodcastIndexID int64    `json:"podcast_index_id" gorm:"uniqueIndex"` // Podcast Index episode ID
-	Title         string    `json:"title" gorm:"not null"`
-	Description   string    `json:"description" gorm:"type:text"`
-	Link          string    `json:"link"`
-	GUID          string    `json:"guid" gorm:"uniqueIndex"`
-	
+	PodcastID      uint   `json:"podcast_id" gorm:"not null;index"`
+	PodcastIndexID int64  `json:"podcast_index_id" gorm:"uniqueIndex"` // Podcast Index episode ID
+	Title          string `json:"title" gorm:"not null"`
+	Description    string `json:"description" gorm:"type:text"`
+	Link           string `json:"link"`
+	GUID           string `json:"guid" gorm:"uniqueIndex"`
+
 	// Media information
-	AudioURL       string    `json:"audio_url" gorm:"not null;column:audio_url"`
-	EnclosureType  string    `json:"enclosure_type"`
-	EnclosureLength int64    `json:"enclosure_length"`
-	Duration       *int      `json:"duration"` // Duration in seconds, nullable
-	
+	AudioURL        string `json:"audio_url" gorm:"not null;column:audio_url"`
+	EnclosureType   string `json:"enclosure_type"`
+	EnclosureLength int64  `json:"enclosure_length"`
+	Duration        *int   `json:"duration"` // Duration in seconds, nullable
+
 	// Timestamps
-	PublishedAt   time.Time `json:"published_at"`
-	DateCrawled   time.Time `json:"date_crawled"`
-	
+	PublishedAt time.Time `json:"published_at"`
+	DateCrawled time.Time `json:"date_crawled"`
+
 	// Episode metadata
-	EpisodeNumber *int      `json:"episode_number"`
-	Season        *int      `json:"season"`
-	EpisodeType   string    `json:"episode_type"` // full, trailer, bonus
-	Explicit      int       `json:"explicit"` // 0=not explicit, 1=explicit
-	Image         string    `json:"image"`
-	
+	EpisodeNumber *int   `json:"episode_number"`
+	Season        *int   `json:"season"`
+	EpisodeType   string `json:"episode_type"` // full, trailer, bonus
+	Explicit      int    `json:"explicit"`     // 0=not explicit, 1=explicit
+	Image         string `json:"image"`
+
 	// Feed metadata (denormalized for performance)
-	FeedTitle     string    `json:"feed_title"`
-	FeedImage     string    `json:"feed_image"`
-	FeedLanguage  string    `json:"feed_language"`
-	FeedItunesID  *int64    `json:"feed_itunes_id"`
-	
+	FeedTitle    string `json:"feed_title"`
+	FeedImage    string `json:"feed_image"`
+	FeedLanguage string `json:"feed_language"`
+	FeedItunesID *int64 `json:"feed_itunes_id"`
+
 	// Podcast 2.0 features
-	ChaptersURL   string    `json:"chapters_url"`
-	TranscriptURL string    `json:"transcript_url"`
-	
+	ChaptersURL   string `json:"chapters_url"`
+	TranscriptURL string `json:"transcript_url"`
+
 	// Playback state (user-specific, should be in separate table for multi-user)
-	Played        bool      `json:"played" gorm:"default:false"`
-	Position      int       `json:"position" gorm:"default:0"` // Current playback position in seconds
+	Played   bool `json:"played" gorm:"default:false"`
+	Position int  `json:"position" gorm:"default:0"` // Current playback position in seconds
 }
 
 // User represents a user account

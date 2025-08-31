@@ -10,6 +10,9 @@ import (
 // Transformer handles conversion between database models and API responses
 type Transformer struct{}
 
+// Ensure Transformer implements EpisodeTransformer interface
+var _ EpisodeTransformer = (*Transformer)(nil)
+
 // NewTransformer creates a new transformer instance
 func NewTransformer() *Transformer {
 	return &Transformer{}
@@ -18,29 +21,29 @@ func NewTransformer() *Transformer {
 // ModelToPodcastIndex converts a database Episode model to Podcast Index API format
 func (t *Transformer) ModelToPodcastIndex(episode *models.Episode) PodcastIndexEpisode {
 	pie := PodcastIndexEpisode{
-		ID:              episode.PodcastIndexID,
-		Title:           episode.Title,
-		Link:            episode.Link,
-		Description:     episode.Description,
-		GUID:            episode.GUID,
-		DatePublished:   episode.PublishedAt.Unix(),
+		ID:                  episode.PodcastIndexID,
+		Title:               episode.Title,
+		Link:                episode.Link,
+		Description:         episode.Description,
+		GUID:                episode.GUID,
+		DatePublished:       episode.PublishedAt.Unix(),
 		DatePublishedPretty: episode.PublishedAt.Format("January 2, 2006 3:04pm"),
-		EnclosureURL:    episode.AudioURL,
-		EnclosureType:   episode.EnclosureType,
-		EnclosureLength: episode.EnclosureLength,
-		Duration:        episode.Duration,
-		Explicit:        episode.Explicit,
-		Episode:         episode.EpisodeNumber,
-		EpisodeType:     episode.EpisodeType,
-		Season:          episode.Season,
-		Image:           episode.Image,
-		FeedID:          int64(episode.PodcastID),
-		FeedTitle:       episode.FeedTitle,
-		FeedImage:       episode.FeedImage,
-		FeedLanguage:    episode.FeedLanguage,
-		FeedItunesID:    episode.FeedItunesID,
-		ChaptersURL:     episode.ChaptersURL,
-		TranscriptURL:   episode.TranscriptURL,
+		EnclosureURL:        episode.AudioURL,
+		EnclosureType:       episode.EnclosureType,
+		EnclosureLength:     episode.EnclosureLength,
+		Duration:            episode.Duration,
+		Explicit:            episode.Explicit,
+		Episode:             episode.EpisodeNumber,
+		EpisodeType:         episode.EpisodeType,
+		Season:              episode.Season,
+		Image:               episode.Image,
+		FeedID:              int64(episode.PodcastID),
+		FeedTitle:           episode.FeedTitle,
+		FeedImage:           episode.FeedImage,
+		FeedLanguage:        episode.FeedLanguage,
+		FeedItunesID:        episode.FeedItunesID,
+		ChaptersURL:         episode.ChaptersURL,
+		TranscriptURL:       episode.TranscriptURL,
 	}
 
 	// Add date crawled if available
@@ -54,21 +57,6 @@ func (t *Transformer) ModelToPodcastIndex(episode *models.Episode) PodcastIndexE
 	}
 
 	return pie
-}
-
-// ModelsToPodcastIndexResponse converts multiple Episode models to Podcast Index response format
-func (t *Transformer) ModelsToPodcastIndexResponse(episodes []models.Episode, total int) PodcastIndexResponse {
-	items := make([]PodcastIndexEpisode, 0, len(episodes))
-	for _, episode := range episodes {
-		items = append(items, t.ModelToPodcastIndex(&episode))
-	}
-
-	return PodcastIndexResponse{
-		Status:      "true",
-		Items:       items,
-		Count:       len(items),
-		Description: fmt.Sprintf("Found %d episodes", total),
-	}
 }
 
 // PodcastIndexToModel converts a Podcast Index API episode to database model
@@ -164,3 +152,4 @@ func (t *Transformer) ApplyPlaybackState(episodes []PodcastIndexEpisode, playbac
 		}
 	}
 }
+

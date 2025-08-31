@@ -34,7 +34,7 @@ func NewFetcher(cfg *config.Config) *Fetcher {
 
 func (f *Fetcher) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) (*PodcastIndexResponse, error) {
 	endpoint := fmt.Sprintf("%s/episodes/byfeedid", f.apiURL)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
@@ -74,7 +74,7 @@ func (f *Fetcher) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, l
 
 func (f *Fetcher) GetEpisodeByGUID(ctx context.Context, guid string) (*EpisodeByGUIDResponse, error) {
 	endpoint := fmt.Sprintf("%s/episodes/byguid", f.apiURL)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)

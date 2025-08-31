@@ -103,7 +103,7 @@ func GetDuration(key string) time.Duration {
 func validate() error {
 	// Check if we're in test mode to suppress warnings
 	isTestMode := os.Getenv("GO_TEST_MODE") == "1" || strings.Contains(os.Args[0], ".test")
-	
+
 	port := viper.GetInt("server.port")
 	if port <= 0 || port > 65535 {
 		return fmt.Errorf("invalid server port: %d", port)
@@ -231,7 +231,6 @@ func setDefaults() {
 	viper.SetDefault("server.write_timeout", 30*time.Second)
 	viper.SetDefault("server.shutdown_timeout", 10*time.Second)
 	viper.SetDefault("server.max_header_bytes", 1048576)
-
 
 	// Database defaults
 	viper.SetDefault("database.path", "./data/podcast.db")

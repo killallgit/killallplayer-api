@@ -49,18 +49,18 @@ func TestInitialize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			conn, err := Initialize(tt.dbPath, false)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
-			
+
 			assert.NoError(t, err)
-			
+
 			if tt.checkResult != nil {
 				tt.checkResult(t, conn)
 			}
-			
+
 			// Cleanup
 			if conn != nil {
 				conn.Close()
@@ -127,7 +127,7 @@ func TestDB_HealthCheck(t *testing.T) {
 			defer cleanup()
 
 			err := conn.HealthCheck()
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -194,12 +194,12 @@ func TestDB_AutoMigrate(t *testing.T) {
 
 			// Run migration
 			err = conn.AutoMigrate(tt.models...)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				
+
 				if tt.verify != nil {
 					tt.verify(t, conn)
 				}
@@ -233,7 +233,7 @@ func TestDB_DatabaseOperations(t *testing.T) {
 			Email: "john@example.com",
 			Age:   30,
 		}
-		
+
 		err := conn.DB.Create(&user).Error
 		assert.NoError(t, err)
 		assert.NotZero(t, user.ID)
@@ -250,7 +250,7 @@ func TestDB_DatabaseOperations(t *testing.T) {
 	t.Run("update record", func(t *testing.T) {
 		err := conn.DB.Model(&User{}).Where("email = ?", "john@example.com").Update("age", 31).Error
 		assert.NoError(t, err)
-		
+
 		var user User
 		conn.DB.First(&user, "email = ?", "john@example.com")
 		assert.Equal(t, 31, user.Age)
@@ -259,7 +259,7 @@ func TestDB_DatabaseOperations(t *testing.T) {
 	t.Run("delete record", func(t *testing.T) {
 		err := conn.DB.Where("email = ?", "john@example.com").Delete(&User{}).Error
 		assert.NoError(t, err)
-		
+
 		var count int64
 		conn.DB.Model(&User{}).Where("email = ?", "john@example.com").Count(&count)
 		assert.Equal(t, int64(0), count)
@@ -312,9 +312,9 @@ func TestDB_Transaction(t *testing.T) {
 			}
 			return nil
 		})
-		
+
 		assert.NoError(t, err)
-		
+
 		// Verify records were created
 		var count int64
 		conn.DB.Model(&TestRecord{}).Count(&count)
@@ -332,13 +332,13 @@ func TestDB_Transaction(t *testing.T) {
 			if err := tx.Create(&record).Error; err != nil {
 				return err
 			}
-			
+
 			// Force an error to trigger rollback
 			return gorm.ErrInvalidTransaction
 		})
-		
+
 		assert.Error(t, err)
-		
+
 		// Verify no new records were created (transaction was rolled back)
 		var countAfter int64
 		conn.DB.Model(&TestRecord{}).Count(&countAfter)

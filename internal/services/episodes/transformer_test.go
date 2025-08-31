@@ -11,36 +11,36 @@ import (
 
 func TestTransformer_ModelToPodcastIndex(t *testing.T) {
 	transformer := NewTransformer()
-	
+
 	// Create a test episode with all fields
 	duration := 3600
 	episodeNum := 5
 	seasonNum := 2
 	episode := &models.Episode{
-		PodcastID:      100,
-		PodcastIndexID: 12345,
-		Title:          "Test Episode",
-		Description:    "Test Description",
-		AudioURL:       "https://example.com/episode.mp3",
-		Duration:       &duration,
-		PublishedAt:    time.Unix(1609459200, 0),
-		GUID:           "test-guid-123",
-		Link:           "https://example.com/episode",
-		Image:          "https://example.com/image.jpg",
-		Explicit:       1,
-		EpisodeNumber:  &episodeNum,
-		Season:         &seasonNum,
-		EnclosureType:  "audio/mpeg",
+		PodcastID:       100,
+		PodcastIndexID:  12345,
+		Title:           "Test Episode",
+		Description:     "Test Description",
+		AudioURL:        "https://example.com/episode.mp3",
+		Duration:        &duration,
+		PublishedAt:     time.Unix(1609459200, 0),
+		GUID:            "test-guid-123",
+		Link:            "https://example.com/episode",
+		Image:           "https://example.com/image.jpg",
+		Explicit:        1,
+		EpisodeNumber:   &episodeNum,
+		Season:          &seasonNum,
+		EnclosureType:   "audio/mpeg",
 		EnclosureLength: 52428800,
-		FeedLanguage:   "en",
-		ChaptersURL:    "https://example.com/chapters.json",
-		TranscriptURL:  "https://example.com/transcript.vtt",
+		FeedLanguage:    "en",
+		ChaptersURL:     "https://example.com/chapters.json",
+		TranscriptURL:   "https://example.com/transcript.vtt",
 	}
-	episode.ID = 1  // Set ID through embedded gorm.Model
-	
+	episode.ID = 1 // Set ID through embedded gorm.Model
+
 	// Transform to Podcast Index format
 	piEpisode := transformer.ModelToPodcastIndex(episode)
-	
+
 	// Verify all fields are correctly mapped
 	assert.Equal(t, episode.PodcastIndexID, piEpisode.ID)
 	assert.Equal(t, episode.Title, piEpisode.Title)
@@ -64,7 +64,7 @@ func TestTransformer_ModelToPodcastIndex(t *testing.T) {
 
 func TestTransformer_PodcastIndexToModel(t *testing.T) {
 	transformer := NewTransformer()
-	
+
 	// Create a test Podcast Index episode
 	duration := 3600
 	episodeNum := 5
@@ -89,10 +89,10 @@ func TestTransformer_PodcastIndexToModel(t *testing.T) {
 		TranscriptURL:   "https://example.com/transcript.vtt",
 		FeedID:          100,
 	}
-	
+
 	// Transform to model format
 	episode := transformer.PodcastIndexToModel(piEpisode, 100)
-	
+
 	// Verify all fields are correctly mapped
 	assert.Equal(t, uint(100), episode.PodcastID)
 	assert.Equal(t, piEpisode.ID, episode.PodcastIndexID)
@@ -116,7 +116,7 @@ func TestTransformer_PodcastIndexToModel(t *testing.T) {
 
 func TestTransformer_CreateSuccessResponse(t *testing.T) {
 	transformer := NewTransformer()
-	
+
 	// Create test episodes
 	duration1 := 3600
 	duration2 := 1800
@@ -140,16 +140,16 @@ func TestTransformer_CreateSuccessResponse(t *testing.T) {
 	}
 	episodes[0].ID = 1 // Set ID through embedded gorm.Model
 	episodes[1].ID = 2
-	
+
 	// Create response
 	response := transformer.CreateSuccessResponse(episodes, "Test description")
-	
+
 	// Verify response structure
 	assert.Equal(t, "true", response.Status)
 	assert.Equal(t, "Test description", response.Description)
 	assert.Equal(t, 2, response.Count)
 	assert.Len(t, response.Items, 2)
-	
+
 	// Verify episodes are transformed correctly
 	assert.Equal(t, int64(12345), response.Items[0].ID)
 	assert.Equal(t, "Episode 1", response.Items[0].Title)
@@ -159,7 +159,7 @@ func TestTransformer_CreateSuccessResponse(t *testing.T) {
 
 func TestTransformer_CreateSingleEpisodeResponse(t *testing.T) {
 	transformer := NewTransformer()
-	
+
 	// Create test episode
 	duration := 3600
 	episode := &models.Episode{
@@ -171,10 +171,10 @@ func TestTransformer_CreateSingleEpisodeResponse(t *testing.T) {
 		GUID:           "test-guid",
 	}
 	episode.ID = 1 // Set ID through embedded gorm.Model
-	
+
 	// Create response
 	response := transformer.CreateSingleEpisodeResponse(episode)
-	
+
 	// Verify response structure
 	assert.Equal(t, "true", response.Status)
 	assert.Contains(t, response.Description, "Episode found")
@@ -186,10 +186,10 @@ func TestTransformer_CreateSingleEpisodeResponse(t *testing.T) {
 
 func TestTransformer_CreateErrorResponse(t *testing.T) {
 	transformer := NewTransformer()
-	
+
 	// Create error response
 	response := transformer.CreateErrorResponse("Test error message")
-	
+
 	// Verify error response structure
 	assert.Equal(t, "false", response.Status)
 	assert.Equal(t, "Test error message", response.Description)
@@ -197,7 +197,7 @@ func TestTransformer_CreateErrorResponse(t *testing.T) {
 
 func TestTransformer_NilDurationHandling(t *testing.T) {
 	transformer := NewTransformer()
-	
+
 	// Create episode with nil duration
 	episode := &models.Episode{
 		PodcastID:      100,
@@ -208,11 +208,11 @@ func TestTransformer_NilDurationHandling(t *testing.T) {
 		GUID:           "test-guid",
 	}
 	episode.ID = 1 // Set ID through embedded gorm.Model
-	
+
 	// Transform should handle nil duration gracefully
 	piEpisode := transformer.ModelToPodcastIndex(episode)
 	assert.Nil(t, piEpisode.Duration)
-	
+
 	// Create response with nil duration episode
 	response := transformer.CreateSingleEpisodeResponse(episode)
 	assert.Equal(t, "true", response.Status)
@@ -221,10 +221,10 @@ func TestTransformer_NilDurationHandling(t *testing.T) {
 
 func TestTransformer_EmptyEpisodesList(t *testing.T) {
 	transformer := NewTransformer()
-	
+
 	// Create response with empty episodes list
 	response := transformer.CreateSuccessResponse([]models.Episode{}, "No episodes found")
-	
+
 	// Verify response handles empty list correctly
 	assert.Equal(t, "true", response.Status)
 	assert.Equal(t, "No episodes found", response.Description)

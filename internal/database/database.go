@@ -74,7 +74,7 @@ func (db *DB) HealthCheck() error {
 	if db == nil || db.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	
+
 	sqlDB, err := db.DB.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get underlying SQL database: %w", err)

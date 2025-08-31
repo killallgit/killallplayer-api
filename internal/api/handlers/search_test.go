@@ -71,7 +71,7 @@ func TestSearchHandler_ServeHTTP(t *testing.T) {
 			checkResponse: func(t *testing.T, resp map[string]interface{}) {
 				podcasts := resp["podcasts"].([]interface{})
 				assert.Len(t, podcasts, 2)
-				
+
 				first := podcasts[0].(map[string]interface{})
 				assert.Equal(t, "1", first["id"])
 				assert.Equal(t, "Tech Podcast", first["title"])

@@ -2,40 +2,40 @@ package episodes
 
 // PodcastIndexEpisode represents an episode in the exact format returned by Podcast Index API
 type PodcastIndexEpisode struct {
-	ID                  int64                  `json:"id"`
-	Title               string                 `json:"title"`
-	Link                string                 `json:"link,omitempty"`
-	Description         string                 `json:"description"`
-	GUID                string                 `json:"guid"`
-	DatePublished       int64                  `json:"datePublished"`
-	DatePublishedPretty string                 `json:"datePublishedPretty,omitempty"`
-	DateCrawled         int64                  `json:"dateCrawled,omitempty"`
-	EnclosureURL        string                 `json:"enclosureUrl"`
-	EnclosureType       string                 `json:"enclosureType,omitempty"`
-	EnclosureLength     int64                  `json:"enclosureLength,omitempty"`
-	Duration            *int                   `json:"duration"`
-	Explicit            int                    `json:"explicit,omitempty"`
-	Episode             *int                   `json:"episode,omitempty"`
-	EpisodeType         string                 `json:"episodeType,omitempty"`
-	Season              *int                   `json:"season,omitempty"`
-	Image               string                 `json:"image,omitempty"`
-	FeedItunesID        *int64                 `json:"feedItunesId,omitempty"`
-	FeedURL             string                 `json:"feedUrl,omitempty"`
-	FeedImage           string                 `json:"feedImage,omitempty"`
-	FeedID              int64                  `json:"feedId"`
-	FeedTitle           string                 `json:"feedTitle,omitempty"`
-	PodcastGUID         string                 `json:"podcastGuid,omitempty"`
-	FeedLanguage        string                 `json:"feedLanguage,omitempty"`
-	FeedDead            int                    `json:"feedDead,omitempty"`
-	FeedDuplicateOf     *int64                 `json:"feedDuplicateOf,omitempty"`
-	ChaptersURL         string                 `json:"chaptersUrl,omitempty"`
-	TranscriptURL       string                 `json:"transcriptUrl,omitempty"`
-	Transcripts         []Transcript           `json:"transcripts,omitempty"`
-	Soundbite           *Soundbite             `json:"soundbite,omitempty"`
-	Soundbites          []Soundbite            `json:"soundbites,omitempty"`
-	Persons             []Person               `json:"persons,omitempty"`
-	SocialInteract      []SocialInteraction    `json:"socialInteract,omitempty"`
-	Value               *Value                 `json:"value,omitempty"`
+	ID                  int64               `json:"id"`
+	Title               string              `json:"title"`
+	Link                string              `json:"link,omitempty"`
+	Description         string              `json:"description"`
+	GUID                string              `json:"guid"`
+	DatePublished       int64               `json:"datePublished"`
+	DatePublishedPretty string              `json:"datePublishedPretty,omitempty"`
+	DateCrawled         int64               `json:"dateCrawled,omitempty"`
+	EnclosureURL        string              `json:"enclosureUrl"`
+	EnclosureType       string              `json:"enclosureType,omitempty"`
+	EnclosureLength     int64               `json:"enclosureLength,omitempty"`
+	Duration            *int                `json:"duration"`
+	Explicit            int                 `json:"explicit,omitempty"`
+	Episode             *int                `json:"episode,omitempty"`
+	EpisodeType         string              `json:"episodeType,omitempty"`
+	Season              *int                `json:"season,omitempty"`
+	Image               string              `json:"image,omitempty"`
+	FeedItunesID        *int64              `json:"feedItunesId,omitempty"`
+	FeedURL             string              `json:"feedUrl,omitempty"`
+	FeedImage           string              `json:"feedImage,omitempty"`
+	FeedID              int64               `json:"feedId"`
+	FeedTitle           string              `json:"feedTitle,omitempty"`
+	PodcastGUID         string              `json:"podcastGuid,omitempty"`
+	FeedLanguage        string              `json:"feedLanguage,omitempty"`
+	FeedDead            int                 `json:"feedDead,omitempty"`
+	FeedDuplicateOf     *int64              `json:"feedDuplicateOf,omitempty"`
+	ChaptersURL         string              `json:"chaptersUrl,omitempty"`
+	TranscriptURL       string              `json:"transcriptUrl,omitempty"`
+	Transcripts         []Transcript        `json:"transcripts,omitempty"`
+	Soundbite           *Soundbite          `json:"soundbite,omitempty"`
+	Soundbites          []Soundbite         `json:"soundbites,omitempty"`
+	Persons             []Person            `json:"persons,omitempty"`
+	SocialInteract      []SocialInteraction `json:"socialInteract,omitempty"`
+	Value               *Value              `json:"value,omitempty"`
 }
 
 // PodcastIndexResponse represents the standard response wrapper from Podcast Index API
@@ -80,17 +80,17 @@ type Person struct {
 
 // SocialInteraction represents social interaction data
 type SocialInteraction struct {
-	URL      string `json:"url"`
-	Protocol string `json:"protocol,omitempty"`
-	Platform string `json:"platform,omitempty"`
-	AccountID string `json:"accountId,omitempty"`
+	URL        string `json:"url"`
+	Protocol   string `json:"protocol,omitempty"`
+	Platform   string `json:"platform,omitempty"`
+	AccountID  string `json:"accountId,omitempty"`
 	AccountURL string `json:"accountUrl,omitempty"`
-	Priority  int    `json:"priority,omitempty"`
+	Priority   int    `json:"priority,omitempty"`
 }
 
 // Value represents value 4 value information
 type Value struct {
-	Model       ValueModel        `json:"model"`
+	Model        ValueModel         `json:"model"`
 	Destinations []ValueDestination `json:"destinations"`
 }
 
@@ -103,12 +103,12 @@ type ValueModel struct {
 
 // ValueDestination represents a value destination
 type ValueDestination struct {
-	Name    string  `json:"name,omitempty"`
-	Address string  `json:"address"`
-	Type    string  `json:"type"`
-	Split   int     `json:"split"`
-	Fee     bool    `json:"fee,omitempty"`
-	CustomKey string `json:"customKey,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Address     string `json:"address"`
+	Type        string `json:"type"`
+	Split       int    `json:"split"`
+	Fee         bool   `json:"fee,omitempty"`
+	CustomKey   string `json:"customKey,omitempty"`
 	CustomValue string `json:"customValue,omitempty"`
 }
 
@@ -127,9 +127,9 @@ type LiveEpisode struct {
 
 // LiveItem represents live streaming information
 type LiveItem struct {
-	Status    string  `json:"status"`
-	Start     string  `json:"start"`
-	End       string  `json:"end,omitempty"`
-	Chat      string  `json:"chat,omitempty"`
+	Status      string `json:"status"`
+	Start       string `json:"start"`
+	End         string `json:"end,omitempty"`
+	Chat        string `json:"chat,omitempty"`
 	ContentLink string `json:"contentLink,omitempty"`
 }

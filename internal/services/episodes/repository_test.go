@@ -64,7 +64,7 @@ func TestRepository_UpdateEpisode(t *testing.T) {
 		Duration:    &duration,
 		GUID:        "update-test-guid",
 	}
-	
+
 	err := repo.CreateEpisode(context.Background(), episode)
 	require.NoError(t, err)
 
@@ -99,7 +99,7 @@ func TestRepository_GetEpisodeByID(t *testing.T) {
 		AudioURL:    "https://example.com/test.mp3",
 		GUID:        "get-by-id-guid",
 	}
-	
+
 	err := repo.CreateEpisode(context.Background(), episode)
 	require.NoError(t, err)
 
@@ -127,7 +127,7 @@ func TestRepository_GetEpisodeByGUID(t *testing.T) {
 		AudioURL:    "https://example.com/test.mp3",
 		GUID:        "unique-guid-123",
 	}
-	
+
 	err := repo.CreateEpisode(context.Background(), episode)
 	require.NoError(t, err)
 
@@ -194,7 +194,7 @@ func TestRepository_MarkEpisodeAsPlayed(t *testing.T) {
 		GUID:      "playback-guid",
 		Played:    false,
 	}
-	
+
 	err := repo.CreateEpisode(context.Background(), episode)
 	require.NoError(t, err)
 
@@ -229,7 +229,7 @@ func TestRepository_UpdatePlaybackPosition(t *testing.T) {
 		GUID:      "position-guid",
 		Position:  0,
 	}
-	
+
 	err := repo.CreateEpisode(context.Background(), episode)
 	require.NoError(t, err)
 
@@ -256,7 +256,7 @@ func TestRepository_UpsertEpisode(t *testing.T) {
 		AudioURL:    "https://example.com/test.mp3",
 		GUID:        "upsert-guid",
 	}
-	
+
 	err := repo.UpsertEpisode(context.Background(), episode)
 	require.NoError(t, err)
 	originalID := episode.ID
@@ -269,7 +269,7 @@ func TestRepository_UpsertEpisode(t *testing.T) {
 		AudioURL:    "https://example.com/updated.mp3",
 		GUID:        "upsert-guid", // Same GUID
 	}
-	
+
 	err = repo.UpsertEpisode(context.Background(), episode2)
 	require.NoError(t, err)
 	assert.Equal(t, originalID, episode2.ID) // Should have same ID
@@ -293,7 +293,7 @@ func TestRepository_DeleteEpisode(t *testing.T) {
 		AudioURL:  "https://example.com/test.mp3",
 		GUID:      "delete-guid",
 	}
-	
+
 	err := repo.CreateEpisode(context.Background(), episode)
 	require.NoError(t, err)
 

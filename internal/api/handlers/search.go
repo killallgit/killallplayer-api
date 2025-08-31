@@ -22,7 +22,6 @@ func NewSearchHandler(client PodcastSearcher) *SearchHandler {
 	}
 }
 
-
 // HandleSearch handles the search endpoint using Gin
 func (h *SearchHandler) HandleSearch(c *gin.Context) {
 	// Parse request body
@@ -68,10 +67,10 @@ func (h *SearchHandler) HandleSearch(c *gin.Context) {
 		if len(sanitizedQuery) > 100 {
 			sanitizedQuery = sanitizedQuery[:100] + "..."
 		}
-		
+
 		// Use Gin's structured logging
 		gin.DefaultWriter.Write([]byte("[ERROR] Search failed: query=\"" + sanitizedQuery + "\", error=" + err.Error() + "\n"))
-		
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",
 			"message": "Failed to search podcasts",
@@ -98,4 +97,3 @@ func (h *SearchHandler) HandleSearch(c *gin.Context) {
 	// Send response
 	c.JSON(http.StatusOK, response)
 }
-
