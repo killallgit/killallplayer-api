@@ -190,11 +190,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid server port: %d", c.Server.Port)
 	}
 
-	// Database is optional
-	if c.Database.Path == "" {
-		// Just log a warning in the struct validation too
-		// This is mainly used for testing
-	}
+	// Database is optional - no validation needed for empty path
 
 	if c.Processing.Workers <= 0 {
 		c.Processing.Workers = 2

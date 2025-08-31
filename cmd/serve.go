@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -160,10 +161,6 @@ func setupRoutes(db *database.DB) http.Handler {
 	apiKey := config.GetString("podcast_index.api_key")
 	apiSecret := config.GetString("podcast_index.api_secret")
 
-	// Debug logging
-	fmt.Printf("DEBUG: API Key from config: %s\n", apiKey)
-	fmt.Printf("DEBUG: API Secret length: %d\n", len(apiSecret))
-
 	podcastConfig := podcastindex.Config{
 		APIKey:    apiKey,
 		APISecret: apiSecret,
@@ -198,17 +195,25 @@ func setupRoutes(db *database.DB) http.Handler {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		response := fmt.Sprintf(`{"status":"%s","timestamp":"%s","database":"%s"}`,
-			health["status"], health["timestamp"], health["database"])
-		_, _ = w.Write([]byte(response))
+		if err := json.NewEncoder(w).Encode(health); err != nil {
+			// Log error but don't change response since headers are already sent
+			fmt.Fprintf(os.Stderr, "Error encoding health response: %v\n", err)
+		}
 	})
 
 	// Root endpoint with version info
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		response := fmt.Sprintf(`{"message":"Podcast Player API","version":"%s","commit":"%s"}`, Version, GitCommit)
-		_, _ = w.Write([]byte(response))
+		response := map[string]string{
+			"message": "Podcast Player API",
+			"version": Version,
+			"commit":  GitCommit,
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			// Log error but don't change response since headers are already sent
+			fmt.Fprintf(os.Stderr, "Error encoding version response: %v\n", err)
+		}
 	})
 
 	// Search endpoint
