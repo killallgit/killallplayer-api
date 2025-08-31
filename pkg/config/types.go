@@ -5,7 +5,6 @@ import "time"
 // Config represents the complete application configuration
 type Config struct {
 	Server       ServerConfig       `mapstructure:"server"`
-	WebSocket    WebSocketConfig    `mapstructure:"websocket"`
 	Database     DatabaseConfig     `mapstructure:"database"`
 	Processing   ProcessingConfig   `mapstructure:"processing"`
 	PodcastIndex PodcastIndexConfig `mapstructure:"podcast_index"`
@@ -30,15 +29,6 @@ type ServerConfig struct {
 	MaxHeaderBytes  int           `mapstructure:"max_header_bytes"`
 }
 
-// WebSocketConfig contains WebSocket settings
-type WebSocketConfig struct {
-	HeartbeatInterval time.Duration `mapstructure:"heartbeat_interval"`
-	MaxMessageSize    int64         `mapstructure:"max_message_size"`
-	ReadBufferSize    int           `mapstructure:"read_buffer_size"`
-	WriteBufferSize   int           `mapstructure:"write_buffer_size"`
-	HandshakeTimeout  time.Duration `mapstructure:"handshake_timeout"`
-	EnableCompression bool          `mapstructure:"enable_compression"`
-}
 
 // DatabaseConfig contains database settings
 type DatabaseConfig struct {
@@ -174,6 +164,5 @@ type FeaturesConfig struct {
 	EnableWaveform      bool `mapstructure:"enable_waveform"`
 	EnableTagging       bool `mapstructure:"enable_tagging"`
 	EnableCaching       bool `mapstructure:"enable_caching"`
-	EnableWebSocket     bool `mapstructure:"enable_websocket"`
 	MaintenanceMode     bool `mapstructure:"maintenance_mode"`
 }

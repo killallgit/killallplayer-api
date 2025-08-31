@@ -10,14 +10,6 @@ server:
   shutdown_timeout: 10s            # Graceful shutdown timeout
   max_header_bytes: 1048576        # 1MB max header size
 
-# WebSocket configuration
-websocket:
-  heartbeat_interval: 30s          # Ping/pong interval
-  max_message_size: 10485760       # 10MB max message size
-  read_buffer_size: 1024           # Read buffer size
-  write_buffer_size: 1024          # Write buffer size
-  handshake_timeout: 10s           # Connection handshake timeout
-  enable_compression: true         # Enable message compression
 
 # Database configuration
 database:
@@ -111,7 +103,6 @@ rate_limiting:
     search: 60
     stream: 100
     processing: 10
-    websocket: 100
     default: 120
 
 # Security configuration
@@ -159,7 +150,6 @@ features:
   enable_waveform: true                   # Enable waveform generation
   enable_tagging: true                    # Enable audio tagging
   enable_caching: true                    # Enable caching
-  enable_websocket: true                  # Enable WebSocket support
   maintenance_mode: false                 # Maintenance mode
 
 # Environment-specific overrides

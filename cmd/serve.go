@@ -2,18 +2,15 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/killallgit/player-api/internal/api/handlers"
+	"github.com/killallgit/player-api/internal/api"
 	"github.com/killallgit/player-api/internal/database"
 	"github.com/killallgit/player-api/internal/models"
-	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
 )
@@ -29,8 +26,7 @@ var serveCmd = &cobra.Command{
 	Short: "Start the API server",
 	Long: `Start the Podcast Player API server with the configured settings.
 
-The server will listen for HTTP requests and WebSocket connections,
-providing podcast discovery, audio streaming, and real-time updates.
+The server will listen for HTTP requests providing podcast discovery and audio streaming.
 
 Example:
   player-api serve
@@ -102,13 +98,10 @@ func runServer(cmd *cobra.Command, args []string) error {
 	// Log server startup
 	fmt.Printf("Starting Podcast Player API server on %s:%d\n", serverHost, serverPort)
 
-	// Create HTTP server
-	srv := &http.Server{
-		Addr:           fmt.Sprintf("%s:%d", serverHost, serverPort),
-		Handler:        setupRoutes(db),
-		ReadTimeout:    config.GetDuration("server.read_timeout"),
-		WriteTimeout:   config.GetDuration("server.write_timeout"),
-		MaxHeaderBytes: config.GetInt("server.max_header_bytes"),
+	// Create Gin-based API server
+	apiServer := api.NewServer(fmt.Sprintf("%s:%d", serverHost, serverPort))
+	if db != nil {
+		apiServer.SetDatabase(db)
 	}
 
 	// Channel to listen for interrupt signals
@@ -120,7 +113,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 	// Start server in a goroutine
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := apiServer.Start(); err != nil && err != http.ErrServerClosed {
 			serverErr <- fmt.Errorf("server error: %w", err)
 		}
 	}()
@@ -141,98 +134,11 @@ func runServer(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	// Attempt graceful shutdown
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := apiServer.Shutdown(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "Server forced to shutdown: %v\n", err)
 		return err
 	}
 
 	fmt.Println("Server gracefully stopped")
 	return nil
-}
-
-// setupRoutes configures and returns the HTTP handler
-func setupRoutes(db *database.DB) http.Handler {
-	mux := http.NewServeMux()
-
-	// Add security headers middleware
-	handler := addSecurityHeaders(mux)
-
-	// Initialize Podcast Index client
-	apiKey := config.GetString("podcast_index.api_key")
-	apiSecret := config.GetString("podcast_index.api_secret")
-
-	podcastConfig := podcastindex.Config{
-		APIKey:    apiKey,
-		APISecret: apiSecret,
-		BaseURL:   config.GetString("podcast_index.base_url"),
-		UserAgent: config.GetString("podcast_index.user_agent"),
-		Timeout:   config.GetDuration("podcast_index.timeout"),
-	}
-	podcastClient := podcastindex.NewClient(podcastConfig)
-
-	// Create search handler
-	searchHandler := handlers.NewSearchHandler(podcastClient)
-
-	// Health check endpoint
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		health := map[string]any{
-			"status":    "healthy",
-			"timestamp": time.Now().Format(time.RFC3339),
-		}
-
-		// Check database health if available
-		if db != nil {
-			if err := db.HealthCheck(); err != nil {
-				health["database"] = "unhealthy"
-				health["database_error"] = err.Error()
-			} else {
-				health["database"] = "healthy"
-			}
-		} else {
-			health["database"] = "not_configured"
-		}
-
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(health); err != nil {
-			// Log error but don't change response since headers are already sent
-			fmt.Fprintf(os.Stderr, "Error encoding health response: %v\n", err)
-		}
-	})
-
-	// Root endpoint with version info
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		response := map[string]string{
-			"message": "Podcast Player API",
-			"version": Version,
-			"commit":  GitCommit,
-		}
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			// Log error but don't change response since headers are already sent
-			fmt.Fprintf(os.Stderr, "Error encoding version response: %v\n", err)
-		}
-	})
-
-	// Search endpoint
-	mux.Handle("/api/v1/search", searchHandler)
-
-	return handler
-}
-
-// addSecurityHeaders adds security headers to all responses
-func addSecurityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Add security headers
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'")
-
-		// Call the next handler
-		next.ServeHTTP(w, r)
-	})
 }
