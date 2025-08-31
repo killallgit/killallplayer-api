@@ -6,6 +6,7 @@ import (
 
 	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -43,6 +44,14 @@ func NewRootCmd() *cobra.Command {
 func init() {
 	// Set up configuration loading with lazy initialization
 	cobra.OnInitialize(loadConfig)
+
+	// Add persistent flags that tests expect
+	rootCmd.PersistentFlags().String("log-level", "info", "Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().Bool("json-logs", false, "Enable JSON log format")
+
+	// Bind flags to viper
+	_ = viper.BindPFlag("logging.level", rootCmd.PersistentFlags().Lookup("log-level"))
+	_ = viper.BindPFlag("logging.format", rootCmd.PersistentFlags().Lookup("json-logs"))
 }
 
 // loadConfig loads the configuration when a command needs it

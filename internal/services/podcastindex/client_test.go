@@ -93,7 +93,7 @@ func TestSearch(t *testing.T) {
 			"description": "Found matching feeds"
 		}`
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(response))
+		_, _ = w.Write([]byte(response))
 	}))
 	defer server.Close()
 
