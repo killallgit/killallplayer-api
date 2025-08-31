@@ -88,6 +88,9 @@ func (s *Server) setupRoutes() {
 
 // setupMiddleware configures middleware
 func (s *Server) setupMiddleware() {
+	// Request size limiting middleware
+	s.router.Use(s.requestSizeLimitMiddleware)
+	
 	// CORS middleware
 	s.router.Use(s.corsMiddleware)
 	
@@ -131,6 +134,17 @@ func (s *Server) recoveryMiddleware(next http.Handler) http.Handler {
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 			}
 		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requestSizeLimitMiddleware limits request body size
+func (s *Server) requestSizeLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Limit request body size to 1MB for API endpoints
+		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch {
+			r.Body = http.MaxBytesReader(w, r.Body, 1024*1024) // 1MB limit
+		}
 		next.ServeHTTP(w, r)
 	})
 }

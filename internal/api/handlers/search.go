@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -58,6 +59,8 @@ func (h *SearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Search via Podcast Index API
 	searchResp, err := h.podcastClient.Search(ctx, req.Query, req.Limit)
 	if err != nil {
+		// Log the actual error for debugging while returning generic message to client
+		log.Printf("Search error for query '%s': %v", req.Query, err)
 		sendErrorResponse(w, "Failed to search podcasts", http.StatusInternalServerError)
 		return
 	}

@@ -28,8 +28,13 @@ func Init() error {
 		viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 		viper.AutomaticEnv()
 
-		// Load config from fixed location (cleaned for safety)
-		configPath := filepath.Clean("./config/settings.yaml")
+		// Load config from multiple possible locations
+		// First try environment variable, then working directory, then defaults
+		configPath := os.Getenv("KILLALL_CONFIG_PATH")
+		if configPath == "" {
+			configPath = "./config/settings.yaml"
+		}
+		configPath = filepath.Clean(configPath)
 		viper.SetConfigFile(configPath)
 
 		// Try to read the config file

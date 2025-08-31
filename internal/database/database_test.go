@@ -79,10 +79,10 @@ func TestDB_Close(t *testing.T) {
 	err = conn.Close()
 	assert.NoError(t, err)
 
-	// Verify connection is closed by trying to use it
-	// This should panic or return an error
-	err = conn.DB.Exec("SELECT 1").Error
-	assert.Error(t, err)
+	// Verify connection is closed by checking if health check fails
+	// This is more reliable than trying to execute SQL which may vary by driver
+	err = conn.HealthCheck()
+	assert.Error(t, err, "HealthCheck should fail after database is closed")
 }
 
 func TestDB_HealthCheck(t *testing.T) {
