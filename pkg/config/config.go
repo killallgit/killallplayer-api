@@ -28,8 +28,13 @@ func Init() error {
 		viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 		viper.AutomaticEnv()
 
-		// Load config from fixed location (cleaned for safety)
-		configPath := filepath.Clean("./config/settings.yaml")
+		// Load config from multiple possible locations
+		// First try environment variable, then working directory, then defaults
+		configPath := os.Getenv("KILLALL_CONFIG_PATH")
+		if configPath == "" {
+			configPath = "./config/settings.yaml"
+		}
+		configPath = filepath.Clean(configPath)
 		viper.SetConfigFile(configPath)
 
 		// Try to read the config file
@@ -96,6 +101,9 @@ func GetDuration(key string) time.Duration {
 
 // validate validates the configuration using Viper values
 func validate() error {
+	// Check if we're in test mode to suppress warnings
+	isTestMode := os.Getenv("GO_TEST_MODE") == "1" || strings.Contains(os.Args[0], ".test")
+	
 	port := viper.GetInt("server.port")
 	if port <= 0 || port > 65535 {
 		return fmt.Errorf("invalid server port: %d", port)
@@ -104,12 +112,14 @@ func validate() error {
 	dbPath := viper.GetString("database.path")
 	if dbPath == "" {
 		// Database is optional, so we don't return an error
-		// but we log a warning
-		fmt.Println("Warning: No database path configured")
+		// but we log a warning unless in test mode
+		if !isTestMode {
+			fmt.Println("Warning: No database path configured")
+		}
 	}
 
 	// Validate API keys aren't using placeholder values
-	if err := validateAPIKeys(); err != nil {
+	if err := validateAPIKeys(isTestMode); err != nil {
 		return err
 	}
 
@@ -127,7 +137,7 @@ func validate() error {
 }
 
 // validateAPIKeys validates that API keys are not using placeholder values
-func validateAPIKeys() error {
+func validateAPIKeys(isTestMode bool) error {
 	// Check for production environment
 	env := viper.GetString("environment")
 	isProduction := env == "production" || env == "prod"
@@ -152,7 +162,9 @@ func validateAPIKeys() error {
 			if isProduction {
 				return fmt.Errorf("invalid Podcast Index API credentials: cannot use placeholder values in production")
 			}
-			fmt.Println("Warning: Podcast Index API credentials are using placeholder values")
+			if !isTestMode {
+				fmt.Println("Warning: Podcast Index API credentials are using placeholder values")
+			}
 			break
 		}
 	}
@@ -164,7 +176,9 @@ func validateAPIKeys() error {
 			if isProduction {
 				return fmt.Errorf("invalid OpenAI API key: cannot use placeholder values in production")
 			}
-			fmt.Println("Warning: OpenAI API key is using a placeholder value")
+			if !isTestMode {
+				fmt.Println("Warning: OpenAI API key is using a placeholder value")
+			}
 			break
 		}
 	}
@@ -176,7 +190,9 @@ func validateAPIKeys() error {
 			if isProduction {
 				return fmt.Errorf("invalid JWT secret: cannot use placeholder values in production")
 			}
-			fmt.Println("Warning: JWT secret is using a placeholder value - this is insecure!")
+			if !isTestMode {
+				fmt.Println("Warning: JWT secret is using a placeholder value - this is insecure!")
+			}
 			break
 		}
 	}
