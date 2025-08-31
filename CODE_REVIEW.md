@@ -11,14 +11,6 @@
 
 ## Critical Issues to Fix Immediately
 
-### 1. Security: Remove Debug Credential Logging
-**File**: `cmd/serve.go:164-165`
-```go
-// REMOVE THESE LINES:
-fmt.Printf("DEBUG: API Key from config: %s\n", apiKey)
-fmt.Printf("DEBUG: API Secret length: %d\n", len(apiSecret))
-```
-
 ### 2. Fix Failing Tests
 **File**: `cmd/root.go`
 ```go

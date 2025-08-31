@@ -3,22 +3,20 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/killallgit/player-api/internal/models"
-	"github.com/killallgit/player-api/internal/services/podcastindex"
 )
 
 // SearchHandler handles podcast search requests
 type SearchHandler struct {
-	podcastClient *podcastindex.Client
+	podcastClient PodcastSearcher
 }
 
 // NewSearchHandler creates a new search handler
-func NewSearchHandler(client *podcastindex.Client) *SearchHandler {
+func NewSearchHandler(client PodcastSearcher) *SearchHandler {
 	return &SearchHandler{
 		podcastClient: client,
 	}
@@ -35,19 +33,22 @@ func (h *SearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Parse request body
 	var req models.SearchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		sendErrorResponse(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
 
 	// Validate request
 	if req.Query == "" {
-		http.Error(w, "Query parameter is required", http.StatusBadRequest)
+		sendErrorResponse(w, "Query parameter is required", http.StatusBadRequest)
 		return
 	}
 
-	// Set default limit if not provided
+	// Validate and set limit
 	if req.Limit <= 0 {
-		req.Limit = 25
+		req.Limit = 10 // Default limit
+	} else if req.Limit > 100 {
+		sendErrorResponse(w, "Limit must be between 1 and 100", http.StatusBadRequest)
+		return
 	}
 
 	// Create context with timeout
@@ -57,7 +58,7 @@ func (h *SearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Search via Podcast Index API
 	searchResp, err := h.podcastClient.Search(ctx, req.Query, req.Limit)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Search failed: %v", err), http.StatusInternalServerError)
+		sendErrorResponse(w, "Failed to search podcasts", http.StatusInternalServerError)
 		return
 	}
 
@@ -85,4 +86,14 @@ func (h *SearchHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// In production, you'd want proper logging here
 		return
 	}
+}
+
+// sendErrorResponse sends a JSON error response
+func sendErrorResponse(w http.ResponseWriter, message string, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "error",
+		"message": message,
+	})
 }

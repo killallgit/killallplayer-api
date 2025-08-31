@@ -41,3 +41,5 @@ config/settings.yaml
 # .vscode/
 .task
 bindata/
+bin/*
+data/*
