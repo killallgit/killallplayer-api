@@ -88,7 +88,7 @@ func (s *Server) setupRoutes() {
 		cfg, err := config.GetConfig()
 		if err != nil {
 			// Log error but don't fail server startup - search endpoint will be disabled
-			gin.DefaultWriter.Write([]byte(fmt.Sprintf("Warning: Failed to load config, search endpoint disabled: %v\n", err)))
+			fmt.Fprintf(gin.DefaultWriter, "Warning: Failed to load config, search endpoint disabled: %v\n", err)
 		} else if cfg != nil {
 			podcastClient := podcastindex.NewClient(podcastindex.Config{
 				APIKey:    cfg.PodcastIndex.APIKey,
