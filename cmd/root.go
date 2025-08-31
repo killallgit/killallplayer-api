@@ -8,8 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var appConfig *config.Config
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "player-api",
@@ -43,21 +41,28 @@ func NewRootCmd() *cobra.Command {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
-	// Global flags (no config file flag since it's always ./config/settings.yaml)
-	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().Bool("json-logs", false, "enable JSON formatted logs")
+	// Set up configuration loading with lazy initialization
+	cobra.OnInitialize(loadConfig)
 }
 
-// initConfig loads configuration from ./config/settings.yaml
-func initConfig() {
-	// Load configuration from fixed location
-	cfg, err := config.Load()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-		os.Exit(1)
+// loadConfig loads the configuration when a command needs it
+// This is called lazily only when a command that needs config runs
+func loadConfig() {
+	// Skip config loading for commands that don't need it
+	cmd, _, _ := rootCmd.Find(os.Args[1:])
+	if cmd != nil && (cmd.Name() == "version" || cmd.Name() == "help") {
+		// Skip loading config for version and help commands
+		if len(os.Args) > 2 && os.Args[2] == "--help" {
+			return // Skip for subcommand help too
+		}
+		if cmd.Name() == "version" {
+			return // Version command doesn't need config
+		}
 	}
 
-	appConfig = cfg
+	// Initialize the configuration
+	if err := config.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing config: %v\n", err)
+		os.Exit(1)
+	}
 }
