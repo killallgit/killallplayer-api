@@ -29,7 +29,6 @@ type ServerConfig struct {
 	MaxHeaderBytes  int           `mapstructure:"max_header_bytes"`
 }
 
-
 // DatabaseConfig contains database settings
 type DatabaseConfig struct {
 	Path                  string        `mapstructure:"path"`
