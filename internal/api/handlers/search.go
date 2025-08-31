@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -64,7 +63,15 @@ func (h *SearchHandler) HandleSearch(c *gin.Context) {
 	searchResp, err := h.podcastClient.Search(ctx, req.Query, req.Limit)
 	if err != nil {
 		// Log the actual error for debugging while returning generic message to client
-		log.Printf("Search error for query '%s': %v", req.Query, err)
+		// Sanitize query for logging to prevent log injection
+		sanitizedQuery := req.Query
+		if len(sanitizedQuery) > 100 {
+			sanitizedQuery = sanitizedQuery[:100] + "..."
+		}
+		
+		// Use Gin's structured logging
+		gin.DefaultWriter.Write([]byte("[ERROR] Search failed: query=\"" + sanitizedQuery + "\", error=" + err.Error() + "\n"))
+		
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",
 			"message": "Failed to search podcasts",

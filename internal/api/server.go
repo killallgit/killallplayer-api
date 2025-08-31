@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -84,7 +85,10 @@ func (s *Server) setupRoutes() {
 	{
 		// Search endpoint - create podcast client and handler
 		cfg, err := config.GetConfig()
-		if err == nil && cfg != nil {
+		if err != nil {
+			// Log error but don't fail server startup - search endpoint will be disabled
+			gin.DefaultWriter.Write([]byte(fmt.Sprintf("Warning: Failed to load config, search endpoint disabled: %v\n", err)))
+		} else if cfg != nil {
 			podcastClient := podcastindex.NewClient(podcastindex.Config{
 				APIKey:    cfg.PodcastIndex.APIKey,
 				APISecret: cfg.PodcastIndex.APISecret,
@@ -118,14 +122,13 @@ func (s *Server) corsMiddleware() gin.HandlerFunc {
 
 // requestSizeLimitMiddleware returns request size limiting middleware
 func (s *Server) requestSizeLimitMiddleware() gin.HandlerFunc {
-	return gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
-		if recovered != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "Internal server error",
-			})
+	return func(c *gin.Context) {
+		// Limit request body size to 1MB for API endpoints
+		if c.Request.Method == http.MethodPost || c.Request.Method == http.MethodPut || c.Request.Method == http.MethodPatch {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1024*1024) // 1MB limit
 		}
-	})
+		c.Next()
+	}
 }
 
 
