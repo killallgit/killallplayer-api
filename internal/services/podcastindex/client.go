@@ -1,0 +1,109 @@
+package podcastindex
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
+	"time"
+)
+
+// Client handles communication with the Podcast Index API
+type Client struct {
+	httpClient *http.Client
+	baseURL    string
+	apiKey     string
+	apiSecret  string
+	userAgent  string
+}
+
+// Config holds configuration for the Podcast Index client
+type Config struct {
+	APIKey    string
+	APISecret string
+	BaseURL   string
+	UserAgent string
+	Timeout   time.Duration
+}
+
+// NewClient creates a new Podcast Index API client
+func NewClient(cfg Config) *Client {
+	httpClient := &http.Client{
+		Timeout: cfg.Timeout,
+	}
+
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "https://api.podcastindex.org/api/1.0"
+	}
+
+	if cfg.UserAgent == "" {
+		cfg.UserAgent = "PodcastPlayerAPI/1.0"
+	}
+
+	return &Client{
+		httpClient: httpClient,
+		baseURL:    cfg.BaseURL,
+		apiKey:     cfg.APIKey,
+		apiSecret:  cfg.APISecret,
+		userAgent:  cfg.UserAgent,
+	}
+}
+
+// Search searches for podcasts by term
+func (c *Client) Search(ctx context.Context, query string, limit int) (*SearchResponse, error) {
+	if query == "" {
+		return nil, fmt.Errorf("search query cannot be empty")
+	}
+
+	// Default and max limit
+	if limit <= 0 {
+		limit = 25
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	// Build URL with query parameters
+	endpoint := fmt.Sprintf("%s/search/byterm?q=%s&max=%d",
+		c.baseURL,
+		url.QueryEscape(query),
+		limit)
+
+	// Create request
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	// Sign the request
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	// Execute request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		// Log headers for debugging
+		fmt.Printf("Request headers: %v\n", req.Header)
+		fmt.Printf("Response status: %d\n", resp.StatusCode)
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	// Decode response
+	var searchResp SearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	// Check API status
+	if searchResp.Status != "true" {
+		return nil, fmt.Errorf("API returned error status: %s", searchResp.Description)
+	}
+
+	return &searchResp, nil
+}

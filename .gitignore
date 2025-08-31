@@ -40,4 +40,4 @@ config/settings.yaml
 # .idea/
 # .vscode/
 .task
-bin
+bindata/

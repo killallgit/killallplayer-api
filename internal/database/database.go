@@ -44,7 +44,7 @@ func Initialize(dbPath string, verbose bool) (*DB, error) {
 	db, err := gorm.Open(sqlite.Open(dbPath), gormConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
-		}
+	}
 
 	// Get underlying SQL database to configure connection pool
 	sqlDB, err := db.DB()
@@ -75,14 +75,14 @@ func (db *DB) HealthCheck() error {
 	if err != nil {
 		return fmt.Errorf("failed to get underlying SQL database: %w", err)
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	
+
 	if err := sqlDB.PingContext(ctx); err != nil {
 		return fmt.Errorf("database ping failed: %w", err)
 	}
-	
+
 	return nil
 }
 
