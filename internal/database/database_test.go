@@ -413,7 +413,7 @@ func TestInitializeWithMigrations(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, db)
-				
+
 				// Verify migrations were run by checking if tables exist
 				if db != nil {
 					// Check if podcast table exists
@@ -421,7 +421,7 @@ func TestInitializeWithMigrations(t *testing.T) {
 					err = db.DB.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='podcasts'").Scan(&count).Error
 					assert.NoError(t, err)
 					assert.Greater(t, count, int64(0), "podcasts table should exist")
-					
+
 					// Clean up
 					db.Close()
 				}
@@ -438,7 +438,7 @@ func TestInitializeWithMigrations_ConfigNotInitialized(t *testing.T) {
 
 	// Reset viper to simulate uninitialized config
 	viper.Reset()
-	
+
 	// Set required config
 	viper.Set("database.path", ":memory:")
 	viper.Set("database.verbose", false)
@@ -446,14 +446,14 @@ func TestInitializeWithMigrations_ConfigNotInitialized(t *testing.T) {
 
 	// Call InitializeWithMigrations - should initialize config automatically
 	db, err := InitializeWithMigrations()
-	
+
 	assert.NoError(t, err)
 	assert.NotNil(t, db)
-	
+
 	if db != nil {
 		// Verify config was initialized by checking if we can get values
 		assert.True(t, config.IsInitialized())
-		
+
 		// Clean up
 		db.Close()
 	}

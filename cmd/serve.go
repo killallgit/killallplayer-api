@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/killallgit/player-api/internal/api"
+	"github.com/killallgit/player-api/api"
 	"github.com/killallgit/player-api/internal/database"
 	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
@@ -69,6 +69,11 @@ func runServer(cmd *cobra.Command, args []string) error {
 	// Create Gin-based API server
 	apiServer := api.NewServer(fmt.Sprintf("%s:%d", serverHost, serverPort))
 	apiServer.SetDatabase(db)
+
+	// Initialize the server (sets up middleware and routes)
+	if err := apiServer.Initialize(); err != nil {
+		return fmt.Errorf("failed to initialize server: %w", err)
+	}
 
 	// Channel to listen for interrupt signals
 	stop := make(chan os.Signal, 1)
