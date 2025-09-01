@@ -7,6 +7,8 @@ A robust REST API for podcast discovery, episode management, and audio streaming
 - 🎙️ **Podcast Discovery** - Search and discover podcasts via Podcast Index API
 - 📋 **Episode Management** - Sync, store, and retrieve podcast episodes
 - 🎵 **Audio Streaming** - HTTP audio streaming with range request support (seeking)
+- 🆔 **Podcast Index IDs** - Uses Podcast Index IDs throughout, no ID mapping needed
+- 🔗 **Direct URL Streaming** - Stream any audio URL without database storage
 - 💾 **Local Database** - SQLite storage for offline episode access
 - ⚡ **Rate Limiting** - Built-in rate limiting for API endpoints
 - 🔄 **CORS Support** - Full CORS support for web clients
@@ -54,9 +56,10 @@ Complete API documentation is available in [docs/API_SPECIFICATION.md](docs/API_
 
 - `GET /health` - Health check
 - `POST /api/v1/search` - Search podcasts
-- `GET /api/v1/episodes/:id` - Get episode details
-- `GET /api/v1/stream/:id` - Stream audio with range support
-- `POST /api/v1/podcasts/:id/episodes/sync` - Sync episodes
+- `GET /api/v1/episodes/:id` - Get episode details (using Podcast Index ID)
+- `GET /api/v1/stream/:id` - Stream audio with range support (using Podcast Index ID)
+- `GET /api/v1/stream/direct?url=` - Stream audio from any URL
+- `POST /api/v1/podcasts/:id/episodes/sync` - Sync episodes from Podcast Index
 
 ### Example Usage
 

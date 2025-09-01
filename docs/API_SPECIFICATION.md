@@ -242,6 +242,8 @@ Sync episodes from Podcast Index API for a specific podcast.
 
 ## Audio Streaming
 
+**Note:** Streaming works with direct audio URLs. Some podcast hosts (e.g., Podbean) return HTML pages instead of audio files, which will result in a 502 error. The API properly detects this and returns an appropriate error message.
+
 ### GET /api/v1/stream/:id
 Stream audio content with support for range requests. Acts as a proxy to the episode's audio URL, handling redirects transparently. Uses database to fetch episode metadata.
 
@@ -253,6 +255,15 @@ Stream audio content directly from a URL without database lookup. Useful for tes
 
 **Query Parameters:**
 - `url`: The audio URL to stream (required, must be http or https)
+
+**Response Headers:**
+Same as `/api/v1/stream/:id`
+
+**Status Codes:**
+- `200`: Full content delivery
+- `206`: Partial content (range request)
+- `400`: Invalid or missing URL parameter
+- `502`: Failed to fetch audio from source or source returned HTML instead of audio
 
 **Request Headers:**
 - `Range`: `bytes=start-end` (optional) - For partial content requests/seeking
@@ -308,6 +319,19 @@ Get audio metadata without downloading the content body.
 **Example Request:**
 ```bash
 curl -I http://localhost:8080/api/v1/stream/41928435424
+```
+
+### HEAD /api/v1/stream/direct
+Get audio metadata for a direct URL without downloading the content body.
+
+**Query Parameters:**
+- `url`: The audio URL to check (required, must be http or https)
+
+**Response:** Same headers as GET but without body
+
+**Example Request:**
+```bash
+curl -I "http://localhost:8080/api/v1/stream/direct?url=https://example.com/episode.mp3"
 ```
 
 ### OPTIONS /api/v1/stream/:id
