@@ -3,67 +3,43 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/spf13/viper"
 )
 
-var (
-	once        sync.Once
-	initErr     error
-	initialized bool
-)
-
-// Init initializes the configuration system
-// This should be called once at application startup
+// Init initializes the configuration system using standard Viper practices
 func Init() error {
-	once.Do(func() {
-		// Set default values
-		setDefaults()
-
-		// Set up environment variable reading for overrides
-		viper.SetEnvPrefix("KILLALL")
-		viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-		viper.AutomaticEnv()
-
-		// Load config from multiple possible locations
-		// First try environment variable, then working directory, then defaults
-		configPath := os.Getenv("KILLALL_CONFIG_PATH")
-		if configPath == "" {
-			configPath = "./config/settings.yaml"
+	// Set defaults
+	setDefaults()
+	
+	// Set config name and paths
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("./config/")
+	viper.AddConfigPath("$HOME/.killall/")
+	viper.AddConfigPath("/etc/killall/")
+	
+	// Environment variables
+	viper.SetEnvPrefix("KILLALL")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
+	
+	// Read config file
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; ignore error if desired
+			fmt.Println("No config file found, using defaults and environment variables")
+		} else {
+			// Config file was found but another error was produced
+			return fmt.Errorf("error reading config file: %w", err)
 		}
-		configPath = filepath.Clean(configPath)
-		viper.SetConfigFile(configPath)
-
-		// Try to read the config file
-		if err := viper.ReadInConfig(); err != nil {
-			// If the config file doesn't exist, just use defaults and env vars
-			if !os.IsNotExist(err) {
-				initErr = fmt.Errorf("error reading config file %s: %w", configPath, err)
-				return
-			}
-			// Config file doesn't exist, which is fine - we'll use defaults
-		}
-
-		// Validate the configuration
-		if err := validate(); err != nil {
-			initErr = fmt.Errorf("invalid configuration: %w", err)
-			return
-		}
-
-		// Mark as initialized only if no errors
-		initialized = true
-	})
-
-	return initErr
-}
-
-// IsInitialized returns true if the configuration has been successfully initialized
-func IsInitialized() bool {
-	return initialized
+	}
+	
+	// Validate configuration
+	return validateConfig()
 }
 
 // Load loads configuration from ./config/settings.yaml
@@ -84,7 +60,9 @@ func GetConfig() (*Config, error) {
 	return &config, nil
 }
 
-// Get returns a config value by key using Viper directly
+// Global configuration accessor functions (for backward compatibility)
+
+// Get returns a config value by key
 func Get(key string) any {
 	return viper.Get(key)
 }
@@ -109,14 +87,14 @@ func GetDuration(key string) time.Duration {
 	return viper.GetDuration(key)
 }
 
-// validate validates the configuration using Viper values
-func validate() error {
+// validateConfig validates the configuration
+func validateConfig() error {
 	// Check if we're in test mode to suppress warnings
 	isTestMode := os.Getenv("GO_TEST_MODE") == "1" || strings.Contains(os.Args[0], ".test")
 
 	port := viper.GetInt("server.port")
 	if port <= 0 || port > 65535 {
-		return fmt.Errorf("invalid server port: %d", port)
+		return fmt.Errorf("invalid server.port %d, must be between 1-65535", port)
 	}
 
 	dbPath := viper.GetString("database.path")
@@ -170,7 +148,7 @@ func validateAPIKeys(isTestMode bool) error {
 	for _, placeholder := range placeholders {
 		if podcastKey == placeholder || podcastSecret == placeholder {
 			if isProduction {
-				return fmt.Errorf("invalid Podcast Index API credentials: cannot use placeholder values in production")
+				return fmt.Errorf("podcast_index.api_key cannot use placeholder values in production")
 			}
 			if !isTestMode {
 				fmt.Println("Warning: Podcast Index API credentials are using placeholder values")
@@ -184,7 +162,7 @@ func validateAPIKeys(isTestMode bool) error {
 	for _, placeholder := range placeholders {
 		if openaiKey == placeholder {
 			if isProduction {
-				return fmt.Errorf("invalid OpenAI API key: cannot use placeholder values in production")
+				return fmt.Errorf("ai.openai_api_key cannot use placeholder values in production")
 			}
 			if !isTestMode {
 				fmt.Println("Warning: OpenAI API key is using a placeholder value")
@@ -198,7 +176,7 @@ func validateAPIKeys(isTestMode bool) error {
 	for _, placeholder := range placeholders {
 		if jwtSecret == placeholder {
 			if isProduction {
-				return fmt.Errorf("invalid JWT secret: cannot use placeholder values in production")
+				return fmt.Errorf("auth.jwt_secret cannot use placeholder values in production")
 			}
 			if !isTestMode {
 				fmt.Println("Warning: JWT secret is using a placeholder value - this is insecure!")
@@ -229,36 +207,50 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// setDefaults sets default configuration values for actually used features
+// setDefaults sets default configuration values
 func setDefaults() {
 	// Core server defaults
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8080)
-	viper.SetDefault("server.shutdown_timeout", 10*time.Second)
+	viper.SetDefault("server.shutdown_timeout", "10s")
+	viper.SetDefault("server.read_timeout", "30s")
+	viper.SetDefault("server.write_timeout", "30s")
 
-	// Database defaults - optional but used
+	// Database defaults
 	viper.SetDefault("database.path", "./data/podcast.db")
 	viper.SetDefault("database.verbose", false)
 
-	// Podcast Index API defaults - required for core functionality
+	// Podcast Index API defaults
 	viper.SetDefault("podcast_index.api_url", "https://api.podcastindex.org/api/1.0")
-	viper.SetDefault("podcast_index.timeout", 30*time.Second)
-	// API credentials should be provided via environment or config file
+	viper.SetDefault("podcast_index.timeout", "30s")
+	viper.SetDefault("podcast_index.user_agent", "PodcastPlayerAPI/1.0")
 
 	// Episode service defaults
 	viper.SetDefault("episodes.max_concurrent_sync", 5)
-	viper.SetDefault("episodes.sync_timeout", 30*time.Second)
+	viper.SetDefault("episodes.sync_timeout", "30s")
 
-	// Basic security defaults that are actually used
+	// Security defaults
 	viper.SetDefault("security.cors_enabled", true)
-	viper.SetDefault("security.cors_origins", []string{"*"})
-	viper.SetDefault("security.cors_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
-	viper.SetDefault("security.cors_headers", []string{"Content-Type", "Authorization"})
+	viper.SetDefault("security.cors_origins", "*")
+	viper.SetDefault("security.cors_methods", "GET,POST,PUT,DELETE,OPTIONS")
+	viper.SetDefault("security.cors_headers", "Content-Type,Authorization")
 	viper.SetDefault("security.rate_limit_enabled", true)
 	viper.SetDefault("security.rate_limit_rps", 10)
 	viper.SetDefault("security.rate_limit_burst", 20)
 
+	// Processing defaults
+	viper.SetDefault("processing.workers", 2)
+	viper.SetDefault("processing.max_queue_size", 100)
+	viper.SetDefault("processing.timeout", "5m")
+
+	// Cache defaults
+	viper.SetDefault("cache.type", "memory")
+	viper.SetDefault("cache.ttl", "1h")
+	viper.SetDefault("cache.max_size", 100)
+	viper.SetDefault("cache.cleanup_interval", "10m")
+
 	// Logging defaults
 	viper.SetDefault("logging.level", "info")
 	viper.SetDefault("logging.format", "json")
+	viper.SetDefault("logging.output", "stdout")
 }

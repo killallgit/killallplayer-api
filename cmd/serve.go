@@ -43,11 +43,6 @@ func init() {
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
-	// Initialize config (lazy loading - only when serve command is run)
-	if err := config.Init(); err != nil {
-		return err
-	}
-
 	// Use config values if flags not provided
 	if serverHost == "" {
 		serverHost = config.GetString("server.host")
@@ -101,7 +96,8 @@ func runServer(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create a context with timeout for shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), config.GetDuration("server.shutdown_timeout"))
+	shutdownTimeout := config.GetDuration("server.shutdown_timeout")
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
 	// Attempt graceful shutdown
