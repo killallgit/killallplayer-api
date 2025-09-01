@@ -152,4 +152,3 @@ func (t *Transformer) ApplyPlaybackState(episodes []PodcastIndexEpisode, playbac
 		}
 	}
 }
-

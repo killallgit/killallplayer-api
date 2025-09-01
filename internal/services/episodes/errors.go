@@ -111,4 +111,3 @@ func IsNotFound(err error) bool {
 	var notFoundErr NotFoundError
 	return errors.As(err, &notFoundErr) || errors.Is(err, ErrEpisodeNotFound)
 }
-

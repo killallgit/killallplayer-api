@@ -1,10 +1,13 @@
 package database
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/killallgit/player-api/pkg/config"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -344,4 +347,114 @@ func TestDB_Transaction(t *testing.T) {
 		conn.DB.Model(&TestRecord{}).Count(&countAfter)
 		assert.Equal(t, countBefore, countAfter)
 	})
+}
+
+func TestInitializeWithMigrations(t *testing.T) {
+	// Save original env to restore later
+	originalEnv := os.Getenv("GO_TEST_MODE")
+	os.Setenv("GO_TEST_MODE", "1")
+	defer os.Setenv("GO_TEST_MODE", originalEnv)
+
+	tests := []struct {
+		name      string
+		setupFunc func()
+		wantErr   bool
+		errMsg    string
+	}{
+		{
+			name: "successful initialization with valid config",
+			setupFunc: func() {
+				// Reset viper
+				viper.Reset()
+				// Set test database path
+				viper.Set("database.path", ":memory:")
+				viper.Set("database.verbose", false)
+			},
+			wantErr: false,
+		},
+		{
+			name: "error when database path not configured",
+			setupFunc: func() {
+				// Reset viper
+				viper.Reset()
+				// Don't set database path
+			},
+			wantErr: true,
+			errMsg:  "database path is not configured",
+		},
+		{
+			name: "successful initialization with file database",
+			setupFunc: func() {
+				// Reset viper
+				viper.Reset()
+				// Set test database path
+				tempDir := t.TempDir()
+				viper.Set("database.path", filepath.Join(tempDir, "test.db"))
+				viper.Set("database.verbose", false)
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup test
+			tt.setupFunc()
+
+			// Call InitializeWithMigrations
+			db, err := InitializeWithMigrations()
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+				assert.Nil(t, db)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, db)
+				
+				// Verify migrations were run by checking if tables exist
+				if db != nil {
+					// Check if podcast table exists
+					var count int64
+					err = db.DB.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='podcasts'").Scan(&count).Error
+					assert.NoError(t, err)
+					assert.Greater(t, count, int64(0), "podcasts table should exist")
+					
+					// Clean up
+					db.Close()
+				}
+			}
+		})
+	}
+}
+
+func TestInitializeWithMigrations_ConfigNotInitialized(t *testing.T) {
+	// Save original env to restore later
+	originalEnv := os.Getenv("GO_TEST_MODE")
+	os.Setenv("GO_TEST_MODE", "1")
+	defer os.Setenv("GO_TEST_MODE", originalEnv)
+
+	// Reset viper to simulate uninitialized config
+	viper.Reset()
+	
+	// Set required config
+	viper.Set("database.path", ":memory:")
+	viper.Set("database.verbose", false)
+	viper.Set("server.port", 8080) // Required for config validation
+
+	// Call InitializeWithMigrations - should initialize config automatically
+	db, err := InitializeWithMigrations()
+	
+	assert.NoError(t, err)
+	assert.NotNil(t, db)
+	
+	if db != nil {
+		// Verify config was initialized by checking if we can get values
+		assert.True(t, config.IsInitialized())
+		
+		// Clean up
+		db.Close()
+	}
 }

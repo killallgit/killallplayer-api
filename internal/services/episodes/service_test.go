@@ -410,4 +410,3 @@ func TestService_GetRecentEpisodes_CacheHit(t *testing.T) {
 	// Verify repository was not called
 	mockRepo.AssertNotCalled(t, "GetRecentEpisodes")
 }
-

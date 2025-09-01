@@ -41,3 +41,48 @@ type Podcast struct {
 	ITunesID         int               `json:"itunesId"`
 	CreatedOn        time.Time         `json:"createdOn"`
 }
+
+// Episode represents an episode from the Podcast Index API
+type Episode struct {
+	ID                  int64  `json:"id"`
+	Title               string `json:"title"`
+	Link                string `json:"link"`
+	Description         string `json:"description"`
+	GUID                string `json:"guid"`
+	DatePublished       int64  `json:"datePublished"`
+	DatePublishedPretty string `json:"datePublishedPretty"`
+	DateCrawled         int64  `json:"dateCrawled"`
+	EnclosureURL        string `json:"enclosureUrl"`
+	EnclosureType       string `json:"enclosureType"`
+	EnclosureLength     int    `json:"enclosureLength"`
+	Duration            int    `json:"duration"`
+	Explicit            int    `json:"explicit"`
+	Episode             int    `json:"episode"`
+	EpisodeType         string `json:"episodeType"`
+	Season              int    `json:"season"`
+	Image               string `json:"image"`
+	FeedItunesId        int    `json:"feedItunesId"`
+	FeedImage           string `json:"feedImage"`
+	FeedId              int    `json:"feedId"`
+	FeedLanguage        string `json:"feedLanguage"`
+	FeedDead            int    `json:"feedDead"`
+	FeedDuplicateOf     int    `json:"feedDuplicateOf"`
+	ChaptersURL         string `json:"chaptersUrl"`
+	TranscriptURL       string `json:"transcriptUrl"`
+}
+
+// EpisodesResponse represents the response from episodes API
+type EpisodesResponse struct {
+	Status      string    `json:"status"`
+	Items       []Episode `json:"items"`
+	Count       int       `json:"count"`
+	Max         string    `json:"max"`
+	Description string    `json:"description"`
+}
+
+// EpisodeByGUIDResponse represents the response from episode by GUID API
+type EpisodeByGUIDResponse struct {
+	Status      string  `json:"status"`
+	Episode     Episode `json:"episode"`
+	Description string  `json:"description"`
+}

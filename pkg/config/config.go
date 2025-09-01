@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	once    sync.Once
-	initErr error
+	once        sync.Once
+	initErr     error
+	initialized bool
 )
 
 // Init initializes the configuration system
@@ -50,10 +51,19 @@ func Init() error {
 		// Validate the configuration
 		if err := validate(); err != nil {
 			initErr = fmt.Errorf("invalid configuration: %w", err)
+			return
 		}
+
+		// Mark as initialized only if no errors
+		initialized = true
 	})
 
 	return initErr
+}
+
+// IsInitialized returns true if the configuration has been successfully initialized
+func IsInitialized() bool {
+	return initialized
 }
 
 // Load loads configuration from ./config/settings.yaml
@@ -219,152 +229,36 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// setDefaults sets default configuration values
+// setDefaults sets default configuration values for actually used features
 func setDefaults() {
-	// Environment defaults
-	viper.SetDefault("environment", "development")
-
-	// Server defaults
+	// Core server defaults
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8080)
-	viper.SetDefault("server.read_timeout", 30*time.Second)
-	viper.SetDefault("server.write_timeout", 30*time.Second)
 	viper.SetDefault("server.shutdown_timeout", 10*time.Second)
-	viper.SetDefault("server.max_header_bytes", 1048576)
 
-	// Database defaults
+	// Database defaults - optional but used
 	viper.SetDefault("database.path", "./data/podcast.db")
-	viper.SetDefault("database.max_connections", 10)
-	viper.SetDefault("database.max_idle_connections", 5)
-	viper.SetDefault("database.connection_max_lifetime", 30*time.Minute)
-	viper.SetDefault("database.enable_wal", true)
-	viper.SetDefault("database.enable_foreign_keys", true)
-	viper.SetDefault("database.log_queries", false)
 	viper.SetDefault("database.verbose", false)
 
-	// Processing defaults
-	viper.SetDefault("processing.workers", 2)
-	viper.SetDefault("processing.max_queue_size", 100)
-	viper.SetDefault("processing.batch_size", 10)
-	viper.SetDefault("processing.timeout", 5*time.Minute)
-	viper.SetDefault("processing.retry_attempts", 3)
-	viper.SetDefault("processing.retry_delay", 1*time.Second)
-
-	// Podcast Index API defaults
-	viper.SetDefault("podcast_index.api_key", "YOUR_KEY_HERE")
-	viper.SetDefault("podcast_index.api_secret", "YOUR_SECRET_HERE")
+	// Podcast Index API defaults - required for core functionality
 	viper.SetDefault("podcast_index.api_url", "https://api.podcastindex.org/api/1.0")
 	viper.SetDefault("podcast_index.timeout", 30*time.Second)
-	viper.SetDefault("podcast_index.max_retries", 3)
+	// API credentials should be provided via environment or config file
 
-	// AI defaults
-	viper.SetDefault("ai.provider", "openai")
-	viper.SetDefault("ai.openai_api_key", "YOUR_API_KEY")
-	viper.SetDefault("ai.openai_model", "gpt-3.5-turbo")
-	viper.SetDefault("ai.openai_max_tokens", 2000)
-	viper.SetDefault("ai.openai_temperature", 0.7)
-	viper.SetDefault("ai.request_timeout", 60*time.Second)
+	// Episode service defaults
+	viper.SetDefault("episodes.max_concurrent_sync", 5)
+	viper.SetDefault("episodes.sync_timeout", 30*time.Second)
 
-	// Transcription defaults
-	viper.SetDefault("transcription.service", "whisper")
-	viper.SetDefault("transcription.whisper_model", "whisper-1")
-	viper.SetDefault("transcription.whisper_language", "en")
-	viper.SetDefault("transcription.max_file_size", 25*1024*1024)
-	viper.SetDefault("transcription.allowed_formats", []string{"mp3", "m4a", "wav", "ogg", "flac"})
-	viper.SetDefault("transcription.output_format", "json")
-	viper.SetDefault("transcription.enable_timestamps", true)
-	viper.SetDefault("transcription.monthly_quota", 100.0)
-
-	// FFmpeg defaults
-	viper.SetDefault("ffmpeg.path", "ffmpeg")
-	viper.SetDefault("ffmpeg.ffprobe_path", "ffprobe")
-	viper.SetDefault("ffmpeg.max_processes", 5)
-	viper.SetDefault("ffmpeg.timeout", 5*time.Minute)
-	viper.SetDefault("ffmpeg.hardware_accel", "auto")
-	viper.SetDefault("ffmpeg.output_format", "mp3")
-	viper.SetDefault("ffmpeg.audio_codec", "libmp3lame")
-	viper.SetDefault("ffmpeg.audio_bitrate", "128k")
-	viper.SetDefault("ffmpeg.audio_sample_rate", 44100)
-	viper.SetDefault("ffmpeg.audio_channels", 2)
-
-	// Cache defaults
-	viper.SetDefault("cache.type", "memory")
-	viper.SetDefault("cache.ttl", 1*time.Hour)
-	viper.SetDefault("cache.max_size", 100)
-	viper.SetDefault("cache.cleanup_interval", 10*time.Minute)
-	viper.SetDefault("cache.redis_addr", "localhost:6379")
-	viper.SetDefault("cache.redis_password", "")
-	viper.SetDefault("cache.redis_db", 0)
-	viper.SetDefault("cache.redis_pool_size", 10)
-
-	// Storage defaults
-	viper.SetDefault("storage.type", "local")
-	viper.SetDefault("storage.local_path", "./storage")
-	viper.SetDefault("storage.temp_dir", "./tmp")
-	viper.SetDefault("storage.max_file_size", 100*1024*1024)
-	viper.SetDefault("storage.allowed_extensions", []string{"mp3", "m4a", "wav", "ogg", "flac", "aac"})
-	viper.SetDefault("storage.s3_bucket", "")
-	viper.SetDefault("storage.s3_region", "us-east-1")
-	viper.SetDefault("storage.s3_access_key", "")
-	viper.SetDefault("storage.s3_secret_key", "")
-	viper.SetDefault("storage.s3_endpoint", "")
-
-	// Security defaults
+	// Basic security defaults that are actually used
 	viper.SetDefault("security.cors_enabled", true)
 	viper.SetDefault("security.cors_origins", []string{"*"})
 	viper.SetDefault("security.cors_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
 	viper.SetDefault("security.cors_headers", []string{"Content-Type", "Authorization"})
-	viper.SetDefault("security.cors_credentials", false)
-	viper.SetDefault("security.cors_max_age", 86400)
 	viper.SetDefault("security.rate_limit_enabled", true)
 	viper.SetDefault("security.rate_limit_rps", 10)
 	viper.SetDefault("security.rate_limit_burst", 20)
-	viper.SetDefault("security.api_key_header", "X-API-Key")
-	viper.SetDefault("security.api_key_required", false)
-
-	// Auth defaults
-	viper.SetDefault("auth.jwt_secret", "changeme")
-	viper.SetDefault("auth.jwt_expiry", 24*time.Hour)
-	viper.SetDefault("auth.jwt_refresh_expiry", 7*24*time.Hour)
-	viper.SetDefault("auth.bcrypt_cost", 10)
-	viper.SetDefault("auth.session_name", "podcast_session")
-	viper.SetDefault("auth.session_lifetime", 24*time.Hour)
-	viper.SetDefault("auth.oauth_google_client_id", "")
-	viper.SetDefault("auth.oauth_google_client_secret", "")
-	viper.SetDefault("auth.oauth_github_client_id", "")
-	viper.SetDefault("auth.oauth_github_client_secret", "")
-
-	// Monitoring defaults
-	viper.SetDefault("monitoring.enabled", false)
-	viper.SetDefault("monitoring.metrics_enabled", false)
-	viper.SetDefault("monitoring.metrics_path", "/metrics")
-	viper.SetDefault("monitoring.health_path", "/health")
-	viper.SetDefault("monitoring.pprof_enabled", false)
-	viper.SetDefault("monitoring.pprof_path", "/debug/pprof")
-	viper.SetDefault("monitoring.tracing_enabled", false)
-	viper.SetDefault("monitoring.tracing_service_name", "podcast-api")
-	viper.SetDefault("monitoring.tracing_jaeger_endpoint", "http://localhost:14268/api/traces")
 
 	// Logging defaults
 	viper.SetDefault("logging.level", "info")
 	viper.SetDefault("logging.format", "json")
-	viper.SetDefault("logging.output", "stdout")
-	viper.SetDefault("logging.file_path", "./logs/app.log")
-	viper.SetDefault("logging.file_max_size", 100)
-	viper.SetDefault("logging.file_max_backups", 7)
-	viper.SetDefault("logging.file_max_age", 30)
-	viper.SetDefault("logging.enable_console", true)
-	viper.SetDefault("logging.enable_file", false)
-
-	// Feature flags
-	viper.SetDefault("features.enable_transcription", true)
-	viper.SetDefault("features.enable_waveform", true)
-	viper.SetDefault("features.enable_chapters", true)
-	viper.SetDefault("features.enable_tagging", true)
-	viper.SetDefault("features.enable_search", true)
-	viper.SetDefault("features.enable_recommendations", false)
-	viper.SetDefault("features.enable_social", false)
-	viper.SetDefault("features.enable_analytics", false)
-	viper.SetDefault("features.maintenance_mode", false)
-	viper.SetDefault("features.beta_features", false)
 }

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/killallgit/player-api/internal/models"
+	"github.com/killallgit/player-api/pkg/config"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -97,4 +99,42 @@ func (db *DB) AutoMigrate(models ...any) error {
 	}
 	log.Printf("Successfully migrated %d model(s)", len(models))
 	return nil
+}
+
+// InitializeWithMigrations initializes the database and runs all migrations
+// This is the primary entry point for database initialization in the application
+func InitializeWithMigrations() (*DB, error) {
+	// Ensure config is initialized
+	if !config.IsInitialized() {
+		if err := config.Init(); err != nil {
+			return nil, fmt.Errorf("failed to initialize config: %w", err)
+		}
+	}
+
+	dbPath := config.GetString("database.path")
+	if dbPath == "" {
+		return nil, fmt.Errorf("database path is not configured")
+	}
+
+	dbVerbose := config.GetBool("database.verbose")
+
+	// Initialize database connection
+	db, err := Initialize(dbPath, dbVerbose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize database: %w", err)
+	}
+
+	// Run auto-migration for all models
+	if err := db.AutoMigrate(
+		&models.Podcast{},
+		&models.Episode{},
+		&models.User{},
+		&models.Subscription{},
+		&models.PlaybackState{},
+	); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return db, nil
 }

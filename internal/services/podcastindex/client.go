@@ -107,3 +107,92 @@ func (c *Client) Search(ctx context.Context, query string, limit int) (*SearchRe
 
 	return &searchResp, nil
 }
+
+// GetEpisodesByPodcastID fetches episodes for a specific podcast
+func (c *Client) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) (*EpisodesResponse, error) {
+	// Build URL with query parameters
+	params := url.Values{}
+	params.Set("id", fmt.Sprintf("%d", podcastID))
+	if limit > 0 {
+		params.Set("max", fmt.Sprintf("%d", limit))
+	}
+
+	endpoint := fmt.Sprintf("%s/episodes/byfeedid?%s", c.baseURL, params.Encode())
+
+	// Create request
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	// Sign the request
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	// Execute request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	// Decode response
+	var episodesResp EpisodesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&episodesResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	// Check API status
+	if episodesResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", episodesResp.Description)
+	}
+
+	return &episodesResp, nil
+}
+
+// GetEpisodeByGUID fetches a single episode by GUID
+func (c *Client) GetEpisodeByGUID(ctx context.Context, guid string) (*EpisodeByGUIDResponse, error) {
+	// Build URL with query parameters
+	params := url.Values{}
+	params.Set("guid", guid)
+
+	endpoint := fmt.Sprintf("%s/episodes/byguid?%s", c.baseURL, params.Encode())
+
+	// Create request
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	// Sign the request
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	// Execute request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	// Decode response
+	var episodeResp EpisodeByGUIDResponse
+	if err := json.NewDecoder(resp.Body).Decode(&episodeResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	// Check API status
+	if episodeResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", episodeResp.Description)
+	}
+
+	return &episodeResp, nil
+}
