@@ -1,5 +1,16 @@
 package episodes
 
+import "time"
+
+// EpisodeMetadata represents metadata about an episode file (audio/video)
+type EpisodeMetadata struct {
+	URL          string
+	ContentType  string
+	Size         int64
+	LastModified time.Time
+	FileName     string
+}
+
 // PodcastIndexEpisode represents an episode in the exact format returned by Podcast Index API
 type PodcastIndexEpisode struct {
 	ID                  int64               `json:"id"`

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/killallgit/player-api/internal/services/podcastindex"
@@ -11,13 +12,17 @@ import (
 
 // PodcastIndexAdapter adapts the podcastindex.Client to the EpisodeFetcher interface
 type PodcastIndexAdapter struct {
-	client *podcastindex.Client
+	client     *podcastindex.Client
+	httpClient *http.Client // Reusable HTTP client for metadata requests
 }
 
 // NewPodcastIndexAdapter creates a new adapter for the Podcast Index client
 func NewPodcastIndexAdapter(client *podcastindex.Client) EpisodeFetcher {
 	return &PodcastIndexAdapter{
 		client: client,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
@@ -59,13 +64,24 @@ func (a *PodcastIndexAdapter) GetEpisodeMetadata(ctx context.Context, episodeURL
 		return nil, err
 	}
 
-	// Use a simple HTTP client for external URLs (not Podcast Index API)
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	// Use the reusable HTTP client for external URLs (not Podcast Index API)
+	resp, err := a.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	// Extract filename from URL path
+	fileName := "episode"
+	if parsedURL.Path != "" && parsedURL.Path != "/" {
+		parts := strings.Split(parsedURL.Path, "/")
+		if len(parts) > 0 {
+			lastName := parts[len(parts)-1]
+			if lastName != "" {
+				fileName = lastName
+			}
+		}
+	}
 
 	// Extract metadata from headers
 	metadata := &EpisodeMetadata{
@@ -73,7 +89,7 @@ func (a *PodcastIndexAdapter) GetEpisodeMetadata(ctx context.Context, episodeURL
 		ContentType:  resp.Header.Get("Content-Type"),
 		Size:         resp.ContentLength,
 		LastModified: time.Now(), // Parse Last-Modified header if available
-		FileName:     parsedURL.Path[len(parsedURL.Path)-1:],
+		FileName:     fileName,
 	}
 
 	// Try to parse Last-Modified header
