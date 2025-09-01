@@ -69,8 +69,12 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 			req.Header.Set("Range", rangeHeader)
 		}
 
-		// Add user agent
-		req.Header.Set("User-Agent", "PodcastPlayerAPI/1.0")
+		// Add headers to mimic a browser request
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+		req.Header.Set("Accept", "audio/*,video/*,*/*")
+		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+		req.Header.Set("Accept-Encoding", "identity")
+		req.Header.Set("Referer", episode.Link) // Use episode link as referer if available
 
 		// Execute request
 		resp, err := client.Do(req)
@@ -104,6 +108,14 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 			// Default to audio/mpeg if not specified
 			contentType = "audio/mpeg"
 		}
+		
+		// Check if we're getting HTML instead of audio/video
+		if strings.Contains(strings.ToLower(contentType), "text/html") {
+			log.Printf("[ERROR] Received HTML instead of audio. Content-Type: %s, URL: %s", contentType, episode.AudioURL)
+			c.JSON(http.StatusBadGateway, gin.H{"error": "Audio source returned HTML instead of audio content"})
+			return
+		}
+		
 		c.Header("Content-Type", contentType)
 
 		// Copy range-related headers
