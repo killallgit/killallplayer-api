@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,19 +24,58 @@ func StreamDirectURL() gin.HandlerFunc {
 
 		// Validate URL
 		parsedURL, err := url.Parse(audioURL)
-		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid URL"})
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid URL format"})
+			return
+		}
+
+		// Security checks
+		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Only HTTP and HTTPS URLs are allowed"})
+			return
+		}
+
+		// Prevent access to private networks and local resources
+		hostname := strings.ToLower(parsedURL.Hostname())
+		if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" ||
+			strings.HasPrefix(hostname, "192.168.") ||
+			strings.HasPrefix(hostname, "10.") ||
+			strings.HasPrefix(hostname, "172.") ||
+			strings.HasSuffix(hostname, ".local") ||
+			strings.HasSuffix(hostname, ".internal") {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access to private networks is not allowed"})
+			return
+		}
+
+		// Prevent file:// and other potentially dangerous schemes were already handled above
+		// Additional check for empty host
+		if parsedURL.Host == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "URL must have a valid host"})
+			return
+		}
+
+		// Limit URL length to prevent abuse
+		if len(audioURL) > 2048 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "URL is too long"})
 			return
 		}
 
 		log.Printf("[DEBUG] Direct stream request for URL: %s", audioURL)
 
-		// Create HTTP client to fetch audio
+		// Create HTTP client to fetch audio with timeout
 		client := &http.Client{
+			Timeout: 30 * time.Second, // 30 second timeout for initial connection
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				// Allow up to 10 redirects
 				if len(via) >= 10 {
 					return fmt.Errorf("too many redirects")
+				}
+				// Validate each redirect URL
+				for _, r := range via {
+					redirectURL := r.URL
+					if redirectURL.Scheme != "http" && redirectURL.Scheme != "https" {
+						return fmt.Errorf("invalid redirect scheme: %s", redirectURL.Scheme)
+					}
 				}
 				return nil
 			},

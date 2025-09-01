@@ -3,6 +3,7 @@ package episodes
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -69,12 +70,24 @@ func (s *Service) FetchAndSyncEpisodes(ctx context.Context, podcastID int64, lim
 
 	// Sync to database in background with detached context but respecting cancellation
 	go func() {
+		// Recover from any panics in the goroutine
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[ERROR] Panic in background sync for podcast %d: %v", podcastID, r)
+			}
+		}()
+
 		// Create a new context that inherits values but not cancellation from parent
 		// This allows the sync to continue even if the HTTP request is cancelled
 		syncCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), s.syncTimeout)
 		defer cancel()
 
-		_, _ = s.SyncEpisodesToDatabase(syncCtx, response.Items, uint(podcastID))
+		synced, err := s.SyncEpisodesToDatabase(syncCtx, response.Items, uint(podcastID))
+		if err != nil {
+			log.Printf("[ERROR] Failed to sync episodes for podcast %d: %v", podcastID, err)
+		} else {
+			log.Printf("[DEBUG] Successfully synced %d episodes for podcast %d", synced, podcastID)
+		}
 	}()
 
 	return response, nil
@@ -102,6 +115,17 @@ func (s *Service) SyncEpisodesToDatabase(ctx context.Context, episodes []Podcast
 		go func(pie PodcastIndexEpisode) {
 			defer wg.Done()
 			defer func() { <-sem }() // Release semaphore
+			
+			// Recover from any panics in the goroutine
+			defer func() {
+				if r := recover(); r != nil {
+					mu.Lock()
+					failureCount++
+					errors = append(errors, fmt.Errorf("panic processing episode %s: %v", pie.Title, r))
+					mu.Unlock()
+					log.Printf("[ERROR] Panic processing episode %s: %v", pie.Title, r)
+				}
+			}()
 
 			episode := transformer.PodcastIndexToModel(pie, podcastID)
 
