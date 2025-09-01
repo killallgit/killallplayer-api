@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
@@ -43,8 +45,18 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 
 		log.Printf("[DEBUG] Streaming audio from URL: %s", episode.AudioURL)
 
-		// Create HTTP client to fetch audio
+		// Create HTTP client with connection timeout but no overall timeout
+		// This allows long streaming but prevents hanging on connection
 		client := &http.Client{
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout:   10 * time.Second, // Connection timeout
+					KeepAlive: 30 * time.Second,
+				}).DialContext,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: 30 * time.Second, // Time to receive headers
+				ExpectContinueTimeout: 1 * time.Second,
+			},
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				// Allow up to 10 redirects
 				if len(via) >= 10 {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -62,9 +63,18 @@ func StreamDirectURL() gin.HandlerFunc {
 
 		log.Printf("[DEBUG] Direct stream request for URL: %s", audioURL)
 
-		// Create HTTP client to fetch audio with timeout
+		// Create HTTP client with connection timeout but no overall timeout
+		// This allows long streaming but prevents hanging on connection
 		client := &http.Client{
-			Timeout: 30 * time.Second, // 30 second timeout for initial connection
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout:   10 * time.Second, // Connection timeout
+					KeepAlive: 30 * time.Second,
+				}).DialContext,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: 30 * time.Second, // Time to receive headers
+				ExpectContinueTimeout: 1 * time.Second,
+			},
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				// Allow up to 10 redirects
 				if len(via) >= 10 {
