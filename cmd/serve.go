@@ -10,7 +10,6 @@ import (
 
 	"github.com/killallgit/player-api/internal/api"
 	"github.com/killallgit/player-api/internal/database"
-	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/cobra"
 )
@@ -57,52 +56,19 @@ func runServer(cmd *cobra.Command, args []string) error {
 		serverPort = config.GetInt("server.port")
 	}
 
-	// Initialize database with graceful fallback
-	var db *database.DB
-	dbPath := config.GetString("database.path")
-	dbVerbose := config.GetBool("database.verbose")
-
-	if dbPath != "" {
-		var err error
-		db, err = database.Initialize(dbPath, dbVerbose)
-		if err != nil {
-			// Log the error but continue without database
-			fmt.Fprintf(os.Stderr, "Warning: Database initialization failed: %v\n", err)
-			fmt.Println("Continuing without database functionality...")
-		} else {
-			// Run auto-migration for all models
-			if err := db.AutoMigrate(
-				&models.Podcast{},
-				&models.Episode{},
-				&models.User{},
-				&models.Subscription{},
-				&models.PlaybackState{},
-			); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: Database migration failed: %v\n", err)
-				// Close the database connection if migration fails
-				_ = db.Close()
-				db = nil
-			} else {
-				// Ensure database is closed on shutdown
-				defer func() {
-					if db != nil {
-						_ = db.Close()
-					}
-				}()
-			}
-		}
-	} else {
-		fmt.Println("No database path configured, running without database...")
+	// Initialize database with migrations
+	db, err := database.InitializeWithMigrations()
+	if err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
 	}
+	defer db.Close()
 
 	// Log server startup
 	fmt.Printf("Starting Podcast Player API server on %s:%d\n", serverHost, serverPort)
 
 	// Create Gin-based API server
 	apiServer := api.NewServer(fmt.Sprintf("%s:%d", serverHost, serverPort))
-	if db != nil {
-		apiServer.SetDatabase(db)
-	}
+	apiServer.SetDatabase(db)
 
 	// Channel to listen for interrupt signals
 	stop := make(chan os.Signal, 1)
