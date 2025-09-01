@@ -243,10 +243,16 @@ Sync episodes from Podcast Index API for a specific podcast.
 ## Audio Streaming
 
 ### GET /api/v1/stream/:id
-Stream audio content with support for range requests. Acts as a proxy to the episode's audio URL, handling redirects transparently.
+Stream audio content with support for range requests. Acts as a proxy to the episode's audio URL, handling redirects transparently. Uses database to fetch episode metadata.
 
 **URL Parameters:**
 - `id`: Episode ID (Podcast Index ID, numeric int64)
+
+### GET /api/v1/stream/direct
+Stream audio content directly from a URL without database lookup. Useful for testing or streaming external URLs.
+
+**Query Parameters:**
+- `url`: The audio URL to stream (required, must be http or https)
 
 **Request Headers:**
 - `Range`: `bytes=start-end` (optional) - For partial content requests/seeking
@@ -281,6 +287,12 @@ curl -H "Range: bytes=1024000-2048000" http://localhost:8080/api/v1/stream/41928
 
 # Test partial content with first 1KB
 curl -H "Range: bytes=0-1000" http://localhost:8080/api/v1/stream/41928435424
+
+# Direct streaming from URL (no database)
+curl "http://localhost:8080/api/v1/stream/direct?url=https://example.com/episode.mp3"
+
+# Direct streaming with range request
+curl -H "Range: bytes=0-1000" "http://localhost:8080/api/v1/stream/direct?url=https://example.com/episode.mp3"
 ```
 
 **Rate Limit:** 20 requests/second, burst of 30
