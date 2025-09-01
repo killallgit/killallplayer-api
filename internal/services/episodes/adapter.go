@@ -12,13 +12,17 @@ import (
 
 // PodcastIndexAdapter adapts the podcastindex.Client to the EpisodeFetcher interface
 type PodcastIndexAdapter struct {
-	client *podcastindex.Client
+	client     *podcastindex.Client
+	httpClient *http.Client // Reusable HTTP client for metadata requests
 }
 
 // NewPodcastIndexAdapter creates a new adapter for the Podcast Index client
 func NewPodcastIndexAdapter(client *podcastindex.Client) EpisodeFetcher {
 	return &PodcastIndexAdapter{
 		client: client,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
@@ -60,9 +64,8 @@ func (a *PodcastIndexAdapter) GetEpisodeMetadata(ctx context.Context, episodeURL
 		return nil, err
 	}
 
-	// Use a simple HTTP client for external URLs (not Podcast Index API)
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	// Use the reusable HTTP client for external URLs (not Podcast Index API)
+	resp, err := a.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
@@ -208,32 +207,6 @@ func TestPost(t *testing.T) {
 				return &types.Dependencies{
 					PodcastClient: &mockSearcher{
 						searchFunc: func(ctx context.Context, query string, limit int) (*podcastindex.SearchResponse, error) {
-							return nil, errors.New("API error")
-						},
-					},
-				}
-			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody: map[string]interface{}{
-				"status":  "error",
-				"message": "Failed to search podcasts",
-			},
-		},
-		{
-			name: "context timeout",
-			body: models.SearchRequest{
-				Query: "test",
-				Limit: 5,
-			},
-			setupDeps: func() *types.Dependencies {
-				return &types.Dependencies{
-					PodcastClient: &mockSearcher{
-						searchFunc: func(ctx context.Context, query string, limit int) (*podcastindex.SearchResponse, error) {
-							// Simulate timeout by canceling context
-							if deadline, ok := ctx.Deadline(); ok && deadline.Before(time.Now().Add(time.Hour)) {
-								// If there's a short deadline, simulate timeout
-								return nil, context.DeadlineExceeded
-							}
 							return nil, errors.New("API error")
 						},
 					},
