@@ -66,12 +66,12 @@ curl -X POST http://localhost:8080/api/v1/search \
   -H "Content-Type: application/json" \
   -d '{"query": "technology", "limit": 5}'
 
-# Sync episodes for a podcast
-curl -X POST http://localhost:8080/api/v1/podcasts/217331/episodes/sync
+# Sync episodes for a podcast (using Podcast Index podcast ID)
+curl -X POST http://localhost:8080/api/v1/podcasts/41506/episodes/sync
 
-# Stream audio (supports seeking)
-curl http://localhost:8080/api/v1/stream/1
-curl -H "Range: bytes=1024000-2048000" http://localhost:8080/api/v1/stream/1
+# Stream audio using Podcast Index episode ID (supports seeking)
+curl http://localhost:8080/api/v1/stream/41928435424
+curl -H "Range: bytes=1024000-2048000" http://localhost:8080/api/v1/stream/41928435424
 ```
 
 ## Project Structure

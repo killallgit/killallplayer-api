@@ -17,6 +17,8 @@ Base URL: `http://localhost:8080`
 
 The Podcast Player API provides RESTful endpoints for podcast discovery, episode management, and audio streaming. The API follows RESTful principles and supports range requests for audio streaming.
 
+**Important:** All episode IDs in this API are Podcast Index IDs. The API does not expose internal database IDs to clients. Episode IDs received from search results can be used directly for streaming, playback updates, and other operations.
+
 ### API Versioning
 Currently v1, accessed via:
 ```
@@ -148,10 +150,10 @@ Get single episode by GUID.
 **Response:** Single episode in Podcast Index format
 
 ### GET /api/v1/episodes/:id
-Get single episode by database ID.
+Get single episode by Podcast Index ID.
 
 **URL Parameters:**
-- `id`: Episode ID (numeric)
+- `id`: Episode ID (Podcast Index ID, numeric int64)
 
 **Response:**
 ```json
@@ -186,6 +188,9 @@ Get single episode by database ID.
 ### PUT /api/v1/episodes/:id/playback
 Update episode playback state.
 
+**URL Parameters:**
+- `id`: Episode ID (Podcast Index ID, numeric int64)
+
 **Request Body:**
 ```json
 {
@@ -200,7 +205,7 @@ Update episode playback state.
   "status": "success",
   "message": "Playback state updated",
   "data": {
-    "episode_id": 123,
+    "episode_id": 41928435424,
     "position": 120,
     "played": true
   }
@@ -241,7 +246,7 @@ Sync episodes from Podcast Index API for a specific podcast.
 Stream audio content with support for range requests. Acts as a proxy to the episode's audio URL, handling redirects transparently.
 
 **URL Parameters:**
-- `id`: Episode ID (numeric)
+- `id`: Episode ID (Podcast Index ID, numeric int64)
 
 **Request Headers:**
 - `Range`: `bytes=start-end` (optional) - For partial content requests/seeking
@@ -268,14 +273,14 @@ Stream audio content with support for range requests. Acts as a proxy to the epi
 
 **Example Requests:**
 ```bash
-# Full stream
-curl http://localhost:8080/api/v1/stream/1
+# Full stream (using Podcast Index ID)
+curl http://localhost:8080/api/v1/stream/41928435424
 
 # Range request for seeking (bytes 1MB-2MB)
-curl -H "Range: bytes=1024000-2048000" http://localhost:8080/api/v1/stream/1
+curl -H "Range: bytes=1024000-2048000" http://localhost:8080/api/v1/stream/41928435424
 
 # Test partial content with first 1KB
-curl -H "Range: bytes=0-1000" http://localhost:8080/api/v1/stream/1
+curl -H "Range: bytes=0-1000" http://localhost:8080/api/v1/stream/41928435424
 ```
 
 **Rate Limit:** 20 requests/second, burst of 30
@@ -284,13 +289,13 @@ curl -H "Range: bytes=0-1000" http://localhost:8080/api/v1/stream/1
 Get audio metadata without downloading the content body.
 
 **URL Parameters:**
-- `id`: Episode ID (numeric)
+- `id`: Episode ID (Podcast Index ID, numeric int64)
 
 **Response:** Same headers as GET but without body
 
 **Example Request:**
 ```bash
-curl -I http://localhost:8080/api/v1/stream/1
+curl -I http://localhost:8080/api/v1/stream/41928435424
 ```
 
 ### OPTIONS /api/v1/stream/:id
@@ -401,21 +406,22 @@ curl -X POST http://localhost:8080/api/v1/podcasts/217331/episodes/sync?max=10
 
 ### Get Episode Details
 ```bash
-curl http://localhost:8080/api/v1/episodes/1
+# Using Podcast Index ID from search results
+curl http://localhost:8080/api/v1/episodes/41928435424
 ```
 
 ### Stream Audio
 ```bash
-# Stream full episode
-curl http://localhost:8080/api/v1/stream/1 --output episode.mp3
+# Stream full episode using Podcast Index ID
+curl http://localhost:8080/api/v1/stream/41928435424 --output episode.mp3
 
 # Stream with range (for seeking)
-curl -H "Range: bytes=1024000-" http://localhost:8080/api/v1/stream/1
+curl -H "Range: bytes=1024000-" http://localhost:8080/api/v1/stream/41928435424
 ```
 
 ### Update Playback Position
 ```bash
-curl -X PUT http://localhost:8080/api/v1/episodes/1/playback \
+curl -X PUT http://localhost:8080/api/v1/episodes/41928435424/playback \
   -H "Content-Type: application/json" \
   -d '{"position": 300, "played": false}'
 ```
