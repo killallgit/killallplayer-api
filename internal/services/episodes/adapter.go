@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/killallgit/player-api/internal/services/podcastindex"
@@ -67,13 +68,25 @@ func (a *PodcastIndexAdapter) GetEpisodeMetadata(ctx context.Context, episodeURL
 	}
 	defer resp.Body.Close()
 
+	// Extract filename from URL path
+	fileName := "episode"
+	if parsedURL.Path != "" && parsedURL.Path != "/" {
+		parts := strings.Split(parsedURL.Path, "/")
+		if len(parts) > 0 {
+			lastName := parts[len(parts)-1]
+			if lastName != "" {
+				fileName = lastName
+			}
+		}
+	}
+
 	// Extract metadata from headers
 	metadata := &EpisodeMetadata{
 		URL:          episodeURL,
 		ContentType:  resp.Header.Get("Content-Type"),
 		Size:         resp.ContentLength,
 		LastModified: time.Now(), // Parse Last-Modified header if available
-		FileName:     parsedURL.Path[len(parsedURL.Path)-1:],
+		FileName:     fileName,
 	}
 
 	// Try to parse Last-Modified header
