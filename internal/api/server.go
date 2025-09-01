@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,10 +18,19 @@ import (
 
 // Server represents the HTTP server
 type Server struct {
-	engine       *gin.Engine
-	httpServer   *http.Server
-	db           *database.DB
-	episodeCache episodes.EpisodeCache // Store cache for proper cleanup
+	engine             *gin.Engine
+	httpServer         *http.Server
+	db                 *database.DB
+	episodeCache       episodes.EpisodeCache // Store cache for proper cleanup
+	rateLimiters       *sync.Map            // Per-client rate limiters using sync.Map for concurrent access
+	cleanupInitialized sync.Once           // Ensure cleanup goroutine runs only once
+	cleanupStop        chan struct{}       // Channel to signal cleanup goroutine to stop
+}
+
+// clientLimiter holds a rate limiter and its last accessed time
+type clientLimiter struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
 }
 
 // NewServer creates a new HTTP server
@@ -30,7 +40,9 @@ func NewServer(address string) *Server {
 	engine.Use(gin.Recovery())
 
 	server := &Server{
-		engine: engine,
+		engine:       engine,
+		rateLimiters: &sync.Map{},
+		cleanupStop:  make(chan struct{}),
 		httpServer: &http.Server{
 			Addr:           address,
 			Handler:        engine,
@@ -76,11 +88,6 @@ func (s *Server) setupRoutes() {
 	s.engine.GET("/health", s.healthHandler)
 	s.engine.GET("/", s.versionHandler)
 
-	// Create rate limiters
-	generalLimiter := createRateLimiter(10, 20)    // 10 req/s, burst of 20
-	syncLimiter := createRateLimiter(1, 2)         // 1 req/s, burst of 2
-	searchLimiter := createRateLimiter(5, 10)      // 5 req/s, burst of 10
-
 	// API v1 routes with rate limiting
 	v1 := s.engine.Group("/api/v1")
 	{
@@ -103,9 +110,9 @@ func (s *Server) setupRoutes() {
 			BaseURL:   cfg.PodcastIndex.BaseURL,
 		})
 
-		// Search endpoint with dedicated rate limiter
+		// Search endpoint with dedicated rate limiter (5 req/s, burst of 10)
 		searchHandler := handlers.NewSearchHandler(podcastClient)
-		v1.POST("/search", rateLimitMiddleware(searchLimiter), searchHandler.HandleSearch)
+		v1.POST("/search", s.perClientRateLimitMiddleware(5, 10), searchHandler.HandleSearch)
 
 		// Episode endpoints - only if database is configured
 		if s.db != nil && s.db.DB != nil {
@@ -113,9 +120,9 @@ func (s *Server) setupRoutes() {
 			episodeService, episodeTransformer := s.initializeEpisodeService(podcastClient)
 			episodeHandler := handlers.NewEpisodeHandlerV3(episodeService, episodeTransformer)
 
-			// Episode routes with general rate limiting
+			// Episode routes with general rate limiting (10 req/s, burst of 20)
 			episodesGroup := v1.Group("/episodes")
-			episodesGroup.Use(rateLimitMiddleware(generalLimiter))
+			episodesGroup.Use(s.perClientRateLimitMiddleware(10, 20))
 			{
 				episodesGroup.GET("/byfeedid", func(c *gin.Context) {
 					// Convert query param to path param for compatibility
@@ -131,14 +138,14 @@ func (s *Server) setupRoutes() {
 			// Podcast routes with mixed rate limiting
 			podcastsGroup := v1.Group("/podcasts")
 			{
-				// Regular endpoints with general rate limiting
+				// Regular endpoints with general rate limiting (10 req/s, burst of 20)
 				podcastsGroup.GET("/:id/episodes", 
-					rateLimitMiddleware(generalLimiter), 
+					s.perClientRateLimitMiddleware(10, 20), 
 					episodeHandler.GetEpisodesByPodcastID)
 				
-				// Sync endpoint with strict rate limiting
+				// Sync endpoint with strict rate limiting (1 req/s, burst of 2)
 				podcastsGroup.POST("/:id/episodes/sync", 
-					rateLimitMiddleware(syncLimiter), 
+					s.perClientRateLimitMiddleware(1, 2), 
 					episodeHandler.SyncEpisodesFromPodcastIndex)
 			}
 		}
@@ -210,10 +217,28 @@ func requestSizeLimitMiddleware() gin.HandlerFunc {
 	}
 }
 
-// rateLimitMiddleware creates a rate limiting middleware for a specific limiter
-func rateLimitMiddleware(limiter *rate.Limiter) gin.HandlerFunc {
+// perClientRateLimitMiddleware creates a per-client rate limiting middleware
+func (s *Server) perClientRateLimitMiddleware(rps int, burst int) gin.HandlerFunc {
+	// Start cleanup goroutine only once
+	s.cleanupInitialized.Do(func() {
+		go s.cleanupOldRateLimiters()
+	})
+	
 	return func(c *gin.Context) {
-		if !limiter.Allow() {
+		// Get client identifier (IP address)
+		clientIP := c.ClientIP()
+		
+		// Load or create rate limiter for this client
+		limiterInterface, _ := s.rateLimiters.LoadOrStore(clientIP, &clientLimiter{
+			limiter:  rate.NewLimiter(rate.Every(time.Second/time.Duration(rps)), burst),
+			lastSeen: time.Now(),
+		})
+		
+		cl := limiterInterface.(*clientLimiter)
+		cl.lastSeen = time.Now()
+		
+		// Check rate limit
+		if !cl.limiter.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": "Rate limit exceeded. Please slow down your requests.",
 			})
@@ -224,9 +249,26 @@ func rateLimitMiddleware(limiter *rate.Limiter) gin.HandlerFunc {
 	}
 }
 
-// createRateLimiter creates a new rate limiter
-func createRateLimiter(rps int, burst int) *rate.Limiter {
-	return rate.NewLimiter(rate.Every(time.Second/time.Duration(rps)), burst)
+// cleanupOldRateLimiters removes rate limiters that haven't been used for 10 minutes
+func (s *Server) cleanupOldRateLimiters() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	
+	for {
+		select {
+		case <-ticker.C:
+			now := time.Now()
+			s.rateLimiters.Range(func(key, value interface{}) bool {
+				cl := value.(*clientLimiter)
+				if now.Sub(cl.lastSeen) > 10*time.Minute {
+					s.rateLimiters.Delete(key)
+				}
+				return true
+			})
+		case <-s.cleanupStop:
+			return
+		}
+	}
 }
 
 // Handler functions
@@ -287,6 +329,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.episodeCache != nil {
 		s.episodeCache.Stop()
 	}
+
+	// Stop the rate limiter cleanup goroutine
+	close(s.cleanupStop)
 
 	return s.httpServer.Shutdown(ctx)
 }

@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	once    sync.Once
-	initErr error
+	once        sync.Once
+	initErr     error
+	initialized bool
 )
 
 // Init initializes the configuration system
@@ -50,10 +51,19 @@ func Init() error {
 		// Validate the configuration
 		if err := validate(); err != nil {
 			initErr = fmt.Errorf("invalid configuration: %w", err)
+			return
 		}
+
+		// Mark as initialized only if no errors
+		initialized = true
 	})
 
 	return initErr
+}
+
+// IsInitialized returns true if the configuration has been successfully initialized
+func IsInitialized() bool {
+	return initialized
 }
 
 // Load loads configuration from ./config/settings.yaml
