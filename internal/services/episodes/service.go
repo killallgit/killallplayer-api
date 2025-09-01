@@ -182,6 +182,23 @@ func (s *Service) GetEpisodeByGUID(ctx context.Context, guid string) (*models.Ep
 	return episode, nil
 }
 
+// GetEpisodeByPodcastIndexID retrieves an episode by Podcast Index ID with caching
+func (s *Service) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) {
+	// For now, try to get from repository
+	// TODO: Add caching with a key generator for Podcast Index IDs
+	episode, err := s.repository.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
+	if err != nil {
+		if IsNotFound(err) {
+			// Episode not in database - could fetch from Podcast Index API here
+			// For now, return not found
+			return nil, err
+		}
+		return nil, err
+	}
+	
+	return episode, nil
+}
+
 // GetEpisodesByPodcastID retrieves episodes for a podcast with caching
 func (s *Service) GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error) {
 	key := s.keyGen.EpisodesByPodcast(podcastID, page, limit)
@@ -236,6 +253,31 @@ func (s *Service) UpdatePlaybackState(ctx context.Context, id uint, position int
 
 	// Invalidate cache for this episode
 	s.cache.Invalidate(s.keyGen.EpisodeByID(id))
+
+	return nil
+}
+
+// UpdatePlaybackStateByPodcastIndexID updates the playback state of an episode using Podcast Index ID
+func (s *Service) UpdatePlaybackStateByPodcastIndexID(ctx context.Context, podcastIndexID int64, position int, played bool) error {
+	// First get the episode to find the internal ID
+	episode, err := s.repository.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
+	if err != nil {
+		return fmt.Errorf("finding episode by podcast index id: %w", err)
+	}
+
+	// Update position
+	if err := s.repository.UpdatePlaybackPosition(ctx, episode.ID, position); err != nil {
+		return fmt.Errorf("updating playback position: %w", err)
+	}
+
+	// Update played status
+	if err := s.repository.MarkEpisodeAsPlayed(ctx, episode.ID, played); err != nil {
+		return fmt.Errorf("updating played status: %w", err)
+	}
+
+	// Invalidate cache for this episode
+	s.cache.Invalidate(s.keyGen.EpisodeByID(episode.ID))
+	// TODO: Add cache invalidation for Podcast Index ID key when implemented
 
 	return nil
 }

@@ -18,24 +18,25 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 		episodeIDStr := c.Param("id")
 		log.Printf("[DEBUG] Stream request for episode ID: %s", episodeIDStr)
 		
-		episodeID, err := strconv.ParseUint(episodeIDStr, 10, 32)
+		// Parse Podcast Index ID (int64)
+		podcastIndexID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil {
 			log.Printf("[ERROR] Invalid episode ID for streaming '%s': %v", episodeIDStr, err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
 			return
 		}
 
-		// Fetch episode from database
-		log.Printf("[DEBUG] Fetching episode %d for streaming", episodeID)
-		episode, err := deps.EpisodeService.GetEpisodeByID(c.Request.Context(), uint(episodeID))
+		// Fetch episode from database using Podcast Index ID
+		log.Printf("[DEBUG] Fetching episode with Podcast Index ID %d for streaming", podcastIndexID)
+		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(c.Request.Context(), podcastIndexID)
 		if err != nil {
-			log.Printf("[ERROR] Episode not found for streaming - ID: %d, Error: %v", episodeID, err)
+			log.Printf("[ERROR] Episode not found for streaming - Podcast Index ID: %d, Error: %v", podcastIndexID, err)
 			c.JSON(http.StatusNotFound, gin.H{"error": "Episode not found"})
 			return
 		}
 
 		if episode.AudioURL == "" {
-			log.Printf("[ERROR] Episode %d has no audio URL", episodeID)
+			log.Printf("[ERROR] Episode with Podcast Index ID %d has no audio URL", podcastIndexID)
 			c.JSON(http.StatusNotFound, gin.H{"error": "Audio not available for this episode"})
 			return
 		}

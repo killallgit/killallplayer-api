@@ -63,6 +63,17 @@ func (r *Repository) GetEpisodeByGUID(ctx context.Context, guid string) (*models
 	return &episode, nil
 }
 
+func (r *Repository) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) {
+	var episode models.Episode
+	if err := r.db.WithContext(ctx).Where("podcast_index_id = ?", podcastIndexID).First(&episode).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, NewNotFoundError("episode", podcastIndexID)
+		}
+		return nil, fmt.Errorf("getting episode by podcast index id: %w", err)
+	}
+	return &episode, nil
+}
+
 func (r *Repository) GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error) {
 	var episodes []models.Episode
 	var total int64

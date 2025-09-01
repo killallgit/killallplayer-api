@@ -16,6 +16,7 @@ type EpisodeRepository interface {
 	// Read operations
 	GetEpisodeByID(ctx context.Context, id uint) (*models.Episode, error)
 	GetEpisodeByGUID(ctx context.Context, guid string) (*models.Episode, error)
+	GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error)
 	GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error)
 	GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error)
 
@@ -61,11 +62,13 @@ type EpisodeService interface {
 	// Get operations with caching and fallback
 	GetEpisodeByID(ctx context.Context, id uint) (*models.Episode, error)
 	GetEpisodeByGUID(ctx context.Context, guid string) (*models.Episode, error)
+	GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error)
 	GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error)
 	GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error)
 
 	// Playback operations
 	UpdatePlaybackState(ctx context.Context, id uint, position int, played bool) error
+	UpdatePlaybackStateByPodcastIndexID(ctx context.Context, podcastIndexID int64, position int, played bool) error
 }
 
 // EpisodeTransformer defines the interface for transforming between different episode formats
