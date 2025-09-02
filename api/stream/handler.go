@@ -118,8 +118,10 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 		copyHeader("Last-Modified")
 		copyHeader("Cache-Control")
 
-		// Add chunked transfer encoding for streaming
-		c.Header("Transfer-Encoding", "chunked")
+		// Only set chunked encoding if no Content-Length header is present
+		if resp.Header.Get("Content-Length") == "" {
+			c.Header("Transfer-Encoding", "chunked")
+		}
 
 		// Set CORS headers for audio streaming
 		c.Header("Access-Control-Allow-Origin", "*")

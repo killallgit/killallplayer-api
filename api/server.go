@@ -40,7 +40,7 @@ func NewServer(address string) *Server {
 			Addr:           address,
 			Handler:        engine,
 			ReadTimeout:    30 * time.Second,
-			WriteTimeout:   30 * time.Second,
+			WriteTimeout:   0, // No timeout for streaming endpoints
 			IdleTimeout:    30 * time.Second,
 			MaxHeaderBytes: 1 << 20, // 1 MB
 		},
