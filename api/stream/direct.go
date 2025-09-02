@@ -131,6 +131,9 @@ func StreamDirectURL() gin.HandlerFunc {
 		copyHeader("Last-Modified")
 		copyHeader("Cache-Control")
 
+		// Add chunked transfer encoding for streaming
+		c.Header("Transfer-Encoding", "chunked")
+
 		// Set CORS headers for audio streaming
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
@@ -146,19 +149,83 @@ func StreamDirectURL() gin.HandlerFunc {
 			log.Printf("[DEBUG] Returning full content (200)")
 		}
 
-		// Stream the audio data with buffered copying to prevent memory issues
-		buffer := make([]byte, StreamBuffer)
-		written, err := io.CopyBuffer(c.Writer, resp.Body, buffer)
-		if err != nil {
-			// Client might have disconnected, which is normal for streaming
-			if !strings.Contains(err.Error(), "broken pipe") {
-				log.Printf("[ERROR] Error streaming audio: %v", err)
+		// Type assert to get the flusher for immediate data transmission
+		flusher, ok := c.Writer.(http.Flusher)
+		if !ok {
+			log.Printf("[WARN] Response writer doesn't support flushing, falling back to buffered copy")
+			// Fall back to io.CopyBuffer if flushing not supported
+			buffer := make([]byte, StreamBuffer)
+			written, err := io.CopyBuffer(c.Writer, resp.Body, buffer)
+			if err != nil {
+				// Client might have disconnected, which is normal for streaming
+				if !strings.Contains(err.Error(), "broken pipe") && !strings.Contains(err.Error(), "connection reset") {
+					log.Printf("[ERROR] Error streaming audio: %v", err)
+				} else {
+					log.Printf("[DEBUG] Client disconnected after %d bytes", written)
+				}
 			} else {
-				log.Printf("[DEBUG] Client disconnected after %d bytes", written)
+				log.Printf("[DEBUG] Successfully streamed %d bytes", written)
 			}
-		} else {
-			log.Printf("[DEBUG] Successfully streamed %d bytes", written)
+			return
 		}
+
+		// Custom streaming loop with explicit flushing to prevent client timeouts
+		var totalWritten int64
+		
+		// Use smaller initial buffer for faster first byte to client
+		initialBuffer := make([]byte, 8*1024) // 8KB for initial chunks
+		streamBuffer := make([]byte, StreamBuffer) // 32KB for subsequent chunks
+
+		// Read and write first chunk with smaller buffer for faster initial response
+		n, err := resp.Body.Read(initialBuffer)
+		if err != nil && err != io.EOF {
+			log.Printf("[ERROR] Error reading initial audio data: %v", err)
+			return
+		}
+		if n > 0 {
+			written, writeErr := c.Writer.Write(initialBuffer[:n])
+			if writeErr != nil {
+				if !strings.Contains(writeErr.Error(), "broken pipe") && !strings.Contains(writeErr.Error(), "connection reset") {
+					log.Printf("[ERROR] Error writing initial audio data: %v", writeErr)
+				}
+				return
+			}
+			totalWritten += int64(written)
+			flusher.Flush() // Flush immediately for fast first byte to client
+			log.Printf("[DEBUG] Sent initial %d bytes to client", written)
+		}
+
+		// Continue streaming with larger buffer for efficiency
+		for {
+			n, err := resp.Body.Read(streamBuffer)
+			if n > 0 {
+				written, writeErr := c.Writer.Write(streamBuffer[:n])
+				if writeErr != nil {
+					if !strings.Contains(writeErr.Error(), "broken pipe") && !strings.Contains(writeErr.Error(), "connection reset") {
+						log.Printf("[ERROR] Error writing audio data: %v", writeErr)
+					} else {
+						log.Printf("[DEBUG] Client disconnected after %d bytes", totalWritten)
+					}
+					break
+				}
+				totalWritten += int64(written)
+				
+				// Flush after each chunk to prevent client timeout
+				flusher.Flush()
+			}
+			
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				if !strings.Contains(err.Error(), "broken pipe") && !strings.Contains(err.Error(), "connection reset") {
+					log.Printf("[ERROR] Error reading audio data: %v", err)
+				}
+				break
+			}
+		}
+
+		log.Printf("[DEBUG] Successfully streamed %d bytes total", totalWritten)
 	}
 }
 
