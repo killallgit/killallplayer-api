@@ -19,7 +19,8 @@ type PlaybackUpdateRequest struct {
 func PutPlayback(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
-		episodeID, err := strconv.ParseUint(episodeIDStr, 10, 32)
+		// Parse Podcast Index ID (int64)
+		podcastIndexID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"status":  "error",
@@ -47,8 +48,8 @@ func PutPlayback(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		// Update playback state
-		err = deps.EpisodeService.UpdatePlaybackState(c.Request.Context(), uint(episodeID), req.Position, req.Played)
+		// Update playback state using Podcast Index ID
+		err = deps.EpisodeService.UpdatePlaybackStateByPodcastIndexID(c.Request.Context(), podcastIndexID, req.Position, req.Played)
 		if err != nil {
 			if IsNotFound(err) {
 				c.JSON(http.StatusNotFound, gin.H{
@@ -56,7 +57,7 @@ func PutPlayback(deps *types.Dependencies) gin.HandlerFunc {
 					"message": "Episode not found",
 				})
 			} else {
-				log.Printf("[ERROR] Failed to update playback state for episode %d: %v", episodeID, err)
+				log.Printf("[ERROR] Failed to update playback state for episode with Podcast Index ID %d: %v", podcastIndexID, err)
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"status":  "error",
 					"message": "Failed to update playback state",
@@ -69,7 +70,7 @@ func PutPlayback(deps *types.Dependencies) gin.HandlerFunc {
 			"status":  "success",
 			"message": "Playback state updated",
 			"data": gin.H{
-				"episode_id": episodeID,
+				"episode_id": podcastIndexID,
 				"position":   req.Position,
 				"played":     req.Played,
 			},

@@ -25,6 +25,11 @@ func (g *DefaultKeyGenerator) EpisodeByGUID(guid string) string {
 	return fmt.Sprintf("%s:guid:%s", g.prefix, guid)
 }
 
+// EpisodeByPodcastIndexID generates a cache key for an episode by Podcast Index ID
+func (g *DefaultKeyGenerator) EpisodeByPodcastIndexID(podcastIndexID int64) string {
+	return fmt.Sprintf("%s:podcastindex:%d", g.prefix, podcastIndexID)
+}
+
 // EpisodesByPodcast generates a cache key for episodes by podcast
 func (g *DefaultKeyGenerator) EpisodesByPodcast(podcastID uint, page, limit int) string {
 	return fmt.Sprintf("%s:podcast:%d:page:%d:limit:%d", g.prefix, podcastID, page, limit)

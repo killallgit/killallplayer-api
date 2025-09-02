@@ -122,8 +122,8 @@ go test ./...
 # Using Air for auto-reload
 air
 
-# Or using Task
-task dev
+# Or using Task (RECOMMENDED - loads .env file automatically)
+task serve
 ```
 
 #### Standard Mode
@@ -134,6 +134,9 @@ go build -o bin/player-api
 
 # Or directly
 go run main.go serve
+
+# Note: When not using Task, ensure environment variables are loaded:
+source .env && go run main.go serve
 ```
 
 #### Debug Mode
@@ -378,7 +381,15 @@ lsof -i :8080
 
 # Kill process
 kill -9 <PID>
+
+# Or kill all player-api processes
+pkill -f "player-api serve"
 ```
+
+#### Episode "Record Not Found" Errors
+- Ensure episodes are synced: `curl -X POST http://localhost:8080/api/v1/podcasts/{id}/episodes/sync`
+- Check database has episodes: `sqlite3 data/podcast.db "SELECT COUNT(*) FROM episodes;"`
+- Verify streaming endpoint is implemented at `/api/v1/stream/:id`
 
 #### Database Lock Error
 ```bash
@@ -413,8 +424,17 @@ go tool pprof -http=:8081 http://localhost:8080/debug/pprof/heap
 # Check service health
 curl http://localhost:8080/health
 
-# Test WebSocket connection
-wscat -c ws://localhost:8080/ws
+# Test streaming endpoint
+curl -I http://localhost:8080/api/v1/stream/1  # HEAD request for metadata
+curl -H "Range: bytes=0-1000" http://localhost:8080/api/v1/stream/1  # Range request
+
+# Search for podcasts
+curl -X POST http://localhost:8080/api/v1/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "technology", "limit": 5}'
+
+# Sync episodes
+curl -X POST http://localhost:8080/api/v1/podcasts/217331/episodes/sync
 
 # Monitor logs
 tail -f logs/app.log | jq '.'

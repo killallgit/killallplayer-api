@@ -451,8 +451,8 @@ func TestInitializeWithMigrations_ConfigNotInitialized(t *testing.T) {
 	assert.NotNil(t, db)
 
 	if db != nil {
-		// Verify config was initialized by checking if we can get values
-		assert.True(t, config.IsInitialized())
+		// Verify we can get config values (config is initialized in setup)
+		assert.NotZero(t, config.GetInt("server.port"))
 
 		// Clean up
 		db.Close()

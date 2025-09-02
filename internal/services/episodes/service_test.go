@@ -71,6 +71,14 @@ func (m *MockRepository) GetEpisodeByGUID(ctx context.Context, guid string) (*mo
 	return args.Get(0).(*models.Episode), args.Error(1)
 }
 
+func (m *MockRepository) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) {
+	args := m.Called(ctx, podcastIndexID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Episode), args.Error(1)
+}
+
 func (m *MockRepository) GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error) {
 	args := m.Called(ctx, podcastID, page, limit)
 	if args.Get(0) == nil {

@@ -10,11 +10,13 @@ import (
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/podcasts"
 	"github.com/killallgit/player-api/api/search"
+	"github.com/killallgit/player-api/api/stream"
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/api/version"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/pkg/config"
+	"github.com/spf13/viper"
 )
 
 // RegisterRoutes registers all API routes
@@ -46,10 +48,25 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 
 	// Initialize podcast client if not set
 	if deps.PodcastClient == nil {
+		// Use Viper directly for Podcast Index credentials since unmarshal isn't working correctly
+		apiKey := viper.GetString("podcast_index.api_key")
+		apiSecret := viper.GetString("podcast_index.api_secret")
+		baseURL := viper.GetString("podcast_index.api_url")
+		
+		if apiKey == "" {
+			apiKey = cfg.PodcastIndex.APIKey
+		}
+		if apiSecret == "" {
+			apiSecret = cfg.PodcastIndex.APISecret
+		}
+		if baseURL == "" {
+			baseURL = cfg.PodcastIndex.BaseURL
+		}
+		
 		deps.PodcastClient = podcastindex.NewClient(podcastindex.Config{
-			APIKey:    cfg.PodcastIndex.APIKey,
-			APISecret: cfg.PodcastIndex.APISecret,
-			BaseURL:   cfg.PodcastIndex.BaseURL,
+			APIKey:    apiKey,
+			APISecret: apiSecret,
+			BaseURL:   baseURL,
 		})
 	}
 
@@ -68,6 +85,12 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		episodeGroup := v1.Group("/episodes")
 		episodeGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
 		episodes.RegisterRoutes(episodeGroup, deps)
+
+		// Register streaming routes with moderate rate limiting (20 req/s, burst of 30)
+		// Higher limits for streaming to allow seeking/scrubbing
+		streamGroup := v1.Group("/stream")
+		streamGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 20, 30))
+		stream.RegisterRoutes(streamGroup, deps)
 
 		// Register podcast routes with mixed rate limiting
 		podcastGroup := v1.Group("/podcasts")

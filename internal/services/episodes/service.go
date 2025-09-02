@@ -3,6 +3,7 @@ package episodes
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -69,12 +70,24 @@ func (s *Service) FetchAndSyncEpisodes(ctx context.Context, podcastID int64, lim
 
 	// Sync to database in background with detached context but respecting cancellation
 	go func() {
+		// Recover from any panics in the goroutine
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[ERROR] Panic in background sync for podcast %d: %v", podcastID, r)
+			}
+		}()
+
 		// Create a new context that inherits values but not cancellation from parent
 		// This allows the sync to continue even if the HTTP request is cancelled
 		syncCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), s.syncTimeout)
 		defer cancel()
 
-		_, _ = s.SyncEpisodesToDatabase(syncCtx, response.Items, uint(podcastID))
+		synced, err := s.SyncEpisodesToDatabase(syncCtx, response.Items, uint(podcastID))
+		if err != nil {
+			log.Printf("[ERROR] Failed to sync episodes for podcast %d: %v", podcastID, err)
+		} else {
+			log.Printf("[DEBUG] Successfully synced %d episodes for podcast %d", synced, podcastID)
+		}
 	}()
 
 	return response, nil
@@ -102,6 +115,17 @@ func (s *Service) SyncEpisodesToDatabase(ctx context.Context, episodes []Podcast
 		go func(pie PodcastIndexEpisode) {
 			defer wg.Done()
 			defer func() { <-sem }() // Release semaphore
+			
+			// Recover from any panics in the goroutine
+			defer func() {
+				if r := recover(); r != nil {
+					mu.Lock()
+					failureCount++
+					errors = append(errors, fmt.Errorf("panic processing episode %s: %v", pie.Title, r))
+					mu.Unlock()
+					log.Printf("[ERROR] Panic processing episode %s: %v", pie.Title, r)
+				}
+			}()
 
 			episode := transformer.PodcastIndexToModel(pie, podcastID)
 
@@ -182,6 +206,31 @@ func (s *Service) GetEpisodeByGUID(ctx context.Context, guid string) (*models.Ep
 	return episode, nil
 }
 
+// GetEpisodeByPodcastIndexID retrieves an episode by Podcast Index ID with caching
+func (s *Service) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) {
+	key := s.keyGen.EpisodeByPodcastIndexID(podcastIndexID)
+
+	// Check cache first
+	if episode, found := s.cache.GetEpisode(key); found {
+		return episode, nil
+	}
+
+	// Fetch from repository
+	episode, err := s.repository.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
+	if err != nil {
+		if IsNotFound(err) {
+			// Episode not in database - could fetch from Podcast Index API here
+			// For now, return not found
+			return nil, err
+		}
+		return nil, err
+	}
+	
+	// Cache the result
+	s.cache.SetEpisode(key, episode)
+	return episode, nil
+}
+
 // GetEpisodesByPodcastID retrieves episodes for a podcast with caching
 func (s *Service) GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error) {
 	key := s.keyGen.EpisodesByPodcast(podcastID, page, limit)
@@ -236,6 +285,34 @@ func (s *Service) UpdatePlaybackState(ctx context.Context, id uint, position int
 
 	// Invalidate cache for this episode
 	s.cache.Invalidate(s.keyGen.EpisodeByID(id))
+
+	return nil
+}
+
+// UpdatePlaybackStateByPodcastIndexID updates the playback state of an episode using Podcast Index ID
+func (s *Service) UpdatePlaybackStateByPodcastIndexID(ctx context.Context, podcastIndexID int64, position int, played bool) error {
+	// First get the episode to find the internal ID
+	episode, err := s.repository.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
+	if err != nil {
+		return fmt.Errorf("finding episode by podcast index id: %w", err)
+	}
+
+	// Update position
+	if err := s.repository.UpdatePlaybackPosition(ctx, episode.ID, position); err != nil {
+		return fmt.Errorf("updating playback position: %w", err)
+	}
+
+	// Update played status
+	if err := s.repository.MarkEpisodeAsPlayed(ctx, episode.ID, played); err != nil {
+		return fmt.Errorf("updating played status: %w", err)
+	}
+
+	// Invalidate cache for this episode
+	s.cache.Invalidate(s.keyGen.EpisodeByID(episode.ID))
+	// Also invalidate cache by Podcast Index ID if available
+	if episode.PodcastIndexID != 0 {
+		s.cache.Invalidate(s.keyGen.EpisodeByPodcastIndexID(episode.PodcastIndexID))
+	}
 
 	return nil
 }

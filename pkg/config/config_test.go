@@ -2,8 +2,9 @@ package config
 
 import (
 	"os"
-	"sync"
 	"testing"
+
+	"github.com/spf13/viper"
 )
 
 func TestConfig(t *testing.T) {
@@ -15,13 +16,11 @@ func TestConfig(t *testing.T) {
 		check   func(t *testing.T)
 	}{
 		{
-			name: "load from settings.yaml",
+			name: "load from config.yaml",
 			setup: func() {
-				// Reset the once to allow reinit
-				once = sync.Once{}
-				initErr = nil
-				// Create config directory
-				_ = os.Mkdir("config", 0755)
+				// Reset viper for clean test
+				viper.Reset()
+				// Create config file in current directory
 				content := `
 server:
   host: "127.0.0.1"
@@ -29,10 +28,11 @@ server:
 database:
   path: "./test.db"
 `
-				_ = os.WriteFile("./config/settings.yaml", []byte(content), 0644)
+				_ = os.WriteFile("./config.yaml", []byte(content), 0644)
 			},
 			cleanup: func() {
-				_ = os.RemoveAll("config")
+				_ = os.Remove("./config.yaml")
+				viper.Reset()
 			},
 			wantErr: false,
 			check: func(t *testing.T) {
@@ -44,22 +44,21 @@ database:
 		{
 			name: "environment variable override",
 			setup: func() {
-				// Reset the once to allow reinit
-				once = sync.Once{}
-				initErr = nil
-				// Create config directory
-				_ = os.Mkdir("config", 0755)
+				// Reset viper for clean test
+				viper.Reset()
+				// Create config file
 				content := `
 server:
   host: "127.0.0.1"
   port: 8080
 `
-				_ = os.WriteFile("./config/settings.yaml", []byte(content), 0644)
+				_ = os.WriteFile("./config.yaml", []byte(content), 0644)
 				os.Setenv("KILLALL_SERVER_PORT", "9090")
 			},
 			cleanup: func() {
-				_ = os.RemoveAll("config")
+				_ = os.Remove("./config.yaml")
 				os.Unsetenv("KILLALL_SERVER_PORT")
+				viper.Reset()
 			},
 			wantErr: false,
 			check: func(t *testing.T) {
@@ -71,13 +70,12 @@ server:
 		{
 			name: "missing config file with defaults",
 			setup: func() {
-				// Reset the once to allow reinit
-				once = sync.Once{}
-				initErr = nil
+				// Reset viper for clean test
+				viper.Reset()
 				// No config file created
 			},
 			cleanup: func() {
-				// Nothing to clean up
+				viper.Reset()
 			},
 			wantErr: false,
 			check: func(t *testing.T) {

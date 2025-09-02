@@ -1,21 +1,23 @@
-# API Specification
+# Podcast Player API Documentation
+
+Base URL: `http://localhost:8080`
 
 ## Table of Contents
 1. [Overview](#overview)
-2. [REST API Endpoints](#rest-api-endpoints)
-3. [WebSocket Protocol](#websocket-protocol)
-4. [Error Handling](#error-handling)
-5. [Authentication](#authentication)
-6. [Rate Limiting](#rate-limiting)
+2. [Health Check](#health-check)
+3. [Search](#search)
+4. [Episodes](#episodes)
+5. [Podcasts](#podcasts)
+6. [Audio Streaming](#audio-streaming)
+7. [Rate Limiting](#rate-limiting)
+8. [Error Handling](#error-handling)
+9. [CORS Configuration](#cors-configuration)
 
 ## Overview
 
-The Podcast Player API provides both REST endpoints for data transfer and WebSocket connections for real-time communication. The API follows RESTful principles for resource management while WebSocket handles control messages and real-time updates.
+The Podcast Player API provides RESTful endpoints for podcast discovery, episode management, and audio streaming. The API follows RESTful principles and supports range requests for audio streaming.
 
-### Base URL
-```
-http://localhost:8080
-```
+**Important:** All episode IDs in this API are Podcast Index IDs. The API does not expose internal database IDs to clients. Episode IDs received from search results can be used directly for streaming, playback updates, and other operations.
 
 ### API Versioning
 Currently v1, accessed via:
@@ -23,495 +25,345 @@ Currently v1, accessed via:
 /api/v1/...
 ```
 
-## REST API Endpoints
+## Health Check
 
-### Health Check
-
-#### GET /health
+### GET /health
 Check if the service is running and healthy.
 
 **Response:**
 ```json
 {
-  "status": "healthy",
-  "version": "1.0.0",
-  "uptime": 3600,
-  "timestamp": "2024-01-01T00:00:00Z"
+  "status": "ok",
+  "timestamp": "2025-09-01T15:00:00Z",
+  "database": {"status": "healthy"}
 }
 ```
 
-### Audio Streaming
-
-#### GET /api/v1/stream/{episodeId}
-Stream audio content with support for range requests.
-
-**Headers:**
-- `Range`: `bytes=start-end` (optional) - For partial content requests
-
-**Response Headers:**
-- `Content-Type`: `audio/mpeg` (or appropriate audio type)
-- `Content-Length`: Size in bytes
-- `Accept-Ranges`: `bytes`
-- `Content-Range`: `bytes start-end/total` (for partial requests)
-
-**Status Codes:**
-- `200`: Full content
-- `206`: Partial content
-- `404`: Episode not found
-- `416`: Range not satisfiable
-
-**Example Request:**
-```http
-GET /api/v1/stream/episode-123
-Range: bytes=1000-2000
-```
-
-### Waveform Data
-
-#### GET /api/v1/episodes/{id}/waveform
-Retrieve waveform data for visualization.
-
-**Query Parameters:**
-- `resolution`: Number of samples per pixel (256, 512, 1024)
-- `format`: Response format (`json` or `binary`)
-
-**Response (JSON):**
-```json
-{
-  "episode_id": "episode-123",
-  "duration": 3600,
-  "sample_rate": 44100,
-  "samples_per_pixel": 256,
-  "bits": 8,
-  "length": 14062,
-  "data": [0.5, 0.7, 0.3, ...],
-  "created_at": "2024-01-01T00:00:00Z"
-}
-```
-
-### Transcription
-
-#### GET /api/v1/episodes/{id}/transcript
-Retrieve episode transcription with timestamps.
-
-**Query Parameters:**
-- `format`: Response format (`json`, `vtt`, `srt`)
-- `start`: Start time in seconds (optional)
-- `end`: End time in seconds (optional)
-
-**Response (JSON):**
-```json
-{
-  "episode_id": "episode-123",
-  "language": "en",
-  "confidence": 0.95,
-  "full_text": "Complete transcript text...",
-  "segments": [
-    {
-      "start": 0.0,
-      "end": 5.2,
-      "text": "Welcome to the podcast."
-    }
-  ],
-  "created_at": "2024-01-01T00:00:00Z"
-}
-```
-
-### Audio Tags
-
-#### GET /api/v1/episodes/{id}/tags
-List all tags for an episode.
-
-**Query Parameters:**
-- `start_time`: Filter tags after this time
-- `end_time`: Filter tags before this time
+### GET /
+Get API version information.
 
 **Response:**
 ```json
 {
-  "episode_id": "episode-123",
-  "tags": [
+  "name": "Podcast Player API",
+  "version": "1.0.0",
+  "status": "running"
+}
+```
+
+## Search
+
+### POST /api/v1/search
+Search for podcasts via Podcast Index API.
+
+**Request Body:**
+```json
+{
+  "query": "string",  // Required: search term
+  "limit": 10         // Optional: max results (1-100, default: 10)
+}
+```
+
+**Response:**
+```json
+{
+  "podcasts": [
     {
-      "id": "tag-456",
-      "start_time": 120.5,
-      "end_time": 180.0,
-      "label": "Important moment",
-      "notes": "Discussion about...",
-      "color": "#FF5733",
-      "created_at": "2024-01-01T00:00:00Z"
+      "id": "123456",
+      "title": "Podcast Name",
+      "author": "Author Name",
+      "description": "Podcast description",
+      "image": "https://...",
+      "url": "https://..."
     }
   ]
 }
 ```
 
-#### POST /api/v1/episodes/{id}/tags
-Create a new tag.
+**Rate Limit:** 5 requests/second, burst of 10
 
-**Request Body:**
-```json
-{
-  "start_time": 120.5,
-  "end_time": 180.0,
-  "label": "Important moment",
-  "notes": "Optional notes",
-  "color": "#FF5733"
-}
-```
+## Episodes
+
+### GET /api/v1/episodes
+Get all episodes (recent episodes across all podcasts).
+
+**Query Parameters:**
+- `limit` (optional): Max episodes to return (1-1000, default: 50)
 
 **Response:**
 ```json
 {
-  "id": "tag-789",
-  "episode_id": "episode-123",
-  "start_time": 120.5,
-  "end_time": 180.0,
-  "label": "Important moment",
-  "notes": "Optional notes",
-  "color": "#FF5733",
-  "created_at": "2024-01-01T00:00:00Z"
+  "status": "true",
+  "items": [
+    {
+      "id": 41928435424,
+      "title": "Episode Title",
+      "link": "https://...",
+      "description": "Episode description",
+      "guid": "unique-guid",
+      "datePublished": 1756706400,
+      "datePublishedPretty": "August 31, 2025 11:00pm",
+      "dateCrawled": 1756723804,
+      "enclosureUrl": "https://...",
+      "enclosureType": "audio/mpeg",
+      "enclosureLength": 11535016,
+      "duration": 718,
+      "episode": 493,
+      "episodeType": "full",
+      "season": 2,
+      "image": "https://...",
+      "feedItunesId": 1139480348,
+      "feedImage": "https://...",
+      "feedId": 52216,
+      "feedLanguage": "en-us",
+      "transcriptUrl": "https://..."
+    }
+  ],
+  "count": 50,
+  "description": "All episodes"
 }
 ```
 
-#### PUT /api/v1/tags/{id}
-Update an existing tag.
+### GET /api/v1/episodes/recent
+Get recent episodes across all podcasts.
 
-**Request Body:**
-```json
-{
-  "start_time": 125.0,
-  "end_time": 185.0,
-  "label": "Updated label",
-  "notes": "Updated notes",
-  "color": "#00FF00"
-}
-```
+**Query Parameters:**
+- `max` (optional): Max episodes (1-100, default: 20)
 
-#### DELETE /api/v1/tags/{id}
-Delete a tag.
+**Response:** Same as GET /api/v1/episodes
+
+### GET /api/v1/episodes/byfeedid
+Get episodes by podcast/feed ID.
+
+**Query Parameters:**
+- `id` (required): Podcast ID
+- `max` (optional): Max episodes (1-1000, default: 20)
+
+**Response:** Same as episodes list with `query` field containing podcast ID
+
+### GET /api/v1/episodes/byguid
+Get single episode by GUID.
+
+**Query Parameters:**
+- `guid` (required): Episode GUID
+
+**Response:** Single episode in Podcast Index format
+
+### GET /api/v1/episodes/:id
+Get single episode by Podcast Index ID.
+
+**URL Parameters:**
+- `id`: Episode ID (Podcast Index ID, numeric int64)
 
 **Response:**
 ```json
 {
-  "message": "Tag deleted successfully"
-}
-```
-
-## WebSocket Protocol
-
-### Connection
-
-#### Endpoint
-```
-ws://localhost:8080/ws
-```
-
-### Message Structure
-
-All WebSocket messages follow this structure:
-
-```json
-{
-  "id": "unique-message-id",
-  "type": "message-type",
-  "timestamp": "2024-01-01T00:00:00Z",
-  "payload": {}
-}
-```
-
-### Client → Server Messages
-
-#### Search Request
-Search for podcasts via Podcast Index.
-
-```json
-{
-  "type": "search_request",
-  "payload": {
-    "query": "search terms",
-    "limit": 25,
-    "offset": 0,
-    "category": "technology"
-  }
-}
-```
-
-#### Episode Selection
-Select an episode for processing and playback.
-
-```json
-{
-  "type": "episode_selected",
-  "payload": {
-    "episode_id": "episode-uuid",
-    "podcast_id": "podcast-uuid",
-    "force_reprocess": false
-  }
-}
-```
-
-#### Create Tag
-Create a new audio tag.
-
-```json
-{
-  "type": "create_tag",
-  "payload": {
-    "episode_id": "episode-uuid",
-    "start_time": 120.5,
-    "end_time": 180.0,
-    "label": "Important moment",
-    "notes": "Optional notes",
-    "color": "#FF5733"
-  }
-}
-```
-
-#### Update Tag
-Update an existing tag.
-
-```json
-{
-  "type": "update_tag",
-  "payload": {
-    "tag_id": "tag-uuid",
-    "start_time": 125.0,
-    "end_time": 185.0,
-    "label": "Updated label",
-    "notes": "Updated notes"
-  }
-}
-```
-
-#### Delete Tag
-Delete a tag.
-
-```json
-{
-  "type": "delete_tag",
-  "payload": {
-    "tag_id": "tag-uuid"
-  }
-}
-```
-
-#### Get Status
-Request processing status for an episode.
-
-```json
-{
-  "type": "get_status",
-  "payload": {
-    "episode_id": "episode-uuid"
-  }
-}
-```
-
-#### Heartbeat
-Keep connection alive.
-
-```json
-{
-  "type": "heartbeat",
-  "payload": {}
-}
-```
-
-### Server → Client Messages
-
-#### Search Results
-Response to search request.
-
-```json
-{
-  "type": "search_results",
-  "payload": {
-    "query": "original search",
-    "total": 50,
-    "results": [
-      {
-        "id": "podcast-uuid",
-        "title": "Podcast Name",
-        "author": "Author Name",
-        "description": "Podcast description",
-        "image_url": "https://...",
-        "categories": ["Technology", "Science"],
-        "episode_count": 100,
-        "latest_episode": "2024-01-01T00:00:00Z"
-      }
-    ]
-  }
-}
-```
-
-#### Episode Details
-Detailed episode information.
-
-```json
-{
-  "type": "episode_details",
-  "payload": {
-    "id": "episode-uuid",
-    "podcast_id": "podcast-uuid",
+  "status": "true",
+  "episode": {
+    "id": 41928435424,
     "title": "Episode Title",
+    "link": "https://...",
     "description": "Episode description",
-    "duration": 3600,
-    "pub_date": "2024-01-01T00:00:00Z",
-    "audio_url": "https://...",
-    "processed": true,
-    "has_waveform": true,
-    "has_transcript": true,
-    "stream_url": "/api/v1/stream/episode-uuid",
-    "waveform_url": "/api/v1/episodes/episode-uuid/waveform",
-    "transcript_url": "/api/v1/episodes/episode-uuid/transcript"
+    "guid": "unique-guid",
+    "datePublished": 1756706400,
+    "datePublishedPretty": "August 31, 2025 11:00pm",
+    "enclosureUrl": "https://...",
+    "enclosureType": "audio/mpeg",
+    "enclosureLength": 11535016,
+    "duration": 718,
+    "episode": 493,
+    "episodeType": "full",
+    "season": 2,
+    "image": "https://...",
+    "feedItunesId": 1139480348,
+    "feedImage": "https://...",
+    "feedId": 52216,
+    "feedLanguage": "en-us",
+    "transcriptUrl": "https://..."
+  },
+  "description": "Episode found"
+}
+```
+
+### PUT /api/v1/episodes/:id/playback
+Update episode playback state.
+
+**URL Parameters:**
+- `id`: Episode ID (Podcast Index ID, numeric int64)
+
+**Request Body:**
+```json
+{
+  "position": 120,  // Position in seconds
+  "played": true    // Whether episode is marked as played
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Playback state updated",
+  "data": {
+    "episode_id": 41928435424,
+    "position": 120,
+    "played": true
   }
 }
 ```
 
-#### Processing Started
-Notification that processing has begun.
+**Rate Limit:** 10 requests/second, burst of 20
 
-```json
-{
-  "type": "processing_started",
-  "payload": {
-    "episode_id": "episode-uuid",
-    "jobs": ["metadata", "waveform", "transcription"],
-    "estimated_time": 120
-  }
-}
+## Podcasts
+
+### GET /api/v1/podcasts/:id/episodes
+Get episodes for specific podcast.
+
+**URL Parameters:**
+- `id`: Podcast ID
+
+**Query Parameters:**
+- `max` (optional): Max episodes (1-1000, default: 20)
+
+**Response:** Same as episodes list
+
+### POST /api/v1/podcasts/:id/episodes/sync
+Sync episodes from Podcast Index API for a specific podcast.
+
+**URL Parameters:**
+- `id`: Podcast ID
+
+**Query Parameters:**
+- `max` (optional): Max episodes to sync (1-1000, default: 50)
+
+**Response:** Updated episodes list
+
+**Rate Limit:** 1 request/second, burst of 2
+
+## Audio Streaming
+
+**Note:** Streaming works with direct audio URLs. Some podcast hosts (e.g., Podbean) return HTML pages instead of audio files, which will result in a 502 error. The API properly detects this and returns an appropriate error message.
+
+### GET /api/v1/stream/:id
+Stream audio content with support for range requests. Acts as a proxy to the episode's audio URL, handling redirects transparently. Uses database to fetch episode metadata.
+
+**URL Parameters:**
+- `id`: Episode ID (Podcast Index ID, numeric int64)
+
+### GET /api/v1/stream/direct
+Stream audio content directly from a URL without database lookup. Useful for testing or streaming external URLs.
+
+**Query Parameters:**
+- `url`: The audio URL to stream (required, must be http or https)
+
+**Response Headers:**
+Same as `/api/v1/stream/:id`
+
+**Status Codes:**
+- `200`: Full content delivery
+- `206`: Partial content (range request)
+- `400`: Invalid or missing URL parameter
+- `502`: Failed to fetch audio from source or source returned HTML instead of audio
+
+**Request Headers:**
+- `Range`: `bytes=start-end` (optional) - For partial content requests/seeking
+
+**Response Headers:**
+- `Content-Type`: `audio/mpeg` (or appropriate audio type from source)
+- `Content-Length`: Size in bytes
+- `Accept-Ranges`: `bytes`
+- `Content-Range`: `bytes start-end/total` (for partial requests)
+- `ETag`: Entity tag from source
+- `Last-Modified`: Last modified date from source
+- `Cache-Control`: Caching directives from source
+- `Access-Control-Allow-Origin`: `*`
+- `Access-Control-Allow-Methods`: `GET, HEAD, OPTIONS`
+- `Access-Control-Allow-Headers`: `Range`
+- `Access-Control-Expose-Headers`: `Content-Length, Content-Range, Accept-Ranges`
+
+**Status Codes:**
+- `200`: Full content delivery
+- `206`: Partial content (range request)
+- `400`: Invalid episode ID
+- `404`: Episode not found or no audio URL
+- `502`: Failed to fetch audio from source
+
+**Example Requests:**
+```bash
+# Full stream (using Podcast Index ID)
+curl http://localhost:8080/api/v1/stream/41928435424
+
+# Range request for seeking (bytes 1MB-2MB)
+curl -H "Range: bytes=1024000-2048000" http://localhost:8080/api/v1/stream/41928435424
+
+# Test partial content with first 1KB
+curl -H "Range: bytes=0-1000" http://localhost:8080/api/v1/stream/41928435424
+
+# Direct streaming from URL (no database)
+curl "http://localhost:8080/api/v1/stream/direct?url=https://example.com/episode.mp3"
+
+# Direct streaming with range request
+curl -H "Range: bytes=0-1000" "http://localhost:8080/api/v1/stream/direct?url=https://example.com/episode.mp3"
 ```
 
-#### Processing Progress
-Update on processing progress.
+**Rate Limit:** 20 requests/second, burst of 30
 
-```json
-{
-  "type": "processing_progress",
-  "payload": {
-    "episode_id": "episode-uuid",
-    "job": "waveform",
-    "progress": 45,
-    "status": "generating",
-    "message": "Processing audio data..."
-  }
-}
+### HEAD /api/v1/stream/:id
+Get audio metadata without downloading the content body.
+
+**URL Parameters:**
+- `id`: Episode ID (Podcast Index ID, numeric int64)
+
+**Response:** Same headers as GET but without body
+
+**Example Request:**
+```bash
+curl -I http://localhost:8080/api/v1/stream/41928435424
 ```
 
-#### Processing Complete
-Notification that processing is complete.
+### HEAD /api/v1/stream/direct
+Get audio metadata for a direct URL without downloading the content body.
 
-```json
-{
-  "type": "processing_complete",
-  "payload": {
-    "episode_id": "episode-uuid",
-    "success": true,
-    "metadata": {
-      "duration": 3600,
-      "bitrate": 128000,
-      "sample_rate": 44100
-    },
-    "waveform_url": "/api/v1/episodes/episode-uuid/waveform",
-    "stream_url": "/api/v1/stream/episode-uuid",
-    "transcript_available": true,
-    "processing_time": 45.2
-  }
-}
+**Query Parameters:**
+- `url`: The audio URL to check (required, must be http or https)
+
+**Response:** Same headers as GET but without body
+
+**Example Request:**
+```bash
+curl -I "http://localhost:8080/api/v1/stream/direct?url=https://example.com/episode.mp3"
 ```
 
-#### Processing Failed
-Notification of processing failure.
+### OPTIONS /api/v1/stream/:id
+CORS preflight request handler.
 
+**Response Headers:**
+- `Access-Control-Allow-Origin`: `*`
+- `Access-Control-Allow-Methods`: `GET, HEAD, OPTIONS`
+- `Access-Control-Allow-Headers`: `Range, Content-Type`
+- `Access-Control-Max-Age`: `86400`
+
+**Status Code:**
+- `204`: No Content
+
+## Rate Limiting
+
+### Current Limits
+
+| Endpoint | Requests/Second | Burst |
+|----------|-----------------|-------|
+| Search | 5 | 10 |
+| Episodes | 10 | 20 |
+| Stream | 20 | 30 |
+| Sync | 1 | 2 |
+
+### Rate Limit Response
+
+When rate limit is exceeded:
 ```json
 {
-  "type": "processing_failed",
-  "payload": {
-    "episode_id": "episode-uuid",
-    "job": "transcription",
-    "error": "Whisper API timeout",
-    "retry_available": true
-  }
-}
-```
-
-#### Tag Created
-Confirmation of tag creation.
-
-```json
-{
-  "type": "tag_created",
-  "payload": {
-    "tag": {
-      "id": "tag-uuid",
-      "episode_id": "episode-uuid",
-      "start_time": 120.5,
-      "end_time": 180.0,
-      "label": "Important moment",
-      "notes": "Optional notes",
-      "created_at": "2024-01-01T00:00:00Z"
-    }
-  }
-}
-```
-
-#### Tag Updated
-Confirmation of tag update.
-
-```json
-{
-  "type": "tag_updated",
-  "payload": {
-    "tag": {
-      "id": "tag-uuid",
-      "start_time": 125.0,
-      "end_time": 185.0,
-      "label": "Updated label",
-      "notes": "Updated notes",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
-  }
-}
-```
-
-#### Tag Deleted
-Confirmation of tag deletion.
-
-```json
-{
-  "type": "tag_deleted",
-  "payload": {
-    "tag_id": "tag-uuid"
-  }
-}
-```
-
-#### Error Message
-Error notification.
-
-```json
-{
-  "type": "error",
-  "payload": {
-    "code": "PROCESSING_FAILED",
-    "message": "Failed to generate waveform",
-    "details": {
-      "episode_id": "episode-uuid",
-      "job": "waveform"
-    },
-    "timestamp": "2024-01-01T00:00:00Z"
-  }
-}
-```
-
-#### Heartbeat Response
-Response to heartbeat.
-
-```json
-{
-  "type": "heartbeat_ack",
-  "payload": {
-    "server_time": "2024-01-01T00:00:00Z"
-  }
+  "error": "Rate limit exceeded",
+  "status": 429
 }
 ```
 
@@ -523,94 +375,89 @@ All error responses follow this structure:
 
 ```json
 {
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message",
-    "details": {},
-    "timestamp": "2024-01-01T00:00:00Z"
-  }
+  "status": "error",
+  "message": "Human-readable error message"
 }
 ```
 
-### Error Codes
-
-| Code | Description | HTTP Status |
-|------|-------------|-------------|
-| `INVALID_REQUEST` | Malformed request | 400 |
-| `UNAUTHORIZED` | Missing or invalid auth | 401 |
-| `FORBIDDEN` | Insufficient permissions | 403 |
-| `NOT_FOUND` | Resource not found | 404 |
-| `CONFLICT` | Resource conflict | 409 |
-| `RATE_LIMITED` | Too many requests | 429 |
-| `INTERNAL_ERROR` | Server error | 500 |
-| `SERVICE_UNAVAILABLE` | External service down | 503 |
-
-### WebSocket Error Codes
+### Common HTTP Status Codes
 
 | Code | Description |
 |------|-------------|
-| `INVALID_MESSAGE` | Malformed message format |
-| `UNKNOWN_TYPE` | Unknown message type |
-| `PROCESSING_FAILED` | Processing job failed |
-| `EPISODE_NOT_FOUND` | Episode doesn't exist |
-| `TAG_OVERLAP` | Tag time overlaps existing |
-| `QUOTA_EXCEEDED` | Processing quota exceeded |
-
-## Authentication
-
-Currently, the API operates in single-user mode without authentication. Future versions will implement:
-
-- JWT-based authentication
-- API key for external access
-- Session management for WebSocket
-
-## Rate Limiting
-
-### Current Limits
-
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| Search | 60 | 1 minute |
-| Stream | 100 | 1 minute |
-| Processing | 10 | 1 hour |
-| WebSocket Messages | 100 | 1 minute |
-
-### Headers
-
-Rate limit information in response headers:
-
-```
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 45
-X-RateLimit-Reset: 1704067200
-```
-
-### Exceeded Response
-
-```json
-{
-  "error": {
-    "code": "RATE_LIMITED",
-    "message": "Rate limit exceeded",
-    "retry_after": 30
-  }
-}
-```
+| `200` | Success |
+| `204` | No Content (for OPTIONS) |
+| `206` | Partial Content (range requests) |
+| `400` | Bad Request - Invalid parameters |
+| `404` | Not Found - Resource doesn't exist |
+| `429` | Too Many Requests - Rate limit exceeded |
+| `500` | Internal Server Error |
+| `502` | Bad Gateway - External service error |
 
 ## CORS Configuration
 
-For web client access:
+The API includes CORS headers for web client access:
 
 ```
 Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
-Access-Control-Allow-Headers: Content-Type, Authorization, Range
-Access-Control-Expose-Headers: Content-Range, Accept-Ranges
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, HEAD, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Range
+Access-Control-Expose-Headers: Content-Length, Content-Range, Accept-Ranges
+Access-Control-Max-Age: 86400
 ```
 
-## API Versioning Strategy
+## Authentication
 
-- Version in URL path: `/api/v1/`
-- Breaking changes increment major version
-- Deprecation notices via headers
-- Minimum 6-month deprecation period
+Currently, the API operates without authentication. The Podcast Index API credentials are configured server-side through environment variables.
+
+## Environment Configuration
+
+Server configuration via environment variables (`.env` file):
+
+```bash
+# Podcast Index API Credentials
+KILLALL_PODCAST_INDEX_API_KEY=your_api_key
+KILLALL_PODCAST_INDEX_API_SECRET=your_api_secret
+KILLALL_PODCAST_INDEX_API_URL=https://api.podcastindex.org/api/1.0
+
+# Database
+KILLALL_DATABASE_PATH=./data/podcast.db
+
+# Server
+KILLALL_SERVER_PORT=8080
+```
+
+## Example Usage
+
+### Search for Podcasts
+```bash
+curl -X POST http://localhost:8080/api/v1/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "technology", "limit": 5}'
+```
+
+### Sync Episodes for a Podcast
+```bash
+curl -X POST http://localhost:8080/api/v1/podcasts/217331/episodes/sync?max=10
+```
+
+### Get Episode Details
+```bash
+# Using Podcast Index ID from search results
+curl http://localhost:8080/api/v1/episodes/41928435424
+```
+
+### Stream Audio
+```bash
+# Stream full episode using Podcast Index ID
+curl http://localhost:8080/api/v1/stream/41928435424 --output episode.mp3
+
+# Stream with range (for seeking)
+curl -H "Range: bytes=1024000-" http://localhost:8080/api/v1/stream/41928435424
+```
+
+### Update Playback Position
+```bash
+curl -X PUT http://localhost:8080/api/v1/episodes/41928435424/playback \
+  -H "Content-Type: application/json" \
+  -d '{"position": 300, "played": false}'
+```

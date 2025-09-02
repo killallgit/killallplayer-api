@@ -104,19 +104,15 @@ func (db *DB) AutoMigrate(models ...any) error {
 // InitializeWithMigrations initializes the database and runs all migrations
 // This is the primary entry point for database initialization in the application
 func InitializeWithMigrations() (*DB, error) {
-	// Ensure config is initialized
-	if !config.IsInitialized() {
-		if err := config.Init(); err != nil {
-			return nil, fmt.Errorf("failed to initialize config: %w", err)
-		}
-	}
 
 	dbPath := config.GetString("database.path")
 	if dbPath == "" {
 		return nil, fmt.Errorf("database path is not configured")
 	}
 
-	dbVerbose := config.GetBool("database.verbose")
+	// Enable verbose logging for debugging
+	dbVerbose := true // Force verbose for debugging
+	log.Printf("[DEBUG] Database path: %s, Verbose: %v", dbPath, dbVerbose)
 
 	// Initialize database connection
 	db, err := Initialize(dbPath, dbVerbose)
