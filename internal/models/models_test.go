@@ -68,7 +68,7 @@ func TestUserModel(t *testing.T) {
 func TestEpisodeModel(t *testing.T) {
 	publishedAt := time.Now().Add(-24 * time.Hour)
 	duration := 3600
-	
+
 	episode := Episode{
 		Model:       gorm.Model{},
 		PodcastID:   1,

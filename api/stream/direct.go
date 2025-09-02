@@ -113,14 +113,14 @@ func StreamDirectURL() gin.HandlerFunc {
 			// Default to audio/mpeg if not specified
 			contentType = "audio/mpeg"
 		}
-		
+
 		// Check if we're getting HTML instead of audio/video
 		if strings.Contains(strings.ToLower(contentType), "text/html") {
 			log.Printf("[ERROR] Received HTML instead of audio. Content-Type: %s, URL: %s", contentType, audioURL)
 			c.JSON(http.StatusBadGateway, gin.H{"error": "Audio source returned HTML instead of audio content"})
 			return
 		}
-		
+
 		c.Header("Content-Type", contentType)
 
 		// Copy range-related headers
@@ -164,8 +164,8 @@ func StreamDirectURL() gin.HandlerFunc {
 
 // Constants for security validation
 const (
-	MaxURLLength  = 2048
-	StreamBuffer  = 32 * 1024 // 32KB buffer for streaming
+	MaxURLLength = 2048
+	StreamBuffer = 32 * 1024 // 32KB buffer for streaming
 )
 
 // Shared HTTP client for streaming operations
@@ -179,8 +179,8 @@ var streamingClient = &http.Client{
 		TLSHandshakeTimeout:   10 * time.Second,
 		ResponseHeaderTimeout: 30 * time.Second, // Time to receive headers
 		ExpectContinueTimeout: 1 * time.Second,
-		MaxIdleConns:          100,               // Connection pool size
-		MaxIdleConnsPerHost:   10,                // Per-host connection limit
+		MaxIdleConns:          100,              // Connection pool size
+		MaxIdleConnsPerHost:   10,               // Per-host connection limit
 		IdleConnTimeout:       90 * time.Second, // Connection idle timeout
 	},
 	CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -203,26 +203,26 @@ var streamingClient = &http.Client{
 // This prevents SSRF attacks by blocking access to private networks, localhost, and metadata services
 func isPrivateOrLocalAddress(hostname string) bool {
 	hostname = strings.ToLower(strings.TrimSpace(hostname))
-	
+
 	// Check for obviously local/private hostnames
 	if hostname == "localhost" || hostname == "::1" ||
 		strings.HasSuffix(hostname, ".local") ||
 		strings.HasSuffix(hostname, ".internal") {
 		return true
 	}
-	
+
 	// Try to parse as IP address
 	ip := net.ParseIP(hostname)
 	if ip != nil {
 		return isPrivateIP(ip)
 	}
-	
+
 	// For non-IP hostnames, check common patterns
 	// IPv4 patterns that might not parse as IPs
 	if hostname == "127.0.0.1" || strings.HasPrefix(hostname, "127.") {
 		return true
 	}
-	
+
 	// IPv4 private ranges (string-based for hostname patterns)
 	if strings.HasPrefix(hostname, "192.168.") {
 		return true
@@ -239,12 +239,12 @@ func isPrivateOrLocalAddress(hostname string) bool {
 			}
 		}
 	}
-	
+
 	// AWS/Cloud metadata service addresses
 	if hostname == "169.254.169.254" || strings.HasPrefix(hostname, "169.254.") {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -253,7 +253,7 @@ func isPrivateIP(ip net.IP) bool {
 	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
 		return true
 	}
-	
+
 	// Check IPv4 private ranges
 	if ip4 := ip.To4(); ip4 != nil {
 		// 10.0.0.0/8
@@ -273,7 +273,7 @@ func isPrivateIP(ip net.IP) bool {
 			return true
 		}
 	}
-	
+
 	// Check IPv6 private ranges
 	if ip.To4() == nil {
 		// fc00::/7 (unique local address)
@@ -285,6 +285,6 @@ func isPrivateIP(ip net.IP) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }

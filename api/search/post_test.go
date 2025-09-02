@@ -71,7 +71,7 @@ func TestPost(t *testing.T) {
 				podcasts, ok := resp["podcasts"].([]interface{})
 				require.True(t, ok)
 				assert.Len(t, podcasts, 1)
-				
+
 				podcast := podcasts[0].(map[string]interface{})
 				assert.Equal(t, "1", podcast["id"])
 				assert.Equal(t, "Tech Podcast", podcast["title"])
@@ -249,10 +249,10 @@ func TestPost(t *testing.T) {
 			// Setup
 			w := httptest.NewRecorder()
 			c, router := gin.CreateTestContext(w)
-			
+
 			deps := tt.setupDeps()
 			handler := Post(deps)
-			
+
 			// Prepare request
 			var body []byte
 			var err error
@@ -262,27 +262,27 @@ func TestPost(t *testing.T) {
 				body, err = json.Marshal(tt.body)
 				require.NoError(t, err)
 			}
-			
+
 			c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/search", bytes.NewBuffer(body))
 			c.Request.Header.Set("Content-Type", "application/json")
-			
+
 			// Register route and execute
 			router.POST("/api/v1/search", handler)
 			router.ServeHTTP(w, c.Request)
-			
+
 			// Assert
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err = json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
-			
+
 			if tt.expectedBody != nil {
 				for key, value := range tt.expectedBody {
 					assert.Equal(t, value, response[key], "Key: %s", key)
 				}
 			}
-			
+
 			if tt.checkResponse != nil {
 				tt.checkResponse(t, response)
 			}

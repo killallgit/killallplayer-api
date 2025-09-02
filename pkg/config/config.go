@@ -13,7 +13,7 @@ import (
 func Init() error {
 	// Set defaults
 	setDefaults()
-	
+
 	// Set config name and paths
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
@@ -21,12 +21,12 @@ func Init() error {
 	viper.AddConfigPath("./config/")
 	viper.AddConfigPath("$HOME/.killall/")
 	viper.AddConfigPath("/etc/killall/")
-	
+
 	// Environment variables
 	viper.SetEnvPrefix("KILLALL")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
-	
+
 	// Read config file
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -37,7 +37,7 @@ func Init() error {
 			return fmt.Errorf("error reading config file: %w", err)
 		}
 	}
-	
+
 	// Validate configuration
 	return validateConfig()
 }

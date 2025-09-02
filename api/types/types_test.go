@@ -8,7 +8,7 @@ import (
 
 func TestDependencies(t *testing.T) {
 	deps := &Dependencies{}
-	
+
 	// Test that we can create empty dependencies
 	assert.NotNil(t, deps)
 	assert.Nil(t, deps.DB)
