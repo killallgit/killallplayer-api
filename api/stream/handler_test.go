@@ -98,9 +98,9 @@ func TestStreamEpisode(t *testing.T) {
 		rangeHeader    string
 	}{
 		{
-			name:      "Invalid episode ID",
-			episodeID: "invalid",
-			setupMock: func(m *mockEpisodeService) {},
+			name:           "Invalid episode ID",
+			episodeID:      "invalid",
+			setupMock:      func(m *mockEpisodeService) {},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "Invalid episode ID",
 		},
@@ -144,7 +144,7 @@ func TestStreamEpisode(t *testing.T) {
 					w.WriteHeader(http.StatusOK)
 					// Write some test data
 					data := make([]byte, 1000)
-					w.Write(data)
+					_, _ = w.Write(data)
 				}))
 			},
 			expectedStatus: http.StatusOK,
@@ -168,7 +168,7 @@ func TestStreamEpisode(t *testing.T) {
 						w.Header().Set("Content-Length", "500")
 						w.WriteHeader(http.StatusPartialContent)
 						data := make([]byte, 500)
-						w.Write(data)
+						_, _ = w.Write(data)
 					} else {
 						w.WriteHeader(http.StatusBadRequest)
 					}
@@ -191,7 +191,7 @@ func TestStreamEpisode(t *testing.T) {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "text/html")
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte("<html><body>Not audio</body></html>"))
+					_, _ = w.Write([]byte("<html><body>Not audio</body></html>"))
 				}))
 			},
 			expectedStatus: http.StatusBadGateway,
@@ -210,7 +210,7 @@ func TestStreamEpisode(t *testing.T) {
 			if tt.setupServer != nil {
 				testServer = tt.setupServer()
 				defer testServer.Close()
-				
+
 				// Update the mock to use test server URL
 				if tt.expectedStatus == http.StatusOK || tt.expectedStatus == http.StatusPartialContent || tt.expectedStatus == http.StatusBadGateway {
 					mockService.ExpectedCalls = nil
@@ -232,7 +232,7 @@ func TestStreamEpisode(t *testing.T) {
 			c, _ := gin.CreateTestContext(w)
 			c.Request = httptest.NewRequest("GET", "/stream/"+tt.episodeID, nil)
 			c.Params = []gin.Param{{Key: "id", Value: tt.episodeID}}
-			
+
 			if tt.rangeHeader != "" {
 				c.Request.Header.Set("Range", tt.rangeHeader)
 			}
@@ -268,11 +268,11 @@ func TestStreamingWithFlusher(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "audio/mpeg")
 		w.WriteHeader(http.StatusOK)
-		
+
 		// Send data in chunks with delays to test flushing
 		for i := 0; i < 5; i++ {
 			data := bytes.Repeat([]byte{byte(i)}, 100)
-			w.Write(data)
+			_, _ = w.Write(data)
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()
 			}
@@ -327,7 +327,7 @@ func TestClientDisconnection(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "audio/mpeg")
 		w.WriteHeader(http.StatusOK)
-		
+
 		// Try to send a lot of data
 		for i := 0; i < 1000; i++ {
 			data := make([]byte, 1024)
@@ -356,10 +356,10 @@ func TestClientDisconnection(t *testing.T) {
 	// Create test context with context that will be cancelled (simulating client disconnect)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	
+
 	c.Request = httptest.NewRequest("GET", "/stream/12345", nil).WithContext(ctx)
 	c.Params = []gin.Param{{Key: "id", Value: "12345"}}
 

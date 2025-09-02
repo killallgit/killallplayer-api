@@ -158,9 +158,9 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 
 		// Custom streaming loop with explicit flushing to prevent client timeouts
 		var totalWritten int64
-		
+
 		// Use smaller initial buffer for faster first byte to client
-		initialBuffer := make([]byte, 8*1024) // 8KB for initial chunks
+		initialBuffer := make([]byte, 8*1024)      // 8KB for initial chunks
 		streamBuffer := make([]byte, StreamBuffer) // 32KB for subsequent chunks
 
 		// Read and write first chunk with smaller buffer for faster initial response
@@ -196,11 +196,11 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 					break
 				}
 				totalWritten += int64(written)
-				
+
 				// Flush after each chunk to prevent client timeout
 				flusher.Flush()
 			}
-			
+
 			if err != nil {
 				if err == io.EOF {
 					break
