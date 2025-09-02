@@ -6,16 +6,19 @@ Base URL: `http://localhost:8080`
 1. [Overview](#overview)
 2. [Health Check](#health-check)
 3. [Search](#search)
-4. [Episodes](#episodes)
-5. [Podcasts](#podcasts)
-6. [Audio Streaming](#audio-streaming)
-7. [Rate Limiting](#rate-limiting)
-8. [Error Handling](#error-handling)
-9. [CORS Configuration](#cors-configuration)
+4. [Trending](#trending)
+5. [Episodes](#episodes)
+6. [Podcasts](#podcasts)
+7. [Audio Streaming](#audio-streaming)
+8. [Waveform](#waveform)
+9. [Regions](#regions)
+10. [Rate Limiting](#rate-limiting)
+11. [Error Handling](#error-handling)
+12. [CORS Configuration](#cors-configuration)
 
 ## Overview
 
-The Podcast Player API provides RESTful endpoints for podcast discovery, episode management, and audio streaming. The API follows RESTful principles and supports range requests for audio streaming.
+The Podcast Player API provides RESTful endpoints for podcast discovery, episode management, audio streaming, and playback tracking. The API follows RESTful principles and supports range requests for audio streaming.
 
 **Important:** All episode IDs in this API are Podcast Index IDs. The API does not expose internal database IDs to clients. Episode IDs received from search results can be used directly for streaming, playback updates, and other operations.
 
@@ -67,20 +70,64 @@ Search for podcasts via Podcast Index API.
 **Response:**
 ```json
 {
-  "podcasts": [
+  "status": "true",
+  "feeds": [
     {
-      "id": "123456",
+      "id": 956452,
       "title": "Podcast Name",
       "author": "Author Name",
       "description": "Podcast description",
       "image": "https://...",
-      "url": "https://..."
+      "url": "https://...",
+      "language": "en",
+      "categories": {
+        "86": "Sports"
+      },
+      "itunesId": 1468542488
     }
-  ]
+  ],
+  "count": 10,
+  "description": "Search results"
 }
 ```
 
 **Rate Limit:** 5 requests/second, burst of 10
+
+## Trending
+
+### GET /api/v1/trending
+Get trending podcasts from Podcast Index.
+
+**Query Parameters:**
+- `limit` (optional): Max results (1-100, default: 20)
+
+**Response:**
+```json
+{
+  "status": "true",
+  "podcasts": [
+    {
+      "id": 956452,
+      "title": "Inside the Birds: A Philadelphia Eagles Podcast",
+      "url": "https://www.spreaker.com/show/5747173/episodes/feed",
+      "description": "A podcast network on all things Philadelphia Eagles...",
+      "author": "Inside The Birds",
+      "image": "https://...",
+      "artwork": "https://...",
+      "language": "en",
+      "categories": {
+        "86": "Sports",
+        "91": "Football"
+      },
+      "itunesId": 1468542488
+    }
+  ],
+  "count": 3,
+  "description": "Trending podcasts"
+}
+```
+
+**Rate Limit:** 10 requests/second, burst of 20
 
 ## Episodes
 
@@ -242,10 +289,12 @@ Sync episodes from Podcast Index API for a specific podcast.
 
 ## Audio Streaming
 
-**Note:** Streaming works with direct audio URLs. Some podcast hosts (e.g., Podbean) return HTML pages instead of audio files, which will result in a 502 error. The API properly detects this and returns an appropriate error message.
+**Note:** For best compatibility and performance, it's recommended to use direct audio URLs from the episode's `enclosureUrl` field rather than the proxy endpoints. The proxy endpoints are maintained for backward compatibility but may have issues with some podcast hosts (e.g., Buzzsprout) that use redirect chains requiring specific headers.
 
-### GET /api/v1/stream/:id
+### GET /api/v1/stream/:id ⚠️ Legacy Endpoint
 Stream audio content with support for range requests. Acts as a proxy to the episode's audio URL, handling redirects transparently. Uses database to fetch episode metadata.
+
+**Recommendation:** Use the `enclosureUrl` field from `/api/v1/episodes/:id` response for direct streaming instead of this proxy endpoint.
 
 **URL Parameters:**
 - `id`: Episode ID (Podcast Index ID, numeric int64)
@@ -346,6 +395,123 @@ CORS preflight request handler.
 **Status Code:**
 - `204`: No Content
 
+### OPTIONS /api/v1/stream/direct
+CORS preflight request handler for direct streaming.
+
+**Response Headers:**
+- `Access-Control-Allow-Origin`: `*`
+- `Access-Control-Allow-Methods`: `GET, HEAD, OPTIONS`
+- `Access-Control-Allow-Headers`: `Range, Content-Type`
+- `Access-Control-Max-Age`: `86400`
+
+**Status Code:**
+- `204`: No Content
+
+## Waveform
+
+### GET /api/v1/episodes/:id/waveform
+Generate or retrieve audio waveform data for an episode.
+
+**URL Parameters:**
+- `id`: Episode ID (Podcast Index ID)
+
+**Query Parameters:**
+- `peaks` (optional): Number of waveform peaks to generate (default: 1000)
+
+**Response:**
+```json
+{
+  "status": "success",
+  "episodeId": 41928435424,
+  "peaks": [0.23, 0.45, 0.67, ...],
+  "duration": 718
+}
+```
+
+**Rate Limit:** 10 requests/second, burst of 20
+
+### GET /api/v1/episodes/:id/waveform/status
+Check waveform generation status for an episode.
+
+**URL Parameters:**
+- `id`: Episode ID (Podcast Index ID)
+
+**Response:**
+```json
+{
+  "status": "ready|generating|not_found",
+  "episodeId": 41928435424
+}
+```
+
+**Rate Limit:** 10 requests/second, burst of 20
+
+## Regions
+
+### POST /api/v1/regions
+Save a playback region (bookmark, note, etc.) for an episode.
+
+**Request Body:**
+```json
+{
+  "episodeId": 41951637359,  // Required: Podcast Index ID
+  "startTime": 10.5,          // Required: Start time in seconds
+  "endTime": 45.8,            // Required: End time in seconds
+  "label": "Important segment", // Optional: Description
+  "color": "#ff0000",         // Optional: Color code
+  "isBookmark": true          // Optional: Mark as bookmark
+}
+```
+
+**Response:**
+```json
+{
+  "status": "true",
+  "description": "Region saved successfully",
+  "region": {
+    "id": 1,
+    "episodeId": 41951637359,
+    "startTime": 10.5,
+    "endTime": 45.8,
+    "label": "Important segment",
+    "color": "#ff0000",
+    "isBookmark": true,
+    "createdAt": "2025-09-02T14:00:57.077924-07:00",
+    "updatedAt": "2025-09-02T14:00:57.077924-07:00"
+  }
+}
+```
+
+### GET /api/v1/regions
+Get all regions for an episode.
+
+**Query Parameters:**
+- `episodeId` (required): Podcast Index ID of the episode
+
+**Response:**
+```json
+{
+  "status": "true",
+  "regions": [
+    {
+      "id": 1,
+      "episodeId": 41951637359,
+      "startTime": 10.5,
+      "endTime": 45.8,
+      "label": "Important segment",
+      "color": "#ff0000",
+      "isBookmark": true,
+      "createdAt": "2025-09-02T14:00:57.077924-07:00",
+      "updatedAt": "2025-09-02T14:00:57.077924-07:00"
+    }
+  ],
+  "count": 1,
+  "description": "Regions fetched successfully"
+}
+```
+
+**Rate Limit:** 10 requests/second, burst of 20
+
 ## Rate Limiting
 
 ### Current Limits
@@ -353,8 +519,11 @@ CORS preflight request handler.
 | Endpoint | Requests/Second | Burst |
 |----------|-----------------|-------|
 | Search | 5 | 10 |
+| Trending | 10 | 20 |
 | Episodes | 10 | 20 |
 | Stream | 20 | 30 |
+| Waveform | 10 | 20 |
+| Regions | 10 | 20 |
 | Sync | 1 | 2 |
 
 ### Rate Limit Response
@@ -405,6 +574,19 @@ Access-Control-Expose-Headers: Content-Length, Content-Range, Accept-Ranges
 Access-Control-Max-Age: 86400
 ```
 
+## 404 Error Handling
+
+All unmatched routes return a JSON error response:
+
+```json
+{
+  "status": "error",
+  "message": "Endpoint not found"
+}
+```
+
+**Status Code:** 404 Not Found
+
 ## Authentication
 
 Currently, the API operates without authentication. The Podcast Index API credentials are configured server-side through environment variables.
@@ -435,6 +617,11 @@ curl -X POST http://localhost:8080/api/v1/search \
   -d '{"query": "technology", "limit": 5}'
 ```
 
+### Get Trending Podcasts
+```bash
+curl http://localhost:8080/api/v1/trending?limit=3
+```
+
 ### Sync Episodes for a Podcast
 ```bash
 curl -X POST http://localhost:8080/api/v1/podcasts/217331/episodes/sync?max=10
@@ -446,18 +633,28 @@ curl -X POST http://localhost:8080/api/v1/podcasts/217331/episodes/sync?max=10
 curl http://localhost:8080/api/v1/episodes/41928435424
 ```
 
-### Stream Audio
+### Save a Region/Bookmark
 ```bash
-# Stream full episode using Podcast Index ID
-curl http://localhost:8080/api/v1/stream/41928435424 --output episode.mp3
-
-# Stream with range (for seeking)
-curl -H "Range: bytes=1024000-" http://localhost:8080/api/v1/stream/41928435424
+curl -X POST http://localhost:8080/api/v1/regions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "episodeId": 41951637359,
+    "startTime": 10.5,
+    "endTime": 45.8,
+    "label": "Important part",
+    "color": "#ff0000",
+    "isBookmark": true
+  }'
 ```
 
-### Update Playback Position
+### Get Regions for an Episode
 ```bash
-curl -X PUT http://localhost:8080/api/v1/episodes/41928435424/playback \
-  -H "Content-Type: application/json" \
-  -d '{"position": 300, "played": false}'
+curl "http://localhost:8080/api/v1/regions?episodeId=41951637359"
+```
+
+### Stream an Episode
+```bash
+# Stream with seeking support
+curl -H "Range: bytes=0-1000000" \
+  http://localhost:8080/api/v1/stream/41928435424
 ```

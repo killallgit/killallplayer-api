@@ -29,6 +29,16 @@ func (m *mockSearcher) Search(ctx context.Context, query string, limit int) (*po
 	return &podcastindex.SearchResponse{}, nil
 }
 
+func (m *mockSearcher) GetTrending(limit int) (*podcastindex.SearchResponse, error) {
+	// Return empty response for tests
+	return &podcastindex.SearchResponse{}, nil
+}
+
+func (m *mockSearcher) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) (*podcastindex.EpisodesResponse, error) {
+	// Return empty response for tests
+	return &podcastindex.EpisodesResponse{}, nil
+}
+
 func TestPost(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -188,7 +198,7 @@ func TestPost(t *testing.T) {
 			},
 			setupDeps: func() *types.Dependencies {
 				return &types.Dependencies{
-					PodcastClient: "not a searcher", // Wrong type
+					PodcastClient: nil, // Nil client to test error handling
 				}
 			},
 			expectedStatus: http.StatusInternalServerError,
