@@ -198,7 +198,7 @@ func TestPost(t *testing.T) {
 			},
 			setupDeps: func() *types.Dependencies {
 				return &types.Dependencies{
-					PodcastClient: "not a searcher", // Wrong type
+					PodcastClient: nil, // Nil client to test error handling
 				}
 			},
 			expectedStatus: http.StatusInternalServerError,
