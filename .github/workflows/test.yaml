@@ -17,19 +17,18 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.24'
+        go-version: '1.23.6'
         
-    - name: Install Task
-      uses: arduino/setup-task@v1
-      
-    - name: Install tools
-      run: task install-tools
-      
     - name: Download dependencies
       run: go mod download
       
+    - name: Install golangci-lint
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      
     - name: Run unit tests
-      run: task test
+      run: go test -v ./...
 
 
   lint:
@@ -41,15 +40,14 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.24'
-    - name: Install Task
-      uses: arduino/setup-task@v1
-
-    - name: Install tools
-      run: task install-tools
-      
+        go-version: '1.23.6'
     - name: Download dependencies
       run: go mod download
+      
+    - name: Install golangci-lint
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
     - name: Run linting
-      run: task lint
+      run: golangci-lint run
