@@ -77,7 +77,7 @@ func GetRegions(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		var regions []models.Region
-		
+
 		// Fetch from database if available
 		if deps.DB != nil && deps.DB.DB != nil {
 			if err := deps.DB.DB.Where("episode_id = ?", episodeID).Find(&regions).Error; err != nil {
