@@ -102,13 +102,14 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 
 		// Register waveform routes with moderate rate limiting (10 req/s, burst of 20)
 		// Waveform generation may be CPU intensive, so we limit the rate
-		waveform.RegisterRoutes(v1, deps)
+		waveformGroup := v1.Group("/episodes")
+		waveformGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
+		waveform.RegisterRoutes(waveformGroup, deps)
 
 		// Register regions routes with general rate limiting (10 req/s, burst of 20)
 		regionsGroup := v1.Group("/regions")
 		regionsGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
 		regions.RegisterRoutes(regionsGroup, deps)
-
 		// Register podcast routes with mixed rate limiting
 		podcastGroup := v1.Group("/podcasts")
 		// Create middleware for different rate limits
