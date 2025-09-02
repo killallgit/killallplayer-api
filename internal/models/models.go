@@ -60,7 +60,7 @@ type Episode struct {
 	// Playback state (user-specific, should be in separate table for multi-user)
 	Played   bool `json:"played" gorm:"default:false"`
 	Position int  `json:"position" gorm:"default:0"` // Current playback position in seconds
-	
+
 	// Waveform relationship (one-to-one)
 	Waveform *Waveform `json:"waveform,omitempty" gorm:"foreignKey:EpisodeID"`
 }

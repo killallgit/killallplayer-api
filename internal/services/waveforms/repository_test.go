@@ -31,11 +31,11 @@ func setupTestDB(t *testing.T) *gorm.DB {
 
 func createTestEpisode(t *testing.T, db *gorm.DB, id uint) *models.Episode {
 	episode := &models.Episode{
-		Model:          gorm.Model{ID: id},
-		Title:          "Test Episode",
-		AudioURL:       "https://example.com/audio.mp3",
-		Duration:       func() *int { d := 300; return &d }(),
-		EnclosureType:  "audio/mpeg",
+		Model:           gorm.Model{ID: id},
+		Title:           "Test Episode",
+		AudioURL:        "https://example.com/audio.mp3",
+		Duration:        func() *int { d := 300; return &d }(),
+		EnclosureType:   "audio/mpeg",
 		EnclosureLength: 12345678,
 	}
 
@@ -144,8 +144,11 @@ func TestRepository_GetByEpisodeID(t *testing.T) {
 		Resolution: 3,
 		SampleRate: 44100,
 	}
-	waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
-	
+	err = waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
+	if err != nil {
+		t.Fatalf("SetPeaks() error = %v", err)
+	}
+
 	err = repo.Create(ctx, waveform)
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -182,9 +185,12 @@ func TestRepository_Update(t *testing.T) {
 		Resolution: 3,
 		SampleRate: 44100,
 	}
-	waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
-	
-	err := repo.Create(ctx, waveform)
+	err := waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
+	if err != nil {
+		t.Fatalf("SetPeaks() error = %v", err)
+	}
+
+	err = repo.Create(ctx, waveform)
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
@@ -192,7 +198,10 @@ func TestRepository_Update(t *testing.T) {
 	// Update the waveform
 	waveform.Duration = 400.0
 	waveform.SampleRate = 48000
-	waveform.SetPeaks([]float32{0.2, 0.6, 0.9})
+	err = waveform.SetPeaks([]float32{0.2, 0.6, 0.9})
+	if err != nil {
+		t.Fatalf("SetPeaks() error = %v", err)
+	}
 
 	err = repo.Update(ctx, waveform)
 	if err != nil {
@@ -259,8 +268,11 @@ func TestRepository_Delete(t *testing.T) {
 		Resolution: 3,
 		SampleRate: 44100,
 	}
-	waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
-	
+	err = waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
+	if err != nil {
+		t.Fatalf("SetPeaks() error = %v", err)
+	}
+
 	err = repo.Create(ctx, waveform)
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -308,8 +320,11 @@ func TestRepository_Exists(t *testing.T) {
 		Resolution: 3,
 		SampleRate: 44100,
 	}
-	waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
-	
+	err = waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
+	if err != nil {
+		t.Fatalf("SetPeaks() error = %v", err)
+	}
+
 	err = repo.Create(ctx, waveform)
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -356,9 +371,12 @@ func TestRepository_UniqueConstraint(t *testing.T) {
 		Resolution: 3,
 		SampleRate: 44100,
 	}
-	waveform1.SetPeaks([]float32{0.1, 0.5, 0.8})
-	
-	err := repo.Create(ctx, waveform1)
+	err := waveform1.SetPeaks([]float32{0.1, 0.5, 0.8})
+	if err != nil {
+		t.Fatalf("SetPeaks() error = %v", err)
+	}
+
+	err = repo.Create(ctx, waveform1)
 	if err != nil {
 		t.Fatalf("Create() first waveform error = %v", err)
 	}
@@ -370,8 +388,11 @@ func TestRepository_UniqueConstraint(t *testing.T) {
 		Resolution: 3,
 		SampleRate: 48000,
 	}
-	waveform2.SetPeaks([]float32{0.2, 0.6, 0.9})
-	
+	err = waveform2.SetPeaks([]float32{0.2, 0.6, 0.9})
+	if err != nil {
+		t.Fatalf("SetPeaks() error = %v", err)
+	}
+
 	err = repo.Create(ctx, waveform2)
 	if err == nil {
 		t.Error("Create() second waveform expected error due to unique constraint, got nil")

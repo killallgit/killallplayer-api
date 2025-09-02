@@ -24,14 +24,14 @@ func (r *repository) GetByEpisodeID(ctx context.Context, episodeID uint) (*model
 	err := r.db.WithContext(ctx).
 		Where("episode_id = ?", episodeID).
 		First(&waveform).Error
-	
+
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrWaveformNotFound
 		}
 		return nil, err
 	}
-	
+
 	return &waveform, nil
 }
 
@@ -50,15 +50,15 @@ func (r *repository) Delete(ctx context.Context, episodeID uint) error {
 	result := r.db.WithContext(ctx).
 		Where("episode_id = ?", episodeID).
 		Delete(&models.Waveform{})
-	
+
 	if result.Error != nil {
 		return result.Error
 	}
-	
+
 	if result.RowsAffected == 0 {
 		return ErrWaveformNotFound
 	}
-	
+
 	return nil
 }
 
@@ -69,10 +69,10 @@ func (r *repository) Exists(ctx context.Context, episodeID uint) (bool, error) {
 		Model(&models.Waveform{}).
 		Where("episode_id = ?", episodeID).
 		Count(&count).Error
-	
+
 	if err != nil {
 		return false, err
 	}
-	
+
 	return count > 0, nil
 }

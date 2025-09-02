@@ -16,11 +16,11 @@ import (
 )
 
 type DBTestSuite struct {
-	t              *testing.T
-	db             *gorm.DB
-	waveformRepo   waveforms.WaveformRepository
+	t               *testing.T
+	db              *gorm.DB
+	waveformRepo    waveforms.WaveformRepository
 	waveformService waveforms.WaveformService
-	tempDBPath     string
+	tempDBPath      string
 }
 
 func setupDBTestSuite(t *testing.T) *DBTestSuite {
@@ -66,7 +66,7 @@ func (suite *DBTestSuite) cleanup() {
 func (suite *DBTestSuite) createTestEpisode(id uint) *models.Episode {
 	episode := &models.Episode{
 		Model:           gorm.Model{ID: id},
-		PodcastIndexID:  int64(id * 1000), // Ensure unique podcast index ID
+		PodcastIndexID:  int64(id * 1000),                // Ensure unique podcast index ID
 		GUID:            fmt.Sprintf("test-guid-%d", id), // Ensure unique GUID
 		Title:           "Test Episode",
 		AudioURL:        "https://example.com/audio.mp3",
@@ -253,7 +253,7 @@ func TestDatabaseIntegration_MultipleEpisodesAndConcurrency(t *testing.T) {
 				Duration:   float64(300 + episodeIndex*10), // Different duration for each
 				SampleRate: 44100,
 			}
-			
+
 			err := waveform.SetPeaks(peaks)
 			if err != nil {
 				errors <- err
@@ -376,7 +376,7 @@ func TestDatabaseIntegration_LargeWaveformData(t *testing.T) {
 	start := time.Now()
 	err = suite.waveformService.SaveWaveform(ctx, waveform)
 	saveTime := time.Since(start)
-	
+
 	if err != nil {
 		t.Errorf("SaveWaveform() for large data error = %v", err)
 	}
@@ -387,7 +387,7 @@ func TestDatabaseIntegration_LargeWaveformData(t *testing.T) {
 	start = time.Now()
 	retrieved, err := suite.waveformService.GetWaveform(ctx, episode.ID)
 	retrieveTime := time.Since(start)
-	
+
 	if err != nil {
 		t.Errorf("GetWaveform() for large data error = %v", err)
 		return
@@ -408,7 +408,7 @@ func TestDatabaseIntegration_LargeWaveformData(t *testing.T) {
 	}
 
 	// Spot check some values
-	checkIndices := []int{0, 1000, 30000, len(largePeaks)-1}
+	checkIndices := []int{0, 1000, 30000, len(largePeaks) - 1}
 	for _, i := range checkIndices {
 		if retrievedPeaks[i] != largePeaks[i] {
 			t.Errorf("Large peaks[%d] = %v, want %v", i, retrievedPeaks[i], largePeaks[i])

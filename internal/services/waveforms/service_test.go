@@ -25,12 +25,12 @@ func (m *mockWaveformRepository) GetByEpisodeID(ctx context.Context, episodeID u
 	if m.shouldErr {
 		return nil, errors.New("mock database error")
 	}
-	
+
 	waveform, exists := m.waveforms[episodeID]
 	if !exists {
 		return nil, ErrWaveformNotFound
 	}
-	
+
 	return waveform, nil
 }
 
@@ -38,7 +38,7 @@ func (m *mockWaveformRepository) Create(ctx context.Context, waveform *models.Wa
 	if m.shouldErr {
 		return errors.New("mock database error")
 	}
-	
+
 	m.waveforms[waveform.EpisodeID] = waveform
 	return nil
 }
@@ -47,7 +47,7 @@ func (m *mockWaveformRepository) Update(ctx context.Context, waveform *models.Wa
 	if m.shouldErr {
 		return errors.New("mock database error")
 	}
-	
+
 	m.waveforms[waveform.EpisodeID] = waveform
 	return nil
 }
@@ -56,12 +56,12 @@ func (m *mockWaveformRepository) Delete(ctx context.Context, episodeID uint) err
 	if m.shouldErr {
 		return errors.New("mock database error")
 	}
-	
+
 	_, exists := m.waveforms[episodeID]
 	if !exists {
 		return ErrWaveformNotFound
 	}
-	
+
 	delete(m.waveforms, episodeID)
 	return nil
 }
@@ -70,7 +70,7 @@ func (m *mockWaveformRepository) Exists(ctx context.Context, episodeID uint) (bo
 	if m.shouldErr {
 		return false, errors.New("mock database error")
 	}
-	
+
 	_, exists := m.waveforms[episodeID]
 	return exists, nil
 }
@@ -78,7 +78,7 @@ func (m *mockWaveformRepository) Exists(ctx context.Context, episodeID uint) (bo
 func TestNewService(t *testing.T) {
 	repo := newMockWaveformRepository()
 	service := NewService(repo)
-	
+
 	if service == nil {
 		t.Error("NewService() returned nil")
 	}
@@ -102,7 +102,9 @@ func TestService_GetWaveform(t *testing.T) {
 					Resolution: 1000,
 					SampleRate: 44100,
 				}
-				waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
+				if err := waveform.SetPeaks([]float32{0.1, 0.5, 0.8}); err != nil {
+					t.Fatalf("SetPeaks() error = %v", err)
+				}
 				repo.waveforms[123] = waveform
 			},
 			wantErr:     false,
@@ -116,10 +118,10 @@ func TestService_GetWaveform(t *testing.T) {
 			expectedErr: ErrWaveformNotFound,
 		},
 		{
-			name:      "invalid episode ID",
-			episodeID: 0,
-			setupRepo: func(repo *mockWaveformRepository) {},
-			wantErr:   true,
+			name:        "invalid episode ID",
+			episodeID:   0,
+			setupRepo:   func(repo *mockWaveformRepository) {},
+			wantErr:     true,
 			expectedErr: ErrInvalidEpisodeID,
 		},
 		{
@@ -137,12 +139,12 @@ func TestService_GetWaveform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockWaveformRepository()
 			tt.setupRepo(repo)
-			
+
 			service := NewService(repo)
 			ctx := context.Background()
-			
+
 			waveform, err := service.GetWaveform(ctx, tt.episodeID)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Error("GetWaveform() expected error, got nil")
@@ -152,17 +154,17 @@ func TestService_GetWaveform(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("GetWaveform() unexpected error = %v", err)
 				return
 			}
-			
+
 			if waveform == nil {
 				t.Error("GetWaveform() returned nil waveform")
 				return
 			}
-			
+
 			if waveform.EpisodeID != tt.episodeID {
 				t.Errorf("GetWaveform() EpisodeID = %v, want %v", waveform.EpisodeID, tt.episodeID)
 			}
@@ -202,7 +204,10 @@ func TestService_SaveWaveform(t *testing.T) {
 			setupRepo: func(repo *mockWaveformRepository) {
 				// Existing waveform
 				existing := &models.Waveform{EpisodeID: 123, Duration: 300.0}
-				existing.SetPeaks([]float32{0.1, 0.2, 0.3})
+				err := existing.SetPeaks([]float32{0.1, 0.2, 0.3})
+				if err != nil {
+					t.Fatalf("SetPeaks() error = %v", err)
+				}
 				repo.waveforms[123] = existing
 			},
 			wantErr: false,
@@ -232,17 +237,20 @@ func TestService_SaveWaveform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockWaveformRepository()
 			tt.setupRepo(repo)
-			
+
 			// Set peaks data if not already set and not testing empty peaks
 			if tt.name != "invalid peaks data" && len(tt.waveform.PeaksData) == 0 {
-				tt.waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
+				err := tt.waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
+				if err != nil {
+					t.Fatalf("SetPeaks() error = %v", err)
+				}
 			}
-			
+
 			service := NewService(repo)
 			ctx := context.Background()
-			
+
 			err := service.SaveWaveform(ctx, tt.waveform)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Error("SaveWaveform() expected error, got nil")
@@ -252,19 +260,19 @@ func TestService_SaveWaveform(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("SaveWaveform() unexpected error = %v", err)
 				return
 			}
-			
+
 			// Verify waveform was saved
 			saved, exists := repo.waveforms[tt.waveform.EpisodeID]
 			if !exists {
 				t.Error("SaveWaveform() waveform not found in repository")
 				return
 			}
-			
+
 			if saved.Duration != tt.waveform.Duration {
 				t.Errorf("SaveWaveform() Duration = %v, want %v", saved.Duration, tt.waveform.Duration)
 			}
@@ -285,7 +293,9 @@ func TestService_DeleteWaveform(t *testing.T) {
 			episodeID: 123,
 			setupRepo: func(repo *mockWaveformRepository) {
 				waveform := &models.Waveform{EpisodeID: 123}
-				waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
+				if err := waveform.SetPeaks([]float32{0.1, 0.5, 0.8}); err != nil {
+					t.Fatalf("SetPeaks() error = %v", err)
+				}
 				repo.waveforms[123] = waveform
 			},
 			wantErr: false,
@@ -310,12 +320,12 @@ func TestService_DeleteWaveform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockWaveformRepository()
 			tt.setupRepo(repo)
-			
+
 			service := NewService(repo)
 			ctx := context.Background()
-			
+
 			err := service.DeleteWaveform(ctx, tt.episodeID)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Error("DeleteWaveform() expected error, got nil")
@@ -325,12 +335,12 @@ func TestService_DeleteWaveform(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("DeleteWaveform() unexpected error = %v", err)
 				return
 			}
-			
+
 			// Verify waveform was deleted
 			_, exists := repo.waveforms[tt.episodeID]
 			if exists {
@@ -354,7 +364,9 @@ func TestService_WaveformExists(t *testing.T) {
 			episodeID: 123,
 			setupRepo: func(repo *mockWaveformRepository) {
 				waveform := &models.Waveform{EpisodeID: 123}
-				waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
+				if err := waveform.SetPeaks([]float32{0.1, 0.5, 0.8}); err != nil {
+					t.Fatalf("SetPeaks() error = %v", err)
+				}
 				repo.waveforms[123] = waveform
 			},
 			wantExists: true,
@@ -390,12 +402,12 @@ func TestService_WaveformExists(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := newMockWaveformRepository()
 			tt.setupRepo(repo)
-			
+
 			service := NewService(repo)
 			ctx := context.Background()
-			
+
 			exists, err := service.WaveformExists(ctx, tt.episodeID)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Error("WaveformExists() expected error, got nil")
@@ -405,12 +417,12 @@ func TestService_WaveformExists(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("WaveformExists() unexpected error = %v", err)
 				return
 			}
-			
+
 			if exists != tt.wantExists {
 				t.Errorf("WaveformExists() = %v, want %v", exists, tt.wantExists)
 			}

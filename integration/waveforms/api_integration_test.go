@@ -30,9 +30,9 @@ func abs(x float64) float64 {
 }
 
 type APITestSuite struct {
-	t    *testing.T
-	db   *gorm.DB
-	deps *types.Dependencies
+	t      *testing.T
+	db     *gorm.DB
+	deps   *types.Dependencies
 	router *gin.Engine
 }
 
@@ -68,7 +68,7 @@ func setupAPITestSuite(t *testing.T) *APITestSuite {
 
 	// Setup router
 	router := gin.New()
-	
+
 	// Register waveform routes
 	waveformGroup := router.Group("/api/v1/episodes")
 	waveform.RegisterRoutes(waveformGroup, deps)
@@ -84,7 +84,7 @@ func setupAPITestSuite(t *testing.T) *APITestSuite {
 func (suite *APITestSuite) createTestEpisode(id uint) *models.Episode {
 	episode := &models.Episode{
 		Model:           gorm.Model{ID: id},
-		PodcastIndexID:  int64(id * 1000), // Ensure unique podcast index ID
+		PodcastIndexID:  int64(id * 1000),                // Ensure unique podcast index ID
 		GUID:            fmt.Sprintf("test-guid-%d", id), // Ensure unique GUID
 		Title:           "Test Episode",
 		AudioURL:        "https://example.com/audio.mp3",
@@ -321,8 +321,8 @@ func TestWaveformAPI_InvalidEpisodeID(t *testing.T) {
 	suite := setupAPITestSuite(t)
 
 	tests := []struct {
-		name     string
-		endpoint string
+		name      string
+		endpoint  string
 		episodeID string
 	}{
 		{"GetWaveform with invalid ID", "/api/v1/episodes/invalid/waveform", "invalid"},

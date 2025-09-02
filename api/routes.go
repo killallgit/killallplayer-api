@@ -89,7 +89,7 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		if deps.EpisodeService == nil || deps.EpisodeTransformer == nil {
 			initializeEpisodeService(deps, cfg)
 		}
-		
+
 		// Initialize waveform service if not set
 		if deps.WaveformService == nil {
 			initializeWaveformService(deps)
@@ -161,7 +161,7 @@ func initializeEpisodeService(deps *types.Dependencies, cfg *config.Config) {
 func initializeWaveformService(deps *types.Dependencies) {
 	// Create dependencies
 	waveformRepo := waveforms.NewRepository(deps.DB.DB)
-	
+
 	// Create service
 	deps.WaveformService = waveforms.NewService(waveformRepo)
 }

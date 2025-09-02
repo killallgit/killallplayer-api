@@ -10,11 +10,11 @@ import (
 type Waveform struct {
 	gorm.Model
 	EpisodeID  uint    `json:"episode_id" gorm:"not null;uniqueIndex"`
-	PeaksData  []byte  `json:"-" gorm:"type:blob;not null"`                   // JSON-encoded []float32
-	Duration   float64 `json:"duration" gorm:"not null"`                      // Duration in seconds
-	Resolution int     `json:"resolution" gorm:"not null"`                    // Number of peaks
-	SampleRate int     `json:"sample_rate,omitempty" gorm:"default:44100"`   // Sample rate of original audio
-	
+	PeaksData  []byte  `json:"-" gorm:"type:blob;not null"`                // JSON-encoded []float32
+	Duration   float64 `json:"duration" gorm:"not null"`                   // Duration in seconds
+	Resolution int     `json:"resolution" gorm:"not null"`                 // Number of peaks
+	SampleRate int     `json:"sample_rate,omitempty" gorm:"default:44100"` // Sample rate of original audio
+
 	// Relationship
 	Episode Episode `json:"episode,omitempty" gorm:"foreignKey:EpisodeID"`
 }
