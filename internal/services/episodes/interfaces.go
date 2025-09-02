@@ -92,6 +92,7 @@ type HTTPHeaders struct {
 type CacheKeyGenerator interface {
 	EpisodeByID(id uint) string
 	EpisodeByGUID(guid string) string
+	EpisodeByPodcastIndexID(podcastIndexID int64) string
 	EpisodesByPodcast(podcastID uint, page, limit int) string
 	RecentEpisodes(limit int) string
 	PodcastPattern(podcastID uint) string

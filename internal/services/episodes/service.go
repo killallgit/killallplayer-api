@@ -208,8 +208,14 @@ func (s *Service) GetEpisodeByGUID(ctx context.Context, guid string) (*models.Ep
 
 // GetEpisodeByPodcastIndexID retrieves an episode by Podcast Index ID with caching
 func (s *Service) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) {
-	// For now, try to get from repository
-	// TODO: Add caching with a key generator for Podcast Index IDs
+	key := s.keyGen.EpisodeByPodcastIndexID(podcastIndexID)
+
+	// Check cache first
+	if episode, found := s.cache.GetEpisode(key); found {
+		return episode, nil
+	}
+
+	// Fetch from repository
 	episode, err := s.repository.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
 	if err != nil {
 		if IsNotFound(err) {
@@ -220,6 +226,8 @@ func (s *Service) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID
 		return nil, err
 	}
 	
+	// Cache the result
+	s.cache.SetEpisode(key, episode)
 	return episode, nil
 }
 
@@ -301,7 +309,10 @@ func (s *Service) UpdatePlaybackStateByPodcastIndexID(ctx context.Context, podca
 
 	// Invalidate cache for this episode
 	s.cache.Invalidate(s.keyGen.EpisodeByID(episode.ID))
-	// TODO: Add cache invalidation for Podcast Index ID key when implemented
+	// Also invalidate cache by Podcast Index ID if available
+	if episode.PodcastIndexID != 0 {
+		s.cache.Invalidate(s.keyGen.EpisodeByPodcastIndexID(episode.PodcastIndexID))
+	}
 
 	return nil
 }

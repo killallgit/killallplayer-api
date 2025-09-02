@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
@@ -45,26 +43,8 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 
 		log.Printf("[DEBUG] Streaming audio from URL: %s", episode.AudioURL)
 
-		// Create HTTP client with connection timeout but no overall timeout
-		// This allows long streaming but prevents hanging on connection
-		client := &http.Client{
-			Transport: &http.Transport{
-				DialContext: (&net.Dialer{
-					Timeout:   10 * time.Second, // Connection timeout
-					KeepAlive: 30 * time.Second,
-				}).DialContext,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ResponseHeaderTimeout: 30 * time.Second, // Time to receive headers
-				ExpectContinueTimeout: 1 * time.Second,
-			},
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				// Allow up to 10 redirects
-				if len(via) >= 10 {
-					return fmt.Errorf("too many redirects")
-				}
-				return nil
-			},
-		}
+		// Use shared HTTP client for better connection reuse and performance
+		// (client defined in direct.go)
 
 		// Create request with range header if present
 		req, err := http.NewRequestWithContext(c.Request.Context(), "GET", episode.AudioURL, nil)
@@ -88,8 +68,8 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 		req.Header.Set("Accept-Encoding", "identity")
 		req.Header.Set("Referer", episode.Link) // Use episode link as referer if available
 
-		// Execute request
-		resp, err := client.Do(req)
+		// Execute request using shared client
+		resp, err := streamingClient.Do(req)
 		if err != nil {
 			log.Printf("[ERROR] Failed to fetch audio: %v", err)
 			c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to fetch audio from source"})
@@ -153,8 +133,9 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 			log.Printf("[DEBUG] Returning full content (200)")
 		}
 
-		// Stream the audio data
-		written, err := io.Copy(c.Writer, resp.Body)
+		// Stream the audio data with buffered copying to prevent memory issues
+		buffer := make([]byte, StreamBuffer)
+		written, err := io.CopyBuffer(c.Writer, resp.Body, buffer)
 		if err != nil {
 			// Client might have disconnected, which is normal for streaming
 			if !strings.Contains(err.Error(), "broken pipe") {

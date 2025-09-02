@@ -116,15 +116,3 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
-// getDatabaseStatus returns the database connection status (helper for health check)
-func (s *Server) getDatabaseStatus() map[string]interface{} {
-	if s.db == nil || s.db.DB == nil {
-		return map[string]interface{}{"status": "not configured"}
-	}
-
-	if err := s.db.HealthCheck(); err != nil {
-		return map[string]interface{}{"status": "unhealthy", "error": err.Error()}
-	}
-
-	return map[string]interface{}{"status": "healthy"}
-}

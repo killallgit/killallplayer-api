@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,13 +38,7 @@ func StreamDirectURL() gin.HandlerFunc {
 		}
 
 		// Prevent access to private networks and local resources
-		hostname := strings.ToLower(parsedURL.Hostname())
-		if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" ||
-			strings.HasPrefix(hostname, "192.168.") ||
-			strings.HasPrefix(hostname, "10.") ||
-			strings.HasPrefix(hostname, "172.") ||
-			strings.HasSuffix(hostname, ".local") ||
-			strings.HasSuffix(hostname, ".internal") {
+		if isPrivateOrLocalAddress(parsedURL.Hostname()) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Access to private networks is not allowed"})
 			return
 		}
@@ -56,40 +51,14 @@ func StreamDirectURL() gin.HandlerFunc {
 		}
 
 		// Limit URL length to prevent abuse
-		if len(audioURL) > 2048 {
+		if len(audioURL) > MaxURLLength {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "URL is too long"})
 			return
 		}
 
 		log.Printf("[DEBUG] Direct stream request for URL: %s", audioURL)
 
-		// Create HTTP client with connection timeout but no overall timeout
-		// This allows long streaming but prevents hanging on connection
-		client := &http.Client{
-			Transport: &http.Transport{
-				DialContext: (&net.Dialer{
-					Timeout:   10 * time.Second, // Connection timeout
-					KeepAlive: 30 * time.Second,
-				}).DialContext,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ResponseHeaderTimeout: 30 * time.Second, // Time to receive headers
-				ExpectContinueTimeout: 1 * time.Second,
-			},
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				// Allow up to 10 redirects
-				if len(via) >= 10 {
-					return fmt.Errorf("too many redirects")
-				}
-				// Validate each redirect URL
-				for _, r := range via {
-					redirectURL := r.URL
-					if redirectURL.Scheme != "http" && redirectURL.Scheme != "https" {
-						return fmt.Errorf("invalid redirect scheme: %s", redirectURL.Scheme)
-					}
-				}
-				return nil
-			},
-		}
+		// Use shared HTTP client for better connection reuse and performance
 
 		// Create request with range header if present
 		req, err := http.NewRequestWithContext(c.Request.Context(), "GET", audioURL, nil)
@@ -112,8 +81,8 @@ func StreamDirectURL() gin.HandlerFunc {
 		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 		req.Header.Set("Accept-Encoding", "identity")
 
-		// Execute request
-		resp, err := client.Do(req)
+		// Execute request using shared client
+		resp, err := streamingClient.Do(req)
 		if err != nil {
 			log.Printf("[ERROR] Failed to fetch audio: %v", err)
 			c.JSON(http.StatusBadGateway, gin.H{"error": "Failed to fetch audio from source"})
@@ -177,8 +146,9 @@ func StreamDirectURL() gin.HandlerFunc {
 			log.Printf("[DEBUG] Returning full content (200)")
 		}
 
-		// Stream the audio data
-		written, err := io.Copy(c.Writer, resp.Body)
+		// Stream the audio data with buffered copying to prevent memory issues
+		buffer := make([]byte, StreamBuffer)
+		written, err := io.CopyBuffer(c.Writer, resp.Body, buffer)
 		if err != nil {
 			// Client might have disconnected, which is normal for streaming
 			if !strings.Contains(err.Error(), "broken pipe") {
@@ -190,4 +160,131 @@ func StreamDirectURL() gin.HandlerFunc {
 			log.Printf("[DEBUG] Successfully streamed %d bytes", written)
 		}
 	}
+}
+
+// Constants for security validation
+const (
+	MaxURLLength  = 2048
+	StreamBuffer  = 32 * 1024 // 32KB buffer for streaming
+)
+
+// Shared HTTP client for streaming operations
+// Reusing connections improves performance and reduces resource usage
+var streamingClient = &http.Client{
+	Transport: &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second, // Connection timeout
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second, // Time to receive headers
+		ExpectContinueTimeout: 1 * time.Second,
+		MaxIdleConns:          100,               // Connection pool size
+		MaxIdleConnsPerHost:   10,                // Per-host connection limit
+		IdleConnTimeout:       90 * time.Second, // Connection idle timeout
+	},
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		// Allow up to 10 redirects
+		if len(via) >= 10 {
+			return fmt.Errorf("too many redirects")
+		}
+		// Validate each redirect URL
+		for _, r := range via {
+			redirectURL := r.URL
+			if redirectURL.Scheme != "http" && redirectURL.Scheme != "https" {
+				return fmt.Errorf("invalid redirect scheme: %s", redirectURL.Scheme)
+			}
+		}
+		return nil
+	},
+}
+
+// isPrivateOrLocalAddress checks if a hostname points to a private or local address
+// This prevents SSRF attacks by blocking access to private networks, localhost, and metadata services
+func isPrivateOrLocalAddress(hostname string) bool {
+	hostname = strings.ToLower(strings.TrimSpace(hostname))
+	
+	// Check for obviously local/private hostnames
+	if hostname == "localhost" || hostname == "::1" ||
+		strings.HasSuffix(hostname, ".local") ||
+		strings.HasSuffix(hostname, ".internal") {
+		return true
+	}
+	
+	// Try to parse as IP address
+	ip := net.ParseIP(hostname)
+	if ip != nil {
+		return isPrivateIP(ip)
+	}
+	
+	// For non-IP hostnames, check common patterns
+	// IPv4 patterns that might not parse as IPs
+	if hostname == "127.0.0.1" || strings.HasPrefix(hostname, "127.") {
+		return true
+	}
+	
+	// IPv4 private ranges (string-based for hostname patterns)
+	if strings.HasPrefix(hostname, "192.168.") {
+		return true
+	}
+	if strings.HasPrefix(hostname, "10.") {
+		return true
+	}
+	if strings.HasPrefix(hostname, "172.") {
+		// Check if it's in the 172.16.0.0/12 range (172.16.x.x to 172.31.x.x)
+		parts := strings.Split(hostname, ".")
+		if len(parts) >= 2 {
+			if second, err := strconv.Atoi(parts[1]); err == nil {
+				return second >= 16 && second <= 31
+			}
+		}
+	}
+	
+	// AWS/Cloud metadata service addresses
+	if hostname == "169.254.169.254" || strings.HasPrefix(hostname, "169.254.") {
+		return true
+	}
+	
+	return false
+}
+
+// isPrivateIP checks if an IP address is private according to RFC 1918 and related standards
+func isPrivateIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+	
+	// Check IPv4 private ranges
+	if ip4 := ip.To4(); ip4 != nil {
+		// 10.0.0.0/8
+		if ip4[0] == 10 {
+			return true
+		}
+		// 172.16.0.0/12
+		if ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31 {
+			return true
+		}
+		// 192.168.0.0/16
+		if ip4[0] == 192 && ip4[1] == 168 {
+			return true
+		}
+		// 169.254.0.0/16 (link-local/APIPA)
+		if ip4[0] == 169 && ip4[1] == 254 {
+			return true
+		}
+	}
+	
+	// Check IPv6 private ranges
+	if ip.To4() == nil {
+		// fc00::/7 (unique local address)
+		if len(ip) >= 1 && (ip[0]&0xfe) == 0xfc {
+			return true
+		}
+		// fe80::/10 (link-local)
+		if len(ip) >= 2 && ip[0] == 0xfe && (ip[1]&0xc0) == 0x80 {
+			return true
+		}
+	}
+	
+	return false
 }
