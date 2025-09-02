@@ -13,6 +13,7 @@ import (
 	"github.com/killallgit/player-api/api/stream"
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/api/version"
+	"github.com/killallgit/player-api/api/waveform"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/pkg/config"
@@ -91,6 +92,10 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		streamGroup := v1.Group("/stream")
 		streamGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 20, 30))
 		stream.RegisterRoutes(streamGroup, deps)
+
+		// Register waveform routes with moderate rate limiting (10 req/s, burst of 20)
+		// Waveform generation may be CPU intensive, so we limit the rate
+		waveform.RegisterRoutes(v1, deps)
 
 		// Register podcast routes with mixed rate limiting
 		podcastGroup := v1.Group("/podcasts")
