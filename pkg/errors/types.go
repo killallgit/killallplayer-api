@@ -10,9 +10,9 @@ type ErrorCode string
 
 const (
 	// Configuration errors
-	ErrCodeConfigNotFound   ErrorCode = "CONFIG_NOT_FOUND"
-	ErrCodeConfigInvalid    ErrorCode = "CONFIG_INVALID"
-	ErrCodeConfigRequired   ErrorCode = "CONFIG_REQUIRED"
+	ErrCodeConfigNotFound ErrorCode = "CONFIG_NOT_FOUND"
+	ErrCodeConfigInvalid  ErrorCode = "CONFIG_INVALID"
+	ErrCodeConfigRequired ErrorCode = "CONFIG_REQUIRED"
 
 	// Database errors
 	ErrCodeDatabaseConnection ErrorCode = "DATABASE_CONNECTION"

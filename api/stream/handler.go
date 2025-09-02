@@ -17,7 +17,7 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
 		log.Printf("[DEBUG] Stream request for episode ID: %s", episodeIDStr)
-		
+
 		// Parse Podcast Index ID (int64)
 		podcastIndexID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil {
@@ -100,14 +100,14 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 			// Default to audio/mpeg if not specified
 			contentType = "audio/mpeg"
 		}
-		
+
 		// Check if we're getting HTML instead of audio/video
 		if strings.Contains(strings.ToLower(contentType), "text/html") {
 			log.Printf("[ERROR] Received HTML instead of audio. Content-Type: %s, URL: %s", contentType, episode.AudioURL)
 			c.JSON(http.StatusBadGateway, gin.H{"error": "Audio source returned HTML instead of audio content"})
 			return
 		}
-		
+
 		c.Header("Content-Type", contentType)
 
 		// Copy range-related headers

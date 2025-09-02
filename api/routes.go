@@ -52,7 +52,7 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		apiKey := viper.GetString("podcast_index.api_key")
 		apiSecret := viper.GetString("podcast_index.api_secret")
 		baseURL := viper.GetString("podcast_index.api_url")
-		
+
 		if apiKey == "" {
 			apiKey = cfg.PodcastIndex.APIKey
 		}
@@ -62,7 +62,7 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		if baseURL == "" {
 			baseURL = cfg.PodcastIndex.BaseURL
 		}
-		
+
 		deps.PodcastClient = podcastindex.NewClient(podcastindex.Config{
 			APIKey:    apiKey,
 			APISecret: apiSecret,

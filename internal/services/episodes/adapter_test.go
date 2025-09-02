@@ -29,7 +29,7 @@ func TestPodcastIndexAdapter_GetEpisodesByPodcastID(t *testing.T) {
 		// Return mock response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"status": "true",
 			"count": 1,
 			"items": [{
@@ -101,7 +101,7 @@ func TestPodcastIndexAdapter_GetEpisodeByGUID(t *testing.T) {
 		// Return mock response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"status": "true",
 			"episode": {
 				"id": 1,
@@ -217,12 +217,12 @@ func TestPodcastIndexAdapter_GetEpisodeMetadata_InvalidURL(t *testing.T) {
 
 func TestPodcastIndexAdapter_ErrorResponses(t *testing.T) {
 	tests := []struct {
-		name           string
-		endpoint       string
-		statusCode     int
-		responseBody   string
-		expectedError  string
-		testFunc       func(*PodcastIndexAdapter) error
+		name          string
+		endpoint      string
+		statusCode    int
+		responseBody  string
+		expectedError string
+		testFunc      func(*PodcastIndexAdapter) error
 	}{
 		{
 			name:       "API returns error status",
@@ -258,7 +258,7 @@ func TestPodcastIndexAdapter_ErrorResponses(t *testing.T) {
 				assert.Equal(t, tt.endpoint, r.URL.Path)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(tt.responseBody))
+				_, _ = w.Write([]byte(tt.responseBody))
 			}))
 			defer server.Close()
 

@@ -115,7 +115,7 @@ func (s *Service) SyncEpisodesToDatabase(ctx context.Context, episodes []Podcast
 		go func(pie PodcastIndexEpisode) {
 			defer wg.Done()
 			defer func() { <-sem }() // Release semaphore
-			
+
 			// Recover from any panics in the goroutine
 			defer func() {
 				if r := recover(); r != nil {
@@ -225,7 +225,7 @@ func (s *Service) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID
 		}
 		return nil, err
 	}
-	
+
 	// Cache the result
 	s.cache.SetEpisode(key, episode)
 	return episode, nil

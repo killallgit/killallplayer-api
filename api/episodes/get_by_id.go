@@ -14,7 +14,7 @@ func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
 		log.Printf("[DEBUG] GetByID called with Podcast Index ID: %s", episodeIDStr)
-		
+
 		// Parse Podcast Index ID (int64)
 		podcastIndexID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil {
@@ -36,9 +36,9 @@ func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("[DEBUG] Episode found - Podcast Index ID: %d, Title: %s, AudioURL: %s", 
+		log.Printf("[DEBUG] Episode found - Podcast Index ID: %d, Title: %s, AudioURL: %s",
 			podcastIndexID, episode.Title, episode.AudioURL)
-		
+
 		response := deps.EpisodeTransformer.CreateSingleEpisodeResponse(episode)
 		c.JSON(http.StatusOK, response)
 	}

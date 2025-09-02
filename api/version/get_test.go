@@ -36,19 +36,19 @@ func TestGet(t *testing.T) {
 			// Setup
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
-			
+
 			handler := Get()
-			
+
 			// Execute
 			handler(c)
-			
+
 			// Assert
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			var response map[string]interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &response)
 			require.NoError(t, err)
-			
+
 			for key, expectedValue := range tt.expectedBody {
 				assert.Equal(t, expectedValue, response[key], "Key: %s", key)
 			}
