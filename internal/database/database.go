@@ -127,6 +127,7 @@ func InitializeWithMigrations() (*DB, error) {
 		&models.User{},
 		&models.Subscription{},
 		&models.PlaybackState{},
+		&models.Region{},
 	); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)

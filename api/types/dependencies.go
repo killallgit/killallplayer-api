@@ -10,5 +10,5 @@ type Dependencies struct {
 	DB                 *database.DB
 	EpisodeService     episodes.EpisodeService
 	EpisodeTransformer episodes.EpisodeTransformer
-	PodcastClient      interface{} // Will be properly typed when we refactor handlers
+	PodcastClient      PodcastClient
 }

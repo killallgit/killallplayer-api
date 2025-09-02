@@ -108,6 +108,54 @@ func (c *Client) Search(ctx context.Context, query string, limit int) (*SearchRe
 	return &searchResp, nil
 }
 
+// GetTrending fetches trending podcasts from Podcast Index
+func (c *Client) GetTrending(limit int) (*SearchResponse, error) {
+	// Default and max limit
+	if limit <= 0 {
+		limit = 25
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	// Build URL with query parameters
+	endpoint := fmt.Sprintf("%s/podcasts/trending?max=%d", c.baseURL, limit)
+
+	// Create request
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	// Sign the request
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	// Execute request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	// Decode response
+	var trendingResp SearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&trendingResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	// Check API status
+	if trendingResp.Status != "true" {
+		return nil, fmt.Errorf("API returned error status: %s", trendingResp.Description)
+	}
+
+	return &trendingResp, nil
+}
+
 // GetEpisodesByPodcastID fetches episodes for a specific podcast
 func (c *Client) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) (*EpisodesResponse, error) {
 	// Build URL with query parameters
