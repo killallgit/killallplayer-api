@@ -50,7 +50,20 @@ The API will be available at `http://localhost:8080`
 
 ## API Documentation
 
-Complete API documentation is available in [docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md).
+### Swagger UI
+
+Interactive API documentation is available via Swagger UI at:
+```
+http://localhost:8080/swagger/index.html
+```
+
+**Authentication Required**: Use the static token `swagger-api-token-2025` in the Authorization header:
+- Click the "Authorize" button in Swagger UI
+- Enter: `swagger-api-token-2025` (without "Bearer " prefix)
+
+### Complete Documentation
+
+Complete API documentation is also available in [docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md).
 
 ### Key Endpoints
 

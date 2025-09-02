@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-contrib/swagger"
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
@@ -13,10 +14,12 @@ import (
 	"github.com/killallgit/player-api/api/stream"
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/api/version"
+	"github.com/killallgit/player-api/docs"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/viper"
+	"github.com/swaggo/files"
 )
 
 // RegisterRoutes registers all API routes
@@ -24,6 +27,12 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 	// Register public routes (no rate limiting)
 	health.RegisterRoutes(engine, deps)
 	version.RegisterRoutes(engine, deps)
+
+	// Swagger documentation with static token authentication
+	docs.SwaggerInfo.BasePath = "/"
+	swaggerGroup := engine.Group("/swagger")
+	swaggerGroup.Use(SwaggerAuthMiddleware())
+	swaggerGroup.GET("/*any", swagger.WrapHandler(files.Handler))
 
 	// Setup 404 handler
 	engine.NoRoute(NotFoundHandler())

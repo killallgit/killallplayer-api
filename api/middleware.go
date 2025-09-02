@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,6 +80,51 @@ func PerClientRateLimit(rateLimiters *sync.Map, cleanupStop chan struct{}, clean
 			return
 		}
 		c.Next()
+	}
+}
+
+// SwaggerAuthMiddleware provides simple static token authentication for Swagger UI
+func SwaggerAuthMiddleware() gin.HandlerFunc {
+	const swaggerToken = "swagger-api-token-2025"
+	
+	return func(c *gin.Context) {
+		// Skip auth for OPTIONS requests
+		if c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
+		}
+
+		// Check for token in Authorization header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" {
+			// Check for Bearer token format
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token := strings.TrimPrefix(authHeader, "Bearer ")
+				if token == swaggerToken {
+					c.Next()
+					return
+				}
+			}
+			// Check for direct token
+			if authHeader == swaggerToken {
+				c.Next()
+				return
+			}
+		}
+
+		// Check for token in query parameter (for Swagger UI auth)
+		if token := c.Query("token"); token == swaggerToken {
+			c.Next()
+			return
+		}
+
+		// Return 401 if no valid token provided
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error":   "Unauthorized",
+			"message": "Valid API token required for Swagger UI access",
+			"token":   "Use Authorization header with token: " + swaggerToken,
+		})
+		c.Abort()
 	}
 }
 
