@@ -22,8 +22,11 @@ jobs:
     - name: Install Task
       uses: arduino/setup-task@v1
       
+    - name: Install tools
+      run: task install-tools
+      
     - name: Download dependencies
-      run: task deps
+      run: go mod download
       
     - name: Run unit tests
       run: task test
@@ -42,8 +45,11 @@ jobs:
     - name: Install Task
       uses: arduino/setup-task@v1
 
-    - name: Install dependencies
-      run: task deps
+    - name: Install tools
+      run: task install-tools
+      
+    - name: Download dependencies
+      run: go mod download
 
     - name: Run linting
       run: task lint
