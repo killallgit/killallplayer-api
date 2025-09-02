@@ -32,7 +32,7 @@ jobs:
       
     - name: Install golangci-lint
       run: |
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.59.0
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.64.1
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       
     - name: Run unit tests
@@ -59,10 +59,8 @@ jobs:
         go mod tidy
         go mod verify
       
-    - name: Install golangci-lint
-      run: |
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.59.0
-        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
     - name: Run linting
-      run: golangci-lint run
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: v1.64.1
+        args: --timeout=5m
