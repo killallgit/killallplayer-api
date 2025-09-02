@@ -29,7 +29,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 		
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
-		if err != nil {
+		if err != nil || episodeID < 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
 			return
 		}
@@ -97,7 +97,7 @@ func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 		
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
-		if err != nil {
+		if err != nil || episodeID < 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
 			return
 		}

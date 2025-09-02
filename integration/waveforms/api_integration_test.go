@@ -402,7 +402,8 @@ func TestWaveformAPI_DatabaseIntegration(t *testing.T) {
 		firstPeak := peaksInterface[0].(float64)
 		expectedFirstPeak := float64(i+1) * 0.1 * 1.0
 
-		if firstPeak != expectedFirstPeak {
+		tolerance := 0.0001
+		if diff := firstPeak - expectedFirstPeak; diff < -tolerance || diff > tolerance {
 			t.Errorf("Expected first peak for episode %d to be %v, got %v", episode.ID, expectedFirstPeak, firstPeak)
 		}
 	}
