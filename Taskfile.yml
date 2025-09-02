@@ -6,23 +6,16 @@ vars:
   BINARY_NAME: player-api
   MAIN_PATH: ./main.go
   BUILD_DIR: ./bin
-  DOCKER_IMAGE: player-api
-  DOCKER_TAG: latest
   TEST_TIMEOUT: 10m
-  COVERAGE_FILE: coverage.out
 
 tasks:
-  # Development tasks
-  dev:
-    desc: Run the application in development mode with hot reload
-    deps: [install-tools]
+  # Server tasks
+  serve:
+    desc: Start the API server
+    deps: [build]
     cmds:
-      - air
-
-  run:
-    desc: Run the application
-    cmds:
-      - go run {{.MAIN_PATH}} serve
+      - kill -9 $(lsof -t -i tcp:8080) || true
+      - ./{{.BUILD_DIR}}/{{.BINARY_NAME}} serve
 
   build:
     desc: Build the application binary
@@ -36,16 +29,6 @@ tasks:
     generates:
       - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
 
-  clean:
-    desc: Clean build artifacts and temporary files
-    cmds:
-      - rm -rf {{.BUILD_DIR}}
-      - rm -rf tmp/
-      - rm -rf cache/
-      - rm -f {{.COVERAGE_FILE}}
-      - find . -name "*.test" -delete
-      - find . -name "*.out" -delete
-
   # Testing tasks
   test:
     desc: Run all tests
@@ -53,36 +36,6 @@ tasks:
       CGO_LDFLAGS: "-w"
     cmds:
       - go test -v -race -timeout {{.TEST_TIMEOUT}} ./...
-
-  test:unit:
-    desc: Run unit tests only
-    env:
-      CGO_LDFLAGS: "-w"
-    cmds:
-      - go test -v -race -short ./...
-
-  test:integration:
-    desc: Run integration tests
-    env:
-      CGO_LDFLAGS: "-w"
-    cmds:
-      - go test -v -race -tags=integration -timeout {{.TEST_TIMEOUT}} ./tests/...
-
-  test:coverage:
-    desc: Run tests with coverage report
-    env:
-      CGO_LDFLAGS: "-w"
-    cmds:
-      - go test -v -race -coverprofile={{.COVERAGE_FILE}} -covermode=atomic ./...
-      - go tool cover -html={{.COVERAGE_FILE}} -o coverage.html
-      - echo "Coverage report generated at coverage.html"
-
-  test:bench:
-    desc: Run benchmark tests
-    env:
-      CGO_LDFLAGS: "-w"
-    cmds:
-      - go test -bench=. -benchmem ./...
 
   # Linting and formatting
   lint:
@@ -132,154 +85,12 @@ tasks:
     cmds:
       - go run {{.MAIN_PATH}} seed
 
-  # Docker tasks
-  docker:build:
-    desc: Build Docker image
-    cmds:
-      - docker build -t {{.DOCKER_IMAGE}}:{{.DOCKER_TAG}} .
-
-  docker:run:
-    desc: Run application in Docker
-    deps: [docker:build]
-    cmds:
-      - |
-        docker run -d \
-          --name {{.BINARY_NAME}} \
-          -p 8080:8080 \
-          -v $(pwd)/data:/app/data \
-          -v $(pwd)/config:/app/config \
-          --env-file .env \
-          {{.DOCKER_IMAGE}}:{{.DOCKER_TAG}}
-
-  docker:stop:
-    desc: Stop Docker container
-    cmds:
-      - docker stop {{.BINARY_NAME}} || true
-      - docker rm {{.BINARY_NAME}} || true
-
-  docker:logs:
-    desc: Show Docker container logs
-    cmds:
-      - docker logs -f {{.BINARY_NAME}}
-
-  docker:compose:up:
-    desc: Start services with docker-compose
-    cmds:
-      - docker-compose up -d
-
-  docker:compose:down:
-    desc: Stop services with docker-compose
-    cmds:
-      - docker-compose down
-
-  # Dependency management
-  deps:
-    desc: Download and verify dependencies
-    cmds:
-      - go mod download
-      - go mod verify
-
-  deps:update:
-    desc: Update dependencies
-    cmds:
-      - go get -u ./...
-      - go mod tidy
-
-  deps:tidy:
-    desc: Clean up dependencies
-    cmds:
-      - go mod tidy
-
   # Tool installation
   install-tools:
     desc: Install development tools
     cmds:
-      - go install github.com/air-verse/air@latest
       - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
       - go install golang.org/x/tools/cmd/goimports@latest
-      - go install github.com/vektra/mockery/v2@latest
-
-  # Code generation
-  generate:
-    desc: Generate code (mocks, etc.)
-    cmds:
-      - go generate ./...
-
-  mocks:
-    desc: Generate mocks for testing
-    deps: [install-tools]
-    cmds:
-      - mockery --all --output=mocks
-
-  # API documentation
-  docs:api:
-    desc: Generate API documentation
-    cmds:
-      - echo "Generating API documentation..."
-      # Add swagger or other doc generation here
-
-  # Release tasks
-  release:build:
-    desc: Build release binaries for multiple platforms
-    cmds:
-      - mkdir -p {{.BUILD_DIR}}/release
-      - GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-linux-amd64 {{.MAIN_PATH}}
-      - GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-linux-arm64 {{.MAIN_PATH}}
-      - GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-darwin-amd64 {{.MAIN_PATH}}
-      - GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-darwin-arm64 {{.MAIN_PATH}}
-      - GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o {{.BUILD_DIR}}/release/{{.BINARY_NAME}}-windows-amd64.exe {{.MAIN_PATH}}
-
-  # Utility tasks
-  setup:
-    desc: Set up development environment
-    cmds:
-      - cp .env.example .env
-      - cp config/config.example.yaml config/config.yaml
-      - mkdir -p data tmp cache logs
-      - task: deps
-      - task: install-tools
-      - task: db:migrate
-      - echo "Development environment ready! Edit .env with your API keys."
-
-  info:
-    desc: Show project information
-    cmds:
-      - echo "Podcast Player API"
-      - echo "==================="
-      - go version
-      - echo "Dependencies:"
-      - go list -m all | head -20
-
-  serve:
-    desc: Start the API server
-    deps: [build]
-    cmds:
-      - ./{{.BUILD_DIR}}/{{.BINARY_NAME}} serve
-
-  health:
-    desc: Check service health
-    cmds:
-      - curl -s http://localhost:8080/health | jq '.'
-
-
-  # Monitoring tasks
-  metrics:
-    desc: Show Prometheus metrics
-    cmds:
-      - curl -s http://localhost:8080/metrics
-
-  pprof:
-    desc: Run pprof profiling
-    cmds:
-      - go tool pprof -http=:8081 http://localhost:8080/debug/pprof/profile
-
-  # Git hooks
-  pre-commit:
-    desc: Run pre-commit checks
-    cmds:
-      - task: fmt
-      - task: lint
-      - task: test:unit
 
   # Default task
   default:
