@@ -19,7 +19,7 @@ A robust REST API for podcast discovery, episode management, and audio streaming
 
 ### Prerequisites
 
-- Go 1.21+
+- Go 1.23.6+
 - SQLite 3.35+
 - Podcast Index API credentials ([get them here](https://api.podcastindex.org))
 
@@ -31,9 +31,13 @@ git clone https://github.com/killallgit/killallplayer-api.git
 cd killallplayer-api
 ```
 
-2. Install dependencies:
+2. Install dependencies and tools:
 ```bash
+# Download Go module dependencies
 go mod download
+
+# Install development tools (linting, etc.)
+task install-tools
 ```
 
 3. Set up environment variables:
@@ -60,7 +64,7 @@ Complete API documentation is available in [docs/API_SPECIFICATION.md](docs/API_
 - `POST /api/v1/search` - Search podcasts  
 - `GET /api/v1/trending` - Get trending podcasts
 - `GET /api/v1/episodes/:id` - Get episode details (using Podcast Index ID)
-- `GET /api/v1/stream/:id` - Stream audio with range support (using Podcast Index ID)
+- `GET /api/v1/stream/:id` - Stream audio with range support (using Podcast Index ID) **[Legacy - Direct URLs recommended]**
 - `GET /api/v1/stream/direct?url=` - Stream audio from any URL
 - `POST /api/v1/podcasts/:id/episodes/sync` - Sync episodes from Podcast Index
 - `POST /api/v1/regions` - Save playback regions/bookmarks
@@ -143,20 +147,26 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed development instruct
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run all tests using task
+task test
+
+# Or run tests directly
 go test ./...
 
 # With coverage
 go test -cover ./...
 
-# Specific package
-go test ./pkg/config
+# Run linting
+task lint
 ```
 
 ### Building
 
 ```bash
-# Build binary
+# Build using task (recommended)
+task build
+
+# Or build manually
 go build -o bin/player-api
 
 # Build with optimizations

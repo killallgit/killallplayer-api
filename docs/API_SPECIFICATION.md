@@ -289,10 +289,12 @@ Sync episodes from Podcast Index API for a specific podcast.
 
 ## Audio Streaming
 
-**Note:** Streaming works with direct audio URLs. Some podcast hosts (e.g., Podbean) return HTML pages instead of audio files, which will result in a 502 error. The API properly detects this and returns an appropriate error message.
+**Note:** For best compatibility and performance, it's recommended to use direct audio URLs from the episode's `enclosureUrl` field rather than the proxy endpoints. The proxy endpoints are maintained for backward compatibility but may have issues with some podcast hosts (e.g., Buzzsprout) that use redirect chains requiring specific headers.
 
-### GET /api/v1/stream/:id
+### GET /api/v1/stream/:id ⚠️ Legacy Endpoint
 Stream audio content with support for range requests. Acts as a proxy to the episode's audio URL, handling redirects transparently. Uses database to fetch episode metadata.
+
+**Recommendation:** Use the `enclosureUrl` field from `/api/v1/episodes/:id` response for direct streaming instead of this proxy endpoint.
 
 **URL Parameters:**
 - `id`: Episode ID (Podcast Index ID, numeric int64)
@@ -393,6 +395,18 @@ CORS preflight request handler.
 **Status Code:**
 - `204`: No Content
 
+### OPTIONS /api/v1/stream/direct
+CORS preflight request handler for direct streaming.
+
+**Response Headers:**
+- `Access-Control-Allow-Origin`: `*`
+- `Access-Control-Allow-Methods`: `GET, HEAD, OPTIONS`
+- `Access-Control-Allow-Headers`: `Range, Content-Type`
+- `Access-Control-Max-Age`: `86400`
+
+**Status Code:**
+- `204`: No Content
+
 ## Waveform
 
 ### GET /api/v1/episodes/:id/waveform
@@ -414,6 +428,8 @@ Generate or retrieve audio waveform data for an episode.
 }
 ```
 
+**Rate Limit:** 10 requests/second, burst of 20
+
 ### GET /api/v1/episodes/:id/waveform/status
 Check waveform generation status for an episode.
 
@@ -427,6 +443,8 @@ Check waveform generation status for an episode.
   "episodeId": 41928435424
 }
 ```
+
+**Rate Limit:** 10 requests/second, burst of 20
 
 ## Regions
 
@@ -504,6 +522,7 @@ Get all regions for an episode.
 | Trending | 10 | 20 |
 | Episodes | 10 | 20 |
 | Stream | 20 | 30 |
+| Waveform | 10 | 20 |
 | Regions | 10 | 20 |
 | Sync | 1 | 2 |
 
@@ -554,6 +573,19 @@ Access-Control-Allow-Headers: Content-Type, Range
 Access-Control-Expose-Headers: Content-Length, Content-Range, Accept-Ranges
 Access-Control-Max-Age: 86400
 ```
+
+## 404 Error Handling
+
+All unmatched routes return a JSON error response:
+
+```json
+{
+  "status": "error",
+  "message": "Endpoint not found"
+}
+```
+
+**Status Code:** 404 Not Found
 
 ## Authentication
 
