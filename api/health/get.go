@@ -9,6 +9,13 @@ import (
 )
 
 // Get handles health check requests
+// @Summary      Health check
+// @Description  Get the health status of the API server and database connection
+// @Tags         health
+// @Accept       json
+// @Produce      json
+// @Success      200 {object} object{status=string,timestamp=string,database=object} "Server health status"
+// @Router       /health [get]
 func Get(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		response := gin.H{

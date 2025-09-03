@@ -13,34 +13,34 @@ type EpisodeMetadata struct {
 
 // PodcastIndexEpisode represents an episode in the exact format returned by Podcast Index API
 type PodcastIndexEpisode struct {
-	ID                  int64               `json:"id"`
-	Title               string              `json:"title"`
-	Link                string              `json:"link,omitempty"`
-	Description         string              `json:"description"`
-	GUID                string              `json:"guid"`
-	DatePublished       int64               `json:"datePublished"`
-	DatePublishedPretty string              `json:"datePublishedPretty,omitempty"`
-	DateCrawled         int64               `json:"dateCrawled,omitempty"`
-	EnclosureURL        string              `json:"enclosureUrl"`
-	EnclosureType       string              `json:"enclosureType,omitempty"`
-	EnclosureLength     int64               `json:"enclosureLength,omitempty"`
-	Duration            *int                `json:"duration"`
-	Explicit            int                 `json:"explicit,omitempty"`
-	Episode             *int                `json:"episode,omitempty"`
-	EpisodeType         string              `json:"episodeType,omitempty"`
-	Season              *int                `json:"season,omitempty"`
-	Image               string              `json:"image,omitempty"`
-	FeedItunesID        *int64              `json:"feedItunesId,omitempty"`
-	FeedURL             string              `json:"feedUrl,omitempty"`
-	FeedImage           string              `json:"feedImage,omitempty"`
-	FeedID              int64               `json:"feedId"`
-	FeedTitle           string              `json:"feedTitle,omitempty"`
-	PodcastGUID         string              `json:"podcastGuid,omitempty"`
-	FeedLanguage        string              `json:"feedLanguage,omitempty"`
-	FeedDead            int                 `json:"feedDead,omitempty"`
+	ID                  int64               `json:"id" example:"123456789"`
+	Title               string              `json:"title" example:"Episode 42: The Answer to Everything"`
+	Link                string              `json:"link,omitempty" example:"https://example.com/episode/42"`
+	Description         string              `json:"description" example:"In this episode, we explore the meaning of life, the universe, and everything."`
+	GUID                string              `json:"guid" example:"episode-42-guid-string"`
+	DatePublished       int64               `json:"datePublished" example:"1704063600"`
+	DatePublishedPretty string              `json:"datePublishedPretty,omitempty" example:"2024-01-01 00:00:00"`
+	DateCrawled         int64               `json:"dateCrawled,omitempty" example:"1704067200"`
+	EnclosureURL        string              `json:"enclosureUrl" example:"https://example.com/audio/episode42.mp3"`
+	EnclosureType       string              `json:"enclosureType,omitempty" example:"audio/mpeg"`
+	EnclosureLength     int64               `json:"enclosureLength,omitempty" example:"52428800"`
+	Duration            *int                `json:"duration" example:"3600"`
+	Explicit            int                 `json:"explicit,omitempty" example:"0"`
+	Episode             *int                `json:"episode,omitempty" example:"42"`
+	EpisodeType         string              `json:"episodeType,omitempty" example:"full"`
+	Season              *int                `json:"season,omitempty" example:"2"`
+	Image               string              `json:"image,omitempty" example:"https://example.com/episode42-cover.jpg"`
+	FeedItunesID        *int64              `json:"feedItunesId,omitempty" example:"987654321"`
+	FeedURL             string              `json:"feedUrl,omitempty" example:"https://example.com/rss.xml"`
+	FeedImage           string              `json:"feedImage,omitempty" example:"https://example.com/podcast-cover.jpg"`
+	FeedID              int64               `json:"feedId" example:"123456"`
+	FeedTitle           string              `json:"feedTitle,omitempty" example:"The Tech Show"`
+	PodcastGUID         string              `json:"podcastGuid,omitempty" example:"podcast-guid-string"`
+	FeedLanguage        string              `json:"feedLanguage,omitempty" example:"en"`
+	FeedDead            int                 `json:"feedDead,omitempty" example:"0"`
 	FeedDuplicateOf     *int64              `json:"feedDuplicateOf,omitempty"`
-	ChaptersURL         string              `json:"chaptersUrl,omitempty"`
-	TranscriptURL       string              `json:"transcriptUrl,omitempty"`
+	ChaptersURL         string              `json:"chaptersUrl,omitempty" example:"https://example.com/chapters/episode42.json"`
+	TranscriptURL       string              `json:"transcriptUrl,omitempty" example:"https://example.com/transcripts/episode42.txt"`
 	Transcripts         []Transcript        `json:"transcripts,omitempty"`
 	Soundbite           *Soundbite          `json:"soundbite,omitempty"`
 	Soundbites          []Soundbite         `json:"soundbites,omitempty"`
@@ -51,12 +51,12 @@ type PodcastIndexEpisode struct {
 
 // PodcastIndexResponse represents the standard response wrapper from Podcast Index API
 type PodcastIndexResponse struct {
-	Status      string                `json:"status"` // "true" or "false"
+	Status      string                `json:"status" example:"true"`        // "true" or "false"
 	Items       []PodcastIndexEpisode `json:"items"`
 	LiveItems   []PodcastIndexEpisode `json:"liveItems,omitempty"`
-	Count       int                   `json:"count"`
+	Count       int                   `json:"count" example:"10"`
 	Query       interface{}           `json:"query,omitempty"`
-	Description string                `json:"description"`
+	Description string                `json:"description" example:"Found 10 episodes"`
 }
 
 // PodcastIndexErrorResponse represents an error response from Podcast Index API

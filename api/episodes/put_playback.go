@@ -11,11 +11,22 @@ import (
 
 // PlaybackUpdateRequest represents a playback state update request
 type PlaybackUpdateRequest struct {
-	Position int  `json:"position"` // Playback position in seconds
-	Played   bool `json:"played"`   // Whether the episode has been played
+	Position int  `json:"position" example:"1800"` // Playback position in seconds
+	Played   bool `json:"played" example:"false"`  // Whether the episode has been played
 }
 
 // PutPlayback updates playback position and played status
+// @Summary      Update playback status
+// @Description  Update the playback position and played status for an episode
+// @Tags         episodes
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "Episode Podcast Index ID" minimum(1) example(123456789)
+// @Param        playback body PlaybackUpdateRequest true "Playback status update"
+// @Success      200 {object} object{status=string,message=string} "Update successful"
+// @Failure      400 {object} object{status=string,message=string} "Bad request - invalid parameters"
+// @Failure      500 {object} object{status=string,message=string} "Internal server error"
+// @Router       /api/v1/episodes/{id}/playback [put]
 func PutPlayback(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")

@@ -90,12 +90,25 @@ tasks:
     cmds:
       - go run {{.MAIN_PATH}} seed
 
+  # Documentation tasks
+  docs:generate:
+    desc: Generate Swagger documentation
+    cmds:
+      - swag init --output docs/swagger --parseDependency
+
+  docs:serve:
+    desc: Generate docs and serve the API to view Swagger UI
+    deps: [docs:generate, build]
+    cmds:
+      - task: serve
+
   # Tool installation
   install-tools:
     desc: Install development tools
     cmds:
       - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
       - go install golang.org/x/tools/cmd/goimports@latest
+      - go install github.com/swaggo/swag/cmd/swag@latest
 
   # Default task
   default:

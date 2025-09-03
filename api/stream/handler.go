@@ -13,6 +13,21 @@ import (
 )
 
 // StreamEpisode handles audio streaming with range request support
+// @Summary      Stream episode audio
+// @Description  Stream audio for an episode by its Podcast Index ID with HTTP range request support (seeking)
+// @Tags         streaming
+// @Accept       json
+// @Produce      audio/mpeg
+// @Param        id path int true "Episode Podcast Index ID" minimum(1) example(123456789)
+// @Param        Range header string false "HTTP Range header for partial content requests" example("bytes=0-1023")
+// @Success      200 "Full audio content"
+// @Success      206 "Partial audio content (range request)"
+// @Failure      400 {object} object{error=string} "Bad request - invalid episode ID"
+// @Failure      404 {object} object{error=string} "Episode not found or no audio available"
+// @Failure      502 {object} object{error=string} "Bad gateway - audio source error"
+// @Failure      500 {object} object{error=string} "Internal server error"
+// @Router       /api/v1/stream/{id} [get]
+// @Router       /api/v1/stream/{id} [head]
 func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
@@ -219,6 +234,14 @@ func StreamEpisode(deps *types.Dependencies) gin.HandlerFunc {
 }
 
 // HandleOptions handles preflight OPTIONS requests for CORS
+// @Summary      Handle CORS preflight
+// @Description  Handle CORS preflight requests for streaming endpoints
+// @Tags         streaming
+// @Accept       json
+// @Produce      json
+// @Success      204 "No content - CORS preflight successful"
+// @Router       /api/v1/stream/{id} [options]
+// @Router       /api/v1/stream/direct [options]
 func HandleOptions() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")

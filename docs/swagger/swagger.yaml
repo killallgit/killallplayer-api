@@ -1,0 +1,826 @@
+basePath: /
+definitions:
+  episodes.EpisodeByGUIDResponse:
+    properties:
+      description:
+        type: string
+      episode:
+        $ref: '#/definitions/episodes.PodcastIndexEpisode'
+      status:
+        type: string
+    type: object
+  episodes.Person:
+    properties:
+      group:
+        type: string
+      href:
+        type: string
+      img:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+    type: object
+  episodes.PlaybackUpdateRequest:
+    properties:
+      played:
+        description: Whether the episode has been played
+        example: false
+        type: boolean
+      position:
+        description: Playback position in seconds
+        example: 1800
+        type: integer
+    type: object
+  episodes.PodcastIndexEpisode:
+    properties:
+      chaptersUrl:
+        example: https://example.com/chapters/episode42.json
+        type: string
+      dateCrawled:
+        example: 1704067200
+        type: integer
+      datePublished:
+        example: 1704063600
+        type: integer
+      datePublishedPretty:
+        example: "2024-01-01 00:00:00"
+        type: string
+      description:
+        example: In this episode, we explore the meaning of life, the universe, and
+          everything.
+        type: string
+      duration:
+        example: 3600
+        type: integer
+      enclosureLength:
+        example: 52428800
+        type: integer
+      enclosureType:
+        example: audio/mpeg
+        type: string
+      enclosureUrl:
+        example: https://example.com/audio/episode42.mp3
+        type: string
+      episode:
+        example: 42
+        type: integer
+      episodeType:
+        example: full
+        type: string
+      explicit:
+        example: 0
+        type: integer
+      feedDead:
+        example: 0
+        type: integer
+      feedDuplicateOf:
+        type: integer
+      feedId:
+        example: 123456
+        type: integer
+      feedImage:
+        example: https://example.com/podcast-cover.jpg
+        type: string
+      feedItunesId:
+        example: 987654321
+        type: integer
+      feedLanguage:
+        example: en
+        type: string
+      feedTitle:
+        example: The Tech Show
+        type: string
+      feedUrl:
+        example: https://example.com/rss.xml
+        type: string
+      guid:
+        example: episode-42-guid-string
+        type: string
+      id:
+        example: 123456789
+        type: integer
+      image:
+        example: https://example.com/episode42-cover.jpg
+        type: string
+      link:
+        example: https://example.com/episode/42
+        type: string
+      persons:
+        items:
+          $ref: '#/definitions/episodes.Person'
+        type: array
+      podcastGuid:
+        example: podcast-guid-string
+        type: string
+      season:
+        example: 2
+        type: integer
+      socialInteract:
+        items:
+          $ref: '#/definitions/episodes.SocialInteraction'
+        type: array
+      soundbite:
+        $ref: '#/definitions/episodes.Soundbite'
+      soundbites:
+        items:
+          $ref: '#/definitions/episodes.Soundbite'
+        type: array
+      title:
+        example: 'Episode 42: The Answer to Everything'
+        type: string
+      transcriptUrl:
+        example: https://example.com/transcripts/episode42.txt
+        type: string
+      transcripts:
+        items:
+          $ref: '#/definitions/episodes.Transcript'
+        type: array
+      value:
+        $ref: '#/definitions/episodes.Value'
+    type: object
+  episodes.PodcastIndexErrorResponse:
+    properties:
+      description:
+        type: string
+      status:
+        description: '"false"'
+        type: string
+    type: object
+  episodes.PodcastIndexResponse:
+    properties:
+      count:
+        example: 10
+        type: integer
+      description:
+        example: Found 10 episodes
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/episodes.PodcastIndexEpisode'
+        type: array
+      liveItems:
+        items:
+          $ref: '#/definitions/episodes.PodcastIndexEpisode'
+        type: array
+      query: {}
+      status:
+        description: '"true" or "false"'
+        example: "true"
+        type: string
+    type: object
+  episodes.SocialInteraction:
+    properties:
+      accountId:
+        type: string
+      accountUrl:
+        type: string
+      platform:
+        type: string
+      priority:
+        type: integer
+      protocol:
+        type: string
+      url:
+        type: string
+    type: object
+  episodes.Soundbite:
+    properties:
+      duration:
+        type: number
+      startTime:
+        type: number
+      title:
+        type: string
+    type: object
+  episodes.Transcript:
+    properties:
+      language:
+        type: string
+      rel:
+        type: string
+      type:
+        type: string
+      url:
+        type: string
+    type: object
+  episodes.Value:
+    properties:
+      destinations:
+        items:
+          $ref: '#/definitions/episodes.ValueDestination'
+        type: array
+      model:
+        $ref: '#/definitions/episodes.ValueModel'
+    type: object
+  episodes.ValueDestination:
+    properties:
+      address:
+        type: string
+      customKey:
+        type: string
+      customValue:
+        type: string
+      fee:
+        type: boolean
+      name:
+        type: string
+      split:
+        type: integer
+      type:
+        type: string
+    type: object
+  episodes.ValueModel:
+    properties:
+      method:
+        type: string
+      suggested:
+        type: string
+      type:
+        type: string
+    type: object
+  models.PodcastSearchResult:
+    properties:
+      author:
+        example: John Smith
+        type: string
+      description:
+        example: A weekly show about technology and innovation
+        type: string
+      id:
+        example: "123456"
+        type: string
+      image:
+        example: https://example.com/podcast-image.jpg
+        type: string
+      title:
+        example: The Tech Show
+        type: string
+      url:
+        example: https://example.com/rss.xml
+        type: string
+    type: object
+  models.SearchRequest:
+    properties:
+      limit:
+        example: 10
+        maximum: 100
+        minimum: 1
+        type: integer
+      query:
+        example: technology podcasts
+        maxLength: 200
+        minLength: 1
+        type: string
+    required:
+    - query
+    type: object
+  models.SearchResponse:
+    properties:
+      podcasts:
+        items:
+          $ref: '#/definitions/models.PodcastSearchResult'
+        type: array
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: Podcast Player API Support
+    url: https://github.com/killallgit/killallplayer-api
+  description: |-
+    A REST API for podcast discovery, episode management, and audio streaming.
+    This API provides endpoints for searching podcasts, managing episodes, streaming audio,
+    and generating waveforms for audio visualization.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Podcast Player API
+  version: "1.0"
+paths:
+  /:
+    get:
+      consumes:
+      - application/json
+      description: Get version and basic information about the Podcast Player API
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API version information
+          schema:
+            properties:
+              description:
+                type: string
+              name:
+                type: string
+              status:
+                type: string
+              version:
+                type: string
+            type: object
+      summary: Get API version
+      tags:
+      - version
+  /api/v1/episodes:
+    get:
+      consumes:
+      - application/json
+      description: Get recent episodes across all podcasts with optional limit parameter
+      parameters:
+      - default: 50
+        description: Number of episodes to return (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of episodes
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+      summary: Get all episodes
+      tags:
+      - episodes
+  /api/v1/episodes/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a single episode by its Podcast Index ID
+      parameters:
+      - description: Episode Podcast Index ID
+        example: 123456789
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Episode details
+          schema:
+            $ref: '#/definitions/episodes.EpisodeByGUIDResponse'
+        "400":
+          description: Bad request - invalid ID
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+        "404":
+          description: Episode not found
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+      summary: Get episode by ID
+      tags:
+      - episodes
+  /api/v1/episodes/{id}/playback:
+    put:
+      consumes:
+      - application/json
+      description: Update the playback position and played status for an episode
+      parameters:
+      - description: Episode Podcast Index ID
+        example: 123456789
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - description: Playback status update
+        in: body
+        name: playback
+        required: true
+        schema:
+          $ref: '#/definitions/episodes.PlaybackUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Update successful
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad request - invalid parameters
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Update playback status
+      tags:
+      - episodes
+  /api/v1/search:
+    post:
+      consumes:
+      - application/json
+      description: Search for podcasts by query string with optional result limit
+      parameters:
+      - description: Search parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.SearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of matching podcasts
+          schema:
+            $ref: '#/definitions/models.SearchResponse'
+        "400":
+          description: Bad request - invalid parameters
+          schema:
+            properties:
+              details:
+                type: string
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              details:
+                type: string
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "504":
+          description: Gateway timeout - search request timed out
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Search for podcasts
+      tags:
+      - search
+  /api/v1/stream/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Stream audio for an episode by its Podcast Index ID with HTTP range
+        request support (seeking)
+      parameters:
+      - description: Episode Podcast Index ID
+        example: 123456789
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - description: HTTP Range header for partial content requests
+        example: '"bytes=0-1023"'
+        in: header
+        name: Range
+        type: string
+      produces:
+      - audio/mpeg
+      responses:
+        "200":
+          description: Full audio content
+        "206":
+          description: Partial audio content (range request)
+        "400":
+          description: Bad request - invalid episode ID
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Episode not found or no audio available
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "502":
+          description: Bad gateway - audio source error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Stream episode audio
+      tags:
+      - streaming
+    head:
+      consumes:
+      - application/json
+      description: Stream audio for an episode by its Podcast Index ID with HTTP range
+        request support (seeking)
+      parameters:
+      - description: Episode Podcast Index ID
+        example: 123456789
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - description: HTTP Range header for partial content requests
+        example: '"bytes=0-1023"'
+        in: header
+        name: Range
+        type: string
+      produces:
+      - audio/mpeg
+      responses:
+        "200":
+          description: Full audio content
+        "206":
+          description: Partial audio content (range request)
+        "400":
+          description: Bad request - invalid episode ID
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Episode not found or no audio available
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "502":
+          description: Bad gateway - audio source error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Stream episode audio
+      tags:
+      - streaming
+    options:
+      consumes:
+      - application/json
+      description: Handle CORS preflight requests for streaming endpoints
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No content - CORS preflight successful
+      summary: Handle CORS preflight
+      tags:
+      - streaming
+  /api/v1/stream/direct:
+    get:
+      consumes:
+      - application/json
+      description: Stream audio directly from a provided URL with HTTP range request
+        support (seeking). No database lookup required.
+      parameters:
+      - description: Direct audio URL to stream
+        example: '"https://example.com/audio/episode.mp3"'
+        in: query
+        name: url
+        required: true
+        type: string
+      - description: HTTP Range header for partial content requests
+        example: '"bytes=0-1023"'
+        in: header
+        name: Range
+        type: string
+      produces:
+      - audio/mpeg
+      responses:
+        "200":
+          description: Full audio content
+        "206":
+          description: Partial audio content (range request)
+        "400":
+          description: Bad request - missing or invalid URL
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden - access to private networks not allowed
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "502":
+          description: Bad gateway - audio source error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Stream audio from direct URL
+      tags:
+      - streaming
+    head:
+      consumes:
+      - application/json
+      description: Stream audio directly from a provided URL with HTTP range request
+        support (seeking). No database lookup required.
+      parameters:
+      - description: Direct audio URL to stream
+        example: '"https://example.com/audio/episode.mp3"'
+        in: query
+        name: url
+        required: true
+        type: string
+      - description: HTTP Range header for partial content requests
+        example: '"bytes=0-1023"'
+        in: header
+        name: Range
+        type: string
+      produces:
+      - audio/mpeg
+      responses:
+        "200":
+          description: Full audio content
+        "206":
+          description: Partial audio content (range request)
+        "400":
+          description: Bad request - missing or invalid URL
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden - access to private networks not allowed
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "502":
+          description: Bad gateway - audio source error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Stream audio from direct URL
+      tags:
+      - streaming
+    options:
+      consumes:
+      - application/json
+      description: Handle CORS preflight requests for streaming endpoints
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No content - CORS preflight successful
+      summary: Handle CORS preflight
+      tags:
+      - streaming
+  /api/v1/trending:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of trending podcasts from the Podcast Index API
+      parameters:
+      - default: 20
+        description: Number of podcasts to return (1-100)
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of trending podcasts
+          schema:
+            properties:
+              count:
+                type: integer
+              description:
+                type: string
+              podcasts:
+                type: array
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              description:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Get trending podcasts
+      tags:
+      - trending
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Get the health status of the API server and database connection
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server health status
+          schema:
+            properties:
+              database:
+                type: object
+              status:
+                type: string
+              timestamp:
+                type: string
+            type: object
+      summary: Health check
+      tags:
+      - health
+schemes:
+- http
+- https
+swagger: "2.0"
+tags:
+- description: Health check endpoints
+  name: health
+- description: API version information
+  name: version
+- description: Podcast search functionality
+  name: search
+- description: Episode management and playback
+  name: episodes
+- description: Audio streaming with range request support
+  name: streaming
+- description: Trending podcast discovery
+  name: trending
+- description: Podcast management and synchronization
+  name: podcasts
+- description: Audio waveform generation and retrieval
+  name: waveform
+- description: Playback region and bookmark management
+  name: regions

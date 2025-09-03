@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
+	
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/podcasts"
@@ -16,6 +19,7 @@ import (
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/api/version"
 	"github.com/killallgit/player-api/api/waveform"
+	_ "github.com/killallgit/player-api/docs/swagger"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/internal/services/waveforms"
@@ -28,6 +32,13 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 	// Register public routes (no rate limiting)
 	health.RegisterRoutes(engine, deps)
 	version.RegisterRoutes(engine, deps)
+
+	// Register Swagger documentation route  
+	engine.GET("/docs", func(c *gin.Context) {
+		c.Redirect(301, "/docs/index.html")
+	})
+	docsGroup := engine.Group("/docs")
+	docsGroup.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Setup 404 handler
 	engine.NoRoute(NotFoundHandler())

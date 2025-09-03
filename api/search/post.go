@@ -18,6 +18,17 @@ type PodcastSearcher interface {
 }
 
 // Post handles podcast search requests
+// @Summary      Search for podcasts
+// @Description  Search for podcasts by query string with optional result limit
+// @Tags         search
+// @Accept       json
+// @Produce      json
+// @Param        request body models.SearchRequest true "Search parameters"
+// @Success      200 {object} models.SearchResponse "List of matching podcasts"
+// @Failure      400 {object} object{status=string,message=string,details=string} "Bad request - invalid parameters"
+// @Failure      500 {object} object{status=string,message=string,details=string} "Internal server error"
+// @Failure      504 {object} object{status=string,message=string} "Gateway timeout - search request timed out"
+// @Router       /api/v1/search [post]
 func Post(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse request body

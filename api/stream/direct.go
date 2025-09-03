@@ -15,6 +15,21 @@ import (
 )
 
 // StreamDirectURL handles audio streaming from a direct URL without database lookup
+// @Summary      Stream audio from direct URL
+// @Description  Stream audio directly from a provided URL with HTTP range request support (seeking). No database lookup required.
+// @Tags         streaming
+// @Accept       json
+// @Produce      audio/mpeg
+// @Param        url query string true "Direct audio URL to stream" example("https://example.com/audio/episode.mp3")
+// @Param        Range header string false "HTTP Range header for partial content requests" example("bytes=0-1023")
+// @Success      200 "Full audio content"
+// @Success      206 "Partial audio content (range request)"
+// @Failure      400 {object} object{error=string} "Bad request - missing or invalid URL"
+// @Failure      403 {object} object{error=string} "Forbidden - access to private networks not allowed"
+// @Failure      502 {object} object{error=string} "Bad gateway - audio source error"
+// @Failure      500 {object} object{error=string} "Internal server error"
+// @Router       /api/v1/stream/direct [get]
+// @Router       /api/v1/stream/direct [head]
 func StreamDirectURL() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get URL from query parameter

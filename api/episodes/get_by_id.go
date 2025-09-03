@@ -10,6 +10,17 @@ import (
 )
 
 // GetByID returns a single episode by Podcast Index ID
+// @Summary      Get episode by ID
+// @Description  Retrieve a single episode by its Podcast Index ID
+// @Tags         episodes
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "Episode Podcast Index ID" minimum(1) example(123456789)
+// @Success      200 {object} episodes.EpisodeByGUIDResponse "Episode details"
+// @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - invalid ID"
+// @Failure      404 {object} episodes.PodcastIndexErrorResponse "Episode not found"
+// @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
+// @Router       /api/v1/episodes/{id} [get]
 func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
