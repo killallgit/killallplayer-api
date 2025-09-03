@@ -1238,8 +1238,6 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "A REST API for podcast discovery, episode management, and audio streaming.\nThis API provides endpoints for searching podcasts, managing episodes, streaming audio,\nand generating waveforms for audio visualization.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
-	LeftDelim:        "[[",
-	RightDelim:       "]]",
 }
 
 func init() {
