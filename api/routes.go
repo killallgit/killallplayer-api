@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
-	"github.com/swaggo/gin-swagger"
-	
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/podcasts"
@@ -33,7 +33,7 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 	health.RegisterRoutes(engine, deps)
 	version.RegisterRoutes(engine, deps)
 
-	// Register Swagger documentation route  
+	// Register Swagger documentation route
 	engine.GET("/docs", func(c *gin.Context) {
 		c.Redirect(301, "/docs/index.html")
 	})
