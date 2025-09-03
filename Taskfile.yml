@@ -9,7 +9,12 @@ vars:
   TEST_TIMEOUT: 10m
 
 tasks:
-  # Server tasks
+  build:docker:
+    desc: Build the application docker image
+    cmds:
+      - docker build -t ghcr.io/killallgit/killallplayer-api:latest .
+      - docker push ghcr.io/killallgit/killallplayer-api:latest
+
   serve:
     desc: Start the API server
     deps: [build]

@@ -26,7 +26,7 @@ type WaveformData struct {
 func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
-
+		
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil || episodeID < 0 {
@@ -93,7 +93,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
-
+		
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil || episodeID < 0 {
