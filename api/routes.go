@@ -18,6 +18,7 @@ import (
 	"github.com/killallgit/player-api/api/waveform"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
+	"github.com/killallgit/player-api/internal/services/waveforms"
 	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/viper"
 )
@@ -83,10 +84,15 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 	trendingGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
 	trending.RegisterRoutes(trendingGroup, deps)
 
-	// Initialize episode service if database is available
+	// Initialize services if database is available
 	if deps.DB != nil && deps.DB.DB != nil {
 		if deps.EpisodeService == nil || deps.EpisodeTransformer == nil {
 			initializeEpisodeService(deps, cfg)
+		}
+
+		// Initialize waveform service if not set
+		if deps.WaveformService == nil {
+			initializeWaveformService(deps)
 		}
 
 		// Register episode routes with general rate limiting (10 req/s, burst of 20)
@@ -102,13 +108,14 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 
 		// Register waveform routes with moderate rate limiting (10 req/s, burst of 20)
 		// Waveform generation may be CPU intensive, so we limit the rate
-		waveform.RegisterRoutes(v1, deps)
+		waveformGroup := v1.Group("/episodes")
+		waveformGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
+		waveform.RegisterRoutes(waveformGroup, deps)
 
 		// Register regions routes with general rate limiting (10 req/s, burst of 20)
 		regionsGroup := v1.Group("/regions")
 		regionsGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
 		regions.RegisterRoutes(regionsGroup, deps)
-
 		// Register podcast routes with mixed rate limiting
 		podcastGroup := v1.Group("/podcasts")
 		// Create middleware for different rate limits
@@ -148,6 +155,15 @@ func initializeEpisodeService(deps *types.Dependencies, cfg *config.Config) {
 	)
 
 	deps.EpisodeTransformer = episodesService.NewTransformer()
+}
+
+// initializeWaveformService creates and configures the waveform service
+func initializeWaveformService(deps *types.Dependencies) {
+	// Create dependencies
+	waveformRepo := waveforms.NewRepository(deps.DB.DB)
+
+	// Create service
+	deps.WaveformService = waveforms.NewService(waveformRepo)
 }
 
 // NotFoundHandler handles 404 errors
