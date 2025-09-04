@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -30,7 +29,7 @@ func Initialize(dbPath string, verbose bool) (*DB, error) {
 	}
 
 	// Configure GORM logger
-	logLevel := logger.Error
+	logLevel := logger.Silent
 	if verbose {
 		logLevel = logger.Info
 	}
@@ -97,7 +96,8 @@ func (db *DB) AutoMigrate(models ...any) error {
 	if err := db.DB.AutoMigrate(models...); err != nil {
 		return fmt.Errorf("auto migration failed: %w", err)
 	}
-	log.Printf("Successfully migrated %d model(s)", len(models))
+	// Only log migration success if verbose is enabled
+	// to avoid confusion with SQL query logs
 	return nil
 }
 
@@ -110,9 +110,8 @@ func InitializeWithMigrations() (*DB, error) {
 		return nil, fmt.Errorf("database path is not configured")
 	}
 
-	// Enable verbose logging for debugging
-	dbVerbose := true // Force verbose for debugging
-	log.Printf("[DEBUG] Database path: %s, Verbose: %v", dbPath, dbVerbose)
+	// Get verbose logging setting from config
+	dbVerbose := config.GetBool("database.verbose")
 
 	// Initialize database connection
 	db, err := Initialize(dbPath, dbVerbose)
@@ -129,6 +128,7 @@ func InitializeWithMigrations() (*DB, error) {
 		&models.PlaybackState{},
 		&models.Region{},
 		&models.Waveform{},
+		&models.Job{},
 	); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)

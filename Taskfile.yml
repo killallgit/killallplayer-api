@@ -19,7 +19,6 @@ tasks:
     desc: Start the API server
     deps: [build]
     cmds:
-      - kill -9 $(lsof -t -i tcp:8080) || true
       - ./{{.BUILD_DIR}}/{{.BINARY_NAME}} serve
 
   build:
@@ -95,7 +94,7 @@ tasks:
   docs:generate:
     desc: Generate Swagger documentation
     cmds:
-      - swag init --output docs/swagger --parseDependency -td "[[,]]"
+      - swag init --output docs --parseDependency
 
   docs:serve:
     desc: Generate docs and serve the API to view Swagger UI

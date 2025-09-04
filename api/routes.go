@@ -12,7 +12,6 @@ import (
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/podcasts"
-	"github.com/killallgit/player-api/api/recent"
 	"github.com/killallgit/player-api/api/regions"
 	"github.com/killallgit/player-api/api/search"
 	"github.com/killallgit/player-api/api/stream"
@@ -20,8 +19,9 @@ import (
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/api/version"
 	"github.com/killallgit/player-api/api/waveform"
-	_ "github.com/killallgit/player-api/docs/swagger"
+	_ "github.com/killallgit/player-api/docs"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
+	"github.com/killallgit/player-api/internal/services/jobs"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/internal/services/waveforms"
 	"github.com/killallgit/player-api/pkg/config"
@@ -107,6 +107,11 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 			initializeWaveformService(deps)
 		}
 
+		// Initialize job service if not set
+		if deps.JobService == nil {
+			initializeJobService(deps)
+		}
+
 		// Register episode routes with general rate limiting (10 req/s, burst of 20)
 		episodeGroup := v1.Group("/episodes")
 		episodeGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
@@ -135,10 +140,6 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		syncMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 1, 2)
 		podcasts.RegisterRoutes(podcastGroup, deps, episodesMiddleware, syncMiddleware)
 
-		// Register recent discovery routes with general rate limiting (10 req/s, burst of 20)
-		recentGroup := v1.Group("/recent")
-		recentGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
-		recent.RegisterRoutes(recentGroup, deps)
 	}
 
 	return nil
@@ -181,6 +182,15 @@ func initializeWaveformService(deps *types.Dependencies) {
 
 	// Create service
 	deps.WaveformService = waveforms.NewService(waveformRepo)
+}
+
+// initializeJobService creates and configures the job service
+func initializeJobService(deps *types.Dependencies) {
+	// Create dependencies
+	jobRepo := jobs.NewRepository(deps.DB.DB)
+
+	// Create service
+	deps.JobService = jobs.NewService(jobRepo)
 }
 
 // NotFoundHandler handles 404 errors

@@ -14,12 +14,12 @@ server:
 # Database configuration
 database:
   path: "./data/podcast.db"        # SQLite database path
+  verbose: false                   # Log SQL queries (debug)
   max_connections: 10              # Maximum open connections
   max_idle_connections: 5          # Maximum idle connections
   connection_max_lifetime: 30m     # Connection max lifetime
   enable_wal: true                 # Enable WAL mode
   enable_foreign_keys: true        # Enable foreign key constraints
-  log_queries: false               # Log SQL queries (debug)
 
 # Audio processing configuration
 processing:
@@ -159,7 +159,7 @@ env:
     logging:
       level: "debug"
     database:
-      log_queries: true
+      verbose: true
     monitoring:
       pprof_enabled: true
   

@@ -26,6 +26,7 @@ func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
 	router.GET("/by-itunes-id", GetByiTunesID(deps))
 
 	// GET /api/v1/episodes/:id - Note: This must come after other specific routes
+	// Returns episode with waveform status
 	router.GET("/:id", GetByID(deps))
 
 	// PUT /api/v1/episodes/:id/playback

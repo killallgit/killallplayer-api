@@ -43,4 +43,5 @@ config/settings.yaml
 bindata/
 bin/*
 data/*
+!data/tests/
 .devbox

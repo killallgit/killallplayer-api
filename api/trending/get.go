@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
+	_ "github.com/killallgit/player-api/internal/services/podcastindex"
 )
 
 // Get returns trending podcasts from Podcast Index API
@@ -15,7 +16,7 @@ import (
 // @Accept       json
 // @Produce      json
 // @Param        limit query int false "Number of podcasts to return (1-100)" minimum(1) maximum(100) default(20)
-// @Success      200 {object} object{status=string,podcasts=array,count=int,description=string} "List of trending podcasts"
+// @Success      200 {object} podcastindex.SearchResponse "Podcast Index trending response"
 // @Failure      500 {object} object{status=string,description=string} "Internal server error"
 // @Router       /api/v1/trending [get]
 func Get(deps *types.Dependencies) gin.HandlerFunc {
@@ -40,12 +41,7 @@ func Get(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		// Return the trending feeds directly from Podcast Index
-		c.JSON(http.StatusOK, gin.H{
-			"status":      "true",
-			"podcasts":    trending.Feeds,
-			"count":       len(trending.Feeds),
-			"description": "Trending podcasts",
-		})
+		// Return the full Podcast Index response
+		c.JSON(http.StatusOK, trending)
 	}
 }

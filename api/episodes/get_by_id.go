@@ -9,14 +9,14 @@ import (
 	"github.com/killallgit/player-api/api/types"
 )
 
-// GetByID returns a single episode by Podcast Index ID
-// @Summary      Get episode by ID
-// @Description  Retrieve a single episode by its Podcast Index ID
+// GetByID returns a single episode by Podcast Index ID with waveform status
+// @Summary      Get episode by ID with waveform status
+// @Description  Retrieve a single episode by its Podcast Index ID including waveform processing status
 // @Tags         episodes
 // @Accept       json
 // @Produce      json
 // @Param        id path int true "Episode Podcast Index ID" minimum(1) example(123456789)
-// @Success      200 {object} episodes.EpisodeByGUIDResponse "Episode details"
+// @Success      200 {object} EpisodeByGUIDEnhancedResponse "Episode details with waveform status"
 // @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - invalid ID"
 // @Failure      404 {object} episodes.PodcastIndexErrorResponse "Episode not found"
 // @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
@@ -24,7 +24,6 @@ import (
 func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
-		log.Printf("[DEBUG] GetByID called with Podcast Index ID: %s", episodeIDStr)
 
 		// Parse Podcast Index ID (int64)
 		podcastIndexID, err := strconv.ParseInt(episodeIDStr, 10, 64)
@@ -34,7 +33,7 @@ func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("[DEBUG] Fetching episode with Podcast Index ID: %d", podcastIndexID)
+		// Fetch episode
 		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(c.Request.Context(), podcastIndexID)
 		if err != nil {
 			if IsNotFound(err) {
@@ -47,10 +46,17 @@ func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("[DEBUG] Episode found - Podcast Index ID: %d, Title: %s, AudioURL: %s",
-			podcastIndexID, episode.Title, episode.AudioURL)
+		// Convert to Podcast Index format and enrich with waveform
+		pieFormat := deps.EpisodeTransformer.ModelToPodcastIndex(episode)
+		enricher := NewEpisodeEnricher(deps)
+		enhanced := enricher.EnrichSingleEpisodeWithWaveform(c.Request.Context(), &pieFormat)
 
-		response := deps.EpisodeTransformer.CreateSingleEpisodeResponse(episode)
+		// Wrap in standard response format
+		response := EpisodeByGUIDEnhancedResponse{
+			Status:      "true",
+			Episode:     enhanced,
+			Description: "Episode found",
+		}
 		c.JSON(http.StatusOK, response)
 	}
 }
