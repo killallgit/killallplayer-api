@@ -20,7 +20,7 @@ import (
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/api/version"
 	"github.com/killallgit/player-api/api/waveform"
-	_ "github.com/killallgit/player-api/docs/swagger"
+	_ "github.com/killallgit/player-api/docs"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/internal/services/waveforms"
