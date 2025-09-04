@@ -182,68 +182,6 @@ func TestRepository_GetEpisodesByPodcastID(t *testing.T) {
 	assert.Equal(t, "Episode 5", episodes[1].Title)
 }
 
-func TestRepository_MarkEpisodeAsPlayed(t *testing.T) {
-	db := setupTestDB(t)
-	repo := NewRepository(db)
-
-	// Create an episode
-	episode := &models.Episode{
-		PodcastID: 1,
-		Title:     "Playback Test",
-		AudioURL:  "https://example.com/test.mp3",
-		GUID:      "playback-guid",
-		Played:    false,
-	}
-
-	err := repo.CreateEpisode(context.Background(), episode)
-	require.NoError(t, err)
-
-	// Mark as played
-	err = repo.MarkEpisodeAsPlayed(context.Background(), episode.ID, true)
-	require.NoError(t, err)
-
-	// Verify
-	var retrieved models.Episode
-	err = db.First(&retrieved, episode.ID).Error
-	require.NoError(t, err)
-	assert.True(t, retrieved.Played)
-
-	// Mark as unplayed
-	err = repo.MarkEpisodeAsPlayed(context.Background(), episode.ID, false)
-	require.NoError(t, err)
-
-	err = db.First(&retrieved, episode.ID).Error
-	require.NoError(t, err)
-	assert.False(t, retrieved.Played)
-}
-
-func TestRepository_UpdatePlaybackPosition(t *testing.T) {
-	db := setupTestDB(t)
-	repo := NewRepository(db)
-
-	// Create an episode
-	episode := &models.Episode{
-		PodcastID: 1,
-		Title:     "Position Test",
-		AudioURL:  "https://example.com/test.mp3",
-		GUID:      "position-guid",
-		Position:  0,
-	}
-
-	err := repo.CreateEpisode(context.Background(), episode)
-	require.NoError(t, err)
-
-	// Update position
-	err = repo.UpdatePlaybackPosition(context.Background(), episode.ID, 1234)
-	require.NoError(t, err)
-
-	// Verify
-	var retrieved models.Episode
-	err = db.First(&retrieved, episode.ID).Error
-	require.NoError(t, err)
-	assert.Equal(t, 1234, retrieved.Position)
-}
-
 func TestRepository_UpsertEpisode(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewRepository(db)

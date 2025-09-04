@@ -271,52 +271,6 @@ func (s *Service) GetRecentEpisodes(ctx context.Context, limit int) ([]models.Ep
 	return episodes, nil
 }
 
-// UpdatePlaybackState updates the playback state of an episode
-func (s *Service) UpdatePlaybackState(ctx context.Context, id uint, position int, played bool) error {
-	// Update position
-	if err := s.repository.UpdatePlaybackPosition(ctx, id, position); err != nil {
-		return fmt.Errorf("updating playback position: %w", err)
-	}
-
-	// Update played status
-	if err := s.repository.MarkEpisodeAsPlayed(ctx, id, played); err != nil {
-		return fmt.Errorf("updating played status: %w", err)
-	}
-
-	// Invalidate cache for this episode
-	s.cache.Invalidate(s.keyGen.EpisodeByID(id))
-
-	return nil
-}
-
-// UpdatePlaybackStateByPodcastIndexID updates the playback state of an episode using Podcast Index ID
-func (s *Service) UpdatePlaybackStateByPodcastIndexID(ctx context.Context, podcastIndexID int64, position int, played bool) error {
-	// First get the episode to find the internal ID
-	episode, err := s.repository.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
-	if err != nil {
-		return fmt.Errorf("finding episode by podcast index id: %w", err)
-	}
-
-	// Update position
-	if err := s.repository.UpdatePlaybackPosition(ctx, episode.ID, position); err != nil {
-		return fmt.Errorf("updating playback position: %w", err)
-	}
-
-	// Update played status
-	if err := s.repository.MarkEpisodeAsPlayed(ctx, episode.ID, played); err != nil {
-		return fmt.Errorf("updating played status: %w", err)
-	}
-
-	// Invalidate cache for this episode
-	s.cache.Invalidate(s.keyGen.EpisodeByID(episode.ID))
-	// Also invalidate cache by Podcast Index ID if available
-	if episode.PodcastIndexID != 0 {
-		s.cache.Invalidate(s.keyGen.EpisodeByPodcastIndexID(episode.PodcastIndexID))
-	}
-
-	return nil
-}
-
 // Constants for default configuration
 const (
 	DefaultSyncTimeout        = 30 * time.Second

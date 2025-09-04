@@ -251,32 +251,6 @@ func TestService_GetEpisodeByID_NotFound(t *testing.T) {
 	mockCache.AssertNotCalled(t, "SetEpisode")
 }
 
-func TestService_UpdatePlaybackState(t *testing.T) {
-	// Setup
-	mockRepo := new(MockRepository)
-	mockCache := new(MockCache)
-	mockFetcher := new(MockFetcher)
-
-	service := NewService(mockFetcher, mockRepo, mockCache)
-
-	// Mock repository calls
-	mockRepo.On("UpdatePlaybackPosition", mock.Anything, uint(1), 1234).Return(nil)
-	mockRepo.On("MarkEpisodeAsPlayed", mock.Anything, uint(1), true).Return(nil)
-
-	// Mock cache invalidation
-	mockCache.On("Invalidate", "episode:id:1").Return()
-
-	// Execute
-	err := service.UpdatePlaybackState(context.Background(), 1, 1234, true)
-
-	// Assert
-	require.NoError(t, err)
-
-	// Verify all mocks were called
-	mockRepo.AssertExpectations(t)
-	mockCache.AssertExpectations(t)
-}
-
 func TestService_FetchAndSyncEpisodes(t *testing.T) {
 	// Setup
 	mockRepo := new(MockRepository)

@@ -83,14 +83,3 @@ type Subscription struct {
 	User      User    `json:"-" gorm:"foreignKey:UserID"`
 	Podcast   Podcast `json:"podcast,omitempty" gorm:"foreignKey:PodcastID"`
 }
-
-// PlaybackState represents the playback state of an episode for a user
-type PlaybackState struct {
-	gorm.Model
-	UserID    uint    `json:"user_id" gorm:"not null"`
-	EpisodeID uint    `json:"episode_id" gorm:"not null"`
-	Position  int     `json:"position"` // Current playback position in seconds
-	Completed bool    `json:"completed" gorm:"default:false"`
-	User      User    `json:"-" gorm:"foreignKey:UserID"`
-	Episode   Episode `json:"episode,omitempty" gorm:"foreignKey:EpisodeID"`
-}

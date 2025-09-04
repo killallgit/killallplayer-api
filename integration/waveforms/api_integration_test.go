@@ -51,7 +51,7 @@ func setupAPITestSuite(t *testing.T) *APITestSuite {
 	}
 
 	// Run migrations
-	err = db.AutoMigrate(&models.Podcast{}, &models.Episode{}, &models.User{}, &models.Subscription{}, &models.PlaybackState{}, &models.Region{}, &models.Waveform{})
+	err = db.AutoMigrate(&models.Podcast{}, &models.Episode{}, &models.User{}, &models.Subscription{}, &models.Region{}, &models.Waveform{})
 	if err != nil {
 		t.Fatalf("Failed to migrate test database: %v", err)
 	}

@@ -22,8 +22,6 @@ type EpisodeRepository interface {
 
 	// Update operations
 	UpdateEpisode(ctx context.Context, episode *models.Episode) error
-	MarkEpisodeAsPlayed(ctx context.Context, id uint, played bool) error
-	UpdatePlaybackPosition(ctx context.Context, id uint, position int) error
 
 	// Delete operations
 	DeleteEpisode(ctx context.Context, id uint) error
@@ -65,10 +63,6 @@ type EpisodeService interface {
 	GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error)
 	GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error)
 	GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error)
-
-	// Playback operations
-	UpdatePlaybackState(ctx context.Context, id uint, position int, played bool) error
-	UpdatePlaybackStateByPodcastIndexID(ctx context.Context, podcastIndexID int64, position int, played bool) error
 }
 
 // EpisodeTransformer defines the interface for transforming between different episode formats

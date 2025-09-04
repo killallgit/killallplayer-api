@@ -125,7 +125,6 @@ func InitializeWithMigrations() (*DB, error) {
 		&models.Episode{},
 		&models.User{},
 		&models.Subscription{},
-		&models.PlaybackState{},
 		&models.Region{},
 		&models.Waveform{},
 		&models.Job{},

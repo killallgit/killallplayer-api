@@ -139,16 +139,3 @@ func (t *Transformer) CreateSingleEpisodeResponse(episode *models.Episode) Episo
 		Description: "Episode found",
 	}
 }
-
-// ApplyPlaybackState applies user-specific playback state to episodes
-// This should be called after fetching episodes to add user context
-func (t *Transformer) ApplyPlaybackState(episodes []PodcastIndexEpisode, playbackStates map[uint]models.PlaybackState) {
-	// This is a placeholder for applying user-specific state
-	// In a real implementation, this would merge playback state with episodes
-	for i := range episodes {
-		if state, exists := playbackStates[uint(episodes[i].ID)]; exists {
-			// Could add custom fields or modify existing ones based on playback state
-			_ = state // Use the state as needed
-		}
-	}
-}

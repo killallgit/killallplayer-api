@@ -29,6 +29,4 @@ func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
 	// Returns episode with waveform status
 	router.GET("/:id", GetByID(deps))
 
-	// PUT /api/v1/episodes/:id/playback
-	router.PUT("/:id/playback", PutPlayback(deps))
 }

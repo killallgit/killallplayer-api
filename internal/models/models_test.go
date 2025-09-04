@@ -127,19 +127,3 @@ func TestSubscriptionModel(t *testing.T) {
 	assert.Equal(t, uint(1), subscription.UserID)
 	assert.Equal(t, uint(2), subscription.PodcastID)
 }
-
-func TestPlaybackStateModel(t *testing.T) {
-	playbackState := PlaybackState{
-		Model:     gorm.Model{},
-		UserID:    1,
-		EpisodeID: 2,
-		Position:  1800, // 30 minutes
-		Completed: false,
-	}
-
-	// Test field values
-	assert.Equal(t, uint(1), playbackState.UserID)
-	assert.Equal(t, uint(2), playbackState.EpisodeID)
-	assert.Equal(t, 1800, playbackState.Position)
-	assert.False(t, playbackState.Completed)
-}

@@ -137,33 +137,3 @@ func (r *Repository) UpsertEpisode(ctx context.Context, episode *models.Episode)
 
 	return fmt.Errorf("checking existing episode: %w", err)
 }
-
-func (r *Repository) MarkEpisodeAsPlayed(ctx context.Context, id uint, played bool) error {
-	result := r.db.WithContext(ctx).
-		Model(&models.Episode{}).
-		Where("id = ?", id).
-		Update("played", played)
-
-	if result.Error != nil {
-		return fmt.Errorf("updating played status: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return NewNotFoundError("episode", id)
-	}
-	return nil
-}
-
-func (r *Repository) UpdatePlaybackPosition(ctx context.Context, id uint, position int) error {
-	result := r.db.WithContext(ctx).
-		Model(&models.Episode{}).
-		Where("id = ?", id).
-		Update("position", position)
-
-	if result.Error != nil {
-		return fmt.Errorf("updating playback position: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return NewNotFoundError("episode", id)
-	}
-	return nil
-}
