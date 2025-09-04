@@ -51,7 +51,7 @@ type PodcastIndexEpisode struct {
 
 // PodcastIndexResponse represents the standard response wrapper from Podcast Index API
 type PodcastIndexResponse struct {
-	Status      string                `json:"status" example:"true"`        // "true" or "false"
+	Status      string                `json:"status" example:"true"` // "true" or "false"
 	Items       []PodcastIndexEpisode `json:"items"`
 	LiveItems   []PodcastIndexEpisode `json:"liveItems,omitempty"`
 	Count       int                   `json:"count" example:"10"`

@@ -61,12 +61,13 @@ tasks:
       - go vet ./...
 
   check:
-    desc: Run all checks (fmt, vet, lint, test)
+    desc: Run all checks (fmt, vet, lint, test, docs)
     cmds:
       - task: fmt
       - task: vet
       - task: lint
       - task: test
+      - task: docs:generate
 
   # Database tasks
   db:migrate:
@@ -94,7 +95,7 @@ tasks:
   docs:generate:
     desc: Generate Swagger documentation
     cmds:
-      - swag init --output docs/swagger --parseDependency
+      - swag init --output docs/swagger --parseDependency -td "[[,]]"
 
   docs:serve:
     desc: Generate docs and serve the API to view Swagger UI

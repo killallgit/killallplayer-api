@@ -244,3 +244,323 @@ func (c *Client) GetEpisodeByGUID(ctx context.Context, guid string) (*EpisodeByG
 
 	return &episodeResp, nil
 }
+
+// GetPodcastByFeedURL fetches podcast information by feed URL
+func (c *Client) GetPodcastByFeedURL(ctx context.Context, feedURL string) (*PodcastResponse, error) {
+	if feedURL == "" {
+		return nil, fmt.Errorf("feed URL cannot be empty")
+	}
+
+	params := url.Values{}
+	params.Set("url", feedURL)
+
+	endpoint := fmt.Sprintf("%s/podcasts/byfeedurl?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var podcastResp PodcastResponse
+	if err := json.NewDecoder(resp.Body).Decode(&podcastResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if podcastResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", podcastResp.Description)
+	}
+
+	return &podcastResp, nil
+}
+
+// GetPodcastByFeedID fetches podcast information by feed ID
+func (c *Client) GetPodcastByFeedID(ctx context.Context, feedID int64) (*PodcastResponse, error) {
+	params := url.Values{}
+	params.Set("id", fmt.Sprintf("%d", feedID))
+
+	endpoint := fmt.Sprintf("%s/podcasts/byfeedid?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var podcastResp PodcastResponse
+	if err := json.NewDecoder(resp.Body).Decode(&podcastResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if podcastResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", podcastResp.Description)
+	}
+
+	return &podcastResp, nil
+}
+
+// GetPodcastByiTunesID fetches podcast information by iTunes ID
+func (c *Client) GetPodcastByiTunesID(ctx context.Context, itunesID int64) (*PodcastResponse, error) {
+	params := url.Values{}
+	params.Set("id", fmt.Sprintf("%d", itunesID))
+
+	endpoint := fmt.Sprintf("%s/podcasts/byitunesid?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var podcastResp PodcastResponse
+	if err := json.NewDecoder(resp.Body).Decode(&podcastResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if podcastResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", podcastResp.Description)
+	}
+
+	return &podcastResp, nil
+}
+
+// AddPodcastByFeedURL adds a podcast to the index by feed URL
+func (c *Client) AddPodcastByFeedURL(ctx context.Context, feedURL string) (*AddPodcastResponse, error) {
+	if feedURL == "" {
+		return nil, fmt.Errorf("feed URL cannot be empty")
+	}
+
+	params := url.Values{}
+	params.Set("url", feedURL)
+
+	endpoint := fmt.Sprintf("%s/add/byfeedurl?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var addResp AddPodcastResponse
+	if err := json.NewDecoder(resp.Body).Decode(&addResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if addResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", addResp.Description)
+	}
+
+	return &addResp, nil
+}
+
+// GetEpisodesByFeedURL fetches episodes for a podcast by feed URL
+func (c *Client) GetEpisodesByFeedURL(ctx context.Context, feedURL string, limit int) (*EpisodesResponse, error) {
+	if feedURL == "" {
+		return nil, fmt.Errorf("feed URL cannot be empty")
+	}
+
+	params := url.Values{}
+	params.Set("url", feedURL)
+	if limit > 0 {
+		params.Set("max", fmt.Sprintf("%d", limit))
+	}
+
+	endpoint := fmt.Sprintf("%s/episodes/byfeedurl?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var episodesResp EpisodesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&episodesResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if episodesResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", episodesResp.Description)
+	}
+
+	return &episodesResp, nil
+}
+
+// GetEpisodesByiTunesID fetches episodes for a podcast by iTunes ID
+func (c *Client) GetEpisodesByiTunesID(ctx context.Context, itunesID int64, limit int) (*EpisodesResponse, error) {
+	params := url.Values{}
+	params.Set("id", fmt.Sprintf("%d", itunesID))
+	if limit > 0 {
+		params.Set("max", fmt.Sprintf("%d", limit))
+	}
+
+	endpoint := fmt.Sprintf("%s/episodes/byitunesid?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var episodesResp EpisodesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&episodesResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if episodesResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", episodesResp.Description)
+	}
+
+	return &episodesResp, nil
+}
+
+// GetRecentEpisodes fetches the most recent episodes globally
+func (c *Client) GetRecentEpisodes(ctx context.Context, limit int) (*EpisodesResponse, error) {
+	if limit <= 0 {
+		limit = 25
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	params := url.Values{}
+	params.Set("max", fmt.Sprintf("%d", limit))
+
+	endpoint := fmt.Sprintf("%s/recent/episodes?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var episodesResp EpisodesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&episodesResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if episodesResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", episodesResp.Description)
+	}
+
+	return &episodesResp, nil
+}
+
+// GetRecentFeeds fetches the most recently updated feeds
+func (c *Client) GetRecentFeeds(ctx context.Context, limit int) (*RecentFeedsResponse, error) {
+	if limit <= 0 {
+		limit = 25
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	params := url.Values{}
+	params.Set("max", fmt.Sprintf("%d", limit))
+
+	endpoint := fmt.Sprintf("%s/recent/feeds?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	var feedsResp RecentFeedsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&feedsResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if feedsResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", feedsResp.Description)
+	}
+
+	return &feedsResp, nil
+}

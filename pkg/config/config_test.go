@@ -36,8 +36,8 @@ database:
 			},
 			wantErr: false,
 			check: func(t *testing.T) {
-				if GetString("server.host") != "127.0.0.1" {
-					t.Errorf("Expected server.host to be 127.0.0.1, got %s", GetString("server.host"))
+				if GetInt("server.port") != 8080 {
+					t.Errorf("Expected server.port to be 8080, got %d", GetInt("server.port"))
 				}
 			},
 		},

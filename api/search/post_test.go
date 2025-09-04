@@ -39,6 +39,39 @@ func (m *mockSearcher) GetEpisodesByPodcastID(ctx context.Context, podcastID int
 	return &podcastindex.EpisodesResponse{}, nil
 }
 
+// Additional methods required by PodcastClient interface
+func (m *mockSearcher) GetPodcastByFeedURL(ctx context.Context, feedURL string) (*podcastindex.PodcastResponse, error) {
+	return &podcastindex.PodcastResponse{}, nil
+}
+
+func (m *mockSearcher) GetPodcastByFeedID(ctx context.Context, feedID int64) (*podcastindex.PodcastResponse, error) {
+	return &podcastindex.PodcastResponse{}, nil
+}
+
+func (m *mockSearcher) GetPodcastByiTunesID(ctx context.Context, itunesID int64) (*podcastindex.PodcastResponse, error) {
+	return &podcastindex.PodcastResponse{}, nil
+}
+
+func (m *mockSearcher) AddPodcastByFeedURL(ctx context.Context, feedURL string) (*podcastindex.AddPodcastResponse, error) {
+	return &podcastindex.AddPodcastResponse{}, nil
+}
+
+func (m *mockSearcher) GetEpisodesByFeedURL(ctx context.Context, feedURL string, limit int) (*podcastindex.EpisodesResponse, error) {
+	return &podcastindex.EpisodesResponse{}, nil
+}
+
+func (m *mockSearcher) GetEpisodesByiTunesID(ctx context.Context, itunesID int64, limit int) (*podcastindex.EpisodesResponse, error) {
+	return &podcastindex.EpisodesResponse{}, nil
+}
+
+func (m *mockSearcher) GetRecentEpisodes(ctx context.Context, limit int) (*podcastindex.EpisodesResponse, error) {
+	return &podcastindex.EpisodesResponse{}, nil
+}
+
+func (m *mockSearcher) GetRecentFeeds(ctx context.Context, limit int) (*podcastindex.RecentFeedsResponse, error) {
+	return &podcastindex.RecentFeedsResponse{}, nil
+}
+
 func TestPost(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

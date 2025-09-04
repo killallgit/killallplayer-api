@@ -327,7 +327,10 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get recent episodes across all podcasts with optional limit parameter
+      - application/json
+      description: |-
+        Get recent episodes across all podcasts with optional limit parameter
+        Get recent episodes across all podcasts with optional limit and podcast_id parameters
       parameters:
       - default: 50
         description: Number of episodes to return (1-1000)
@@ -336,7 +339,19 @@ paths:
         minimum: 1
         name: limit
         type: integer
+      - default: 50
+        description: Number of episodes to return (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: limit
+        type: integer
+      - description: Filter episodes by podcast ID
+        in: query
+        name: podcast_id
+        type: integer
       produces:
+      - application/json
       - application/json
       responses:
         "200":
@@ -347,8 +362,9 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
-      summary: Get all episodes
+      summary: Get episodes
       tags:
+      - episodes
       - episodes
   /api/v1/episodes/{id}:
     get:
