@@ -116,6 +116,148 @@
                 }
             }
         },
+        "/api/v1/episodes/annotations/{id}": {
+            "put": {
+                "description": "Update an existing annotation's label, start time, or end time",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "annotations"
+                ],
+                "summary": "Update annotation",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Annotation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated annotation data (label, start_time, end_time)",
+                        "name": "annotation",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Annotation"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated annotation",
+                        "schema": {
+                            "$ref": "#/definitions/models.Annotation"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Annotation not found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an existing annotation by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "annotations"
+                ],
+                "summary": "Delete annotation",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Annotation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Annotation deleted successfully",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid annotation ID",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Annotation not found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/episodes/by-guid": {
             "get": {
                 "description": "Retrieve a single episode by its GUID with waveform status",
@@ -213,6 +355,129 @@
                         "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/{id}/annotations": {
+            "get": {
+                "description": "Retrieve all annotations (labeled time segments) for a specific episode, ordered by start time",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "annotations"
+                ],
+                "summary": "Get annotations for episode",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of annotations",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "annotations": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/models.Annotation"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid episode ID",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new annotation (labeled time segment) for ML training on a specific episode",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "annotations"
+                ],
+                "summary": "Create annotation for episode",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Annotation data (label, start_time, end_time)",
+                        "name": "annotation",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Annotation"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created annotation",
+                        "schema": {
+                            "$ref": "#/definitions/models.Annotation"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -931,6 +1196,167 @@
                 }
             }
         },
+        "gorm.DeletedAt": {
+            "type": "object",
+            "properties": {
+                "time": {
+                    "type": "string"
+                },
+                "valid": {
+                    "description": "Valid is true if Time is not NULL",
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.Annotation": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "end_time": {
+                    "description": "Time in seconds",
+                    "type": "number"
+                },
+                "episode": {
+                    "description": "Relationship",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Episode"
+                        }
+                    ]
+                },
+                "episode_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "description": "Time in seconds",
+                    "type": "number"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Episode": {
+            "type": "object",
+            "properties": {
+                "annotations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Annotation"
+                    }
+                },
+                "audio_url": {
+                    "description": "Media information",
+                    "type": "string"
+                },
+                "chapters_url": {
+                    "description": "Podcast 2.0 features",
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "date_crawled": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "description": "Duration in seconds, nullable",
+                    "type": "integer"
+                },
+                "enclosure_length": {
+                    "type": "integer"
+                },
+                "enclosure_type": {
+                    "type": "string"
+                },
+                "episode_number": {
+                    "description": "Episode metadata",
+                    "type": "integer"
+                },
+                "episode_type": {
+                    "description": "full, trailer, bonus",
+                    "type": "string"
+                },
+                "explicit": {
+                    "description": "0=not explicit, 1=explicit",
+                    "type": "integer"
+                },
+                "feed_image": {
+                    "type": "string"
+                },
+                "feed_itunes_id": {
+                    "type": "integer"
+                },
+                "feed_language": {
+                    "type": "string"
+                },
+                "feed_title": {
+                    "description": "Feed metadata (denormalized for performance)",
+                    "type": "string"
+                },
+                "guid": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "podcast_id": {
+                    "description": "Core episode fields",
+                    "type": "integer"
+                },
+                "podcast_index_id": {
+                    "description": "Podcast Index episode ID",
+                    "type": "integer"
+                },
+                "published_at": {
+                    "description": "Timestamps",
+                    "type": "string"
+                },
+                "season": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "transcript_url": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "waveform": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Waveform"
+                        }
+                    ]
+                }
+            }
+        },
         "models.SearchRequest": {
             "type": "object",
             "required": [
@@ -948,6 +1374,46 @@
                     "maxLength": 200,
                     "minLength": 1,
                     "example": "technology podcasts"
+                }
+            }
+        },
+        "models.Waveform": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "duration": {
+                    "description": "Duration in seconds",
+                    "type": "number"
+                },
+                "episode": {
+                    "description": "Relationship",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Episode"
+                        }
+                    ]
+                },
+                "episode_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "resolution": {
+                    "description": "Number of peaks",
+                    "type": "integer"
+                },
+                "sample_rate": {
+                    "description": "Sample rate of original audio",
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         },
@@ -1080,8 +1546,8 @@
             "name": "waveform"
         },
         {
-            "description": "Playback region and bookmark management",
-            "name": "regions"
+            "description": "ML training annotations for audio segments",
+            "name": "annotations"
         }
     ]
 }

@@ -385,6 +385,114 @@ definitions:
         example: ok
         type: string
     type: object
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
+    type: object
+  models.Annotation:
+    properties:
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      end_time:
+        description: Time in seconds
+        type: number
+      episode:
+        allOf:
+        - $ref: '#/definitions/models.Episode'
+        description: Relationship
+      episode_id:
+        type: integer
+      id:
+        type: integer
+      label:
+        type: string
+      start_time:
+        description: Time in seconds
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  models.Episode:
+    properties:
+      annotations:
+        items:
+          $ref: '#/definitions/models.Annotation'
+        type: array
+      audio_url:
+        description: Media information
+        type: string
+      chapters_url:
+        description: Podcast 2.0 features
+        type: string
+      createdAt:
+        type: string
+      date_crawled:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
+      duration:
+        description: Duration in seconds, nullable
+        type: integer
+      enclosure_length:
+        type: integer
+      enclosure_type:
+        type: string
+      episode_number:
+        description: Episode metadata
+        type: integer
+      episode_type:
+        description: full, trailer, bonus
+        type: string
+      explicit:
+        description: 0=not explicit, 1=explicit
+        type: integer
+      feed_image:
+        type: string
+      feed_itunes_id:
+        type: integer
+      feed_language:
+        type: string
+      feed_title:
+        description: Feed metadata (denormalized for performance)
+        type: string
+      guid:
+        type: string
+      id:
+        type: integer
+      image:
+        type: string
+      link:
+        type: string
+      podcast_id:
+        description: Core episode fields
+        type: integer
+      podcast_index_id:
+        description: Podcast Index episode ID
+        type: integer
+      published_at:
+        description: Timestamps
+        type: string
+      season:
+        type: integer
+      title:
+        type: string
+      transcript_url:
+        type: string
+      updatedAt:
+        type: string
+      waveform:
+        allOf:
+        - $ref: '#/definitions/models.Waveform'
+        description: Relationships
+    type: object
   models.SearchRequest:
     properties:
       limit:
@@ -399,6 +507,32 @@ definitions:
         type: string
     required:
     - query
+    type: object
+  models.Waveform:
+    properties:
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      duration:
+        description: Duration in seconds
+        type: number
+      episode:
+        allOf:
+        - $ref: '#/definitions/models.Episode'
+        description: Relationship
+      episode_id:
+        type: integer
+      id:
+        type: integer
+      resolution:
+        description: Number of peaks
+        type: integer
+      sample_rate:
+        description: Sample rate of original audio
+        type: integer
+      updatedAt:
+        type: string
     type: object
   podcastindex.Podcast:
     properties:
@@ -581,6 +715,180 @@ paths:
       summary: Get episode by ID with waveform status
       tags:
       - episodes
+  /api/v1/episodes/{id}/annotations:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all annotations (labeled time segments) for a specific
+        episode, ordered by start time
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of annotations
+          schema:
+            properties:
+              annotations:
+                items:
+                  $ref: '#/definitions/models.Annotation'
+                type: array
+            type: object
+        "400":
+          description: Invalid episode ID
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get annotations for episode
+      tags:
+      - annotations
+    post:
+      consumes:
+      - application/json
+      description: Create a new annotation (labeled time segment) for ML training
+        on a specific episode
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Annotation data (label, start_time, end_time)
+        in: body
+        name: annotation
+        required: true
+        schema:
+          $ref: '#/definitions/models.Annotation'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created annotation
+          schema:
+            $ref: '#/definitions/models.Annotation'
+        "400":
+          description: Invalid request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Create annotation for episode
+      tags:
+      - annotations
+  /api/v1/episodes/annotations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an existing annotation by ID
+      parameters:
+      - description: Annotation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Annotation deleted successfully
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Invalid annotation ID
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Annotation not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Delete annotation
+      tags:
+      - annotations
+    put:
+      consumes:
+      - application/json
+      description: Update an existing annotation's label, start time, or end time
+      parameters:
+      - description: Annotation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated annotation data (label, start_time, end_time)
+        in: body
+        name: annotation
+        required: true
+        schema:
+          $ref: '#/definitions/models.Annotation'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated annotation
+          schema:
+            $ref: '#/definitions/models.Annotation'
+        "400":
+          description: Invalid request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Annotation not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Update annotation
+      tags:
+      - annotations
   /api/v1/episodes/by-guid:
     get:
       consumes:
@@ -742,5 +1050,5 @@ tags:
   name: podcasts
 - description: Audio waveform generation and retrieval
   name: waveform
-- description: Playback region and bookmark management
-  name: regions
+- description: ML training annotations for audio segments
+  name: annotations

@@ -78,8 +78,6 @@ func TestEpisodeModel(t *testing.T) {
 		Duration:    &duration,
 		GUID:        "episode-123",
 		PublishedAt: publishedAt,
-		Position:    0,
-		Played:      false,
 	}
 
 	// Test field values
@@ -90,8 +88,6 @@ func TestEpisodeModel(t *testing.T) {
 	assert.Equal(t, "episode-123", episode.GUID)
 	assert.Equal(t, publishedAt, episode.PublishedAt)
 	assert.Equal(t, uint(1), episode.PodcastID)
-	assert.Equal(t, 0, episode.Position)
-	assert.False(t, episode.Played)
 }
 
 func TestPodcastModel(t *testing.T) {

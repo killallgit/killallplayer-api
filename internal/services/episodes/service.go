@@ -132,10 +132,8 @@ func (s *Service) SyncEpisodesToDatabase(ctx context.Context, episodes []Podcast
 			// Check if episode exists
 			existing, err := s.repository.GetEpisodeByGUID(ctx, episode.GUID)
 			if err == nil && existing != nil {
-				// Preserve playback state
+				// Preserve existing data
 				episode.ID = existing.ID
-				episode.Played = existing.Played
-				episode.Position = existing.Position
 				episode.CreatedAt = existing.CreatedAt
 
 				err = s.repository.UpdateEpisode(ctx, episode)

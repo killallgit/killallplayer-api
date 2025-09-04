@@ -330,10 +330,8 @@ func TestService_FetchAndSyncEpisodes_UpdateExisting(t *testing.T) {
 
 	// Create existing episode
 	existingEpisode := &models.Episode{
-		Title:    "Old Episode 1",
-		GUID:     "guid-1",
-		Played:   true,
-		Position: 1234,
+		Title: "Old Episode 1",
+		GUID:  "guid-1",
 	}
 	existingEpisode.ID = 1
 

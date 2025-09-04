@@ -57,12 +57,9 @@ type Episode struct {
 	ChaptersURL   string `json:"chapters_url"`
 	TranscriptURL string `json:"transcript_url"`
 
-	// Playback state (user-specific, should be in separate table for multi-user)
-	Played   bool `json:"played" gorm:"default:false"`
-	Position int  `json:"position" gorm:"default:0"` // Current playback position in seconds
-
-	// Waveform relationship (one-to-one)
-	Waveform *Waveform `json:"waveform,omitempty" gorm:"foreignKey:EpisodeID"`
+	// Relationships
+	Waveform    *Waveform    `json:"waveform,omitempty" gorm:"foreignKey:EpisodeID"`
+	Annotations []Annotation `json:"annotations,omitempty" gorm:"foreignKey:EpisodeID"`
 }
 
 // User represents a user account

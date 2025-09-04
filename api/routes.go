@@ -9,10 +9,10 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	"github.com/killallgit/player-api/api/annotations"
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/podcasts"
-	"github.com/killallgit/player-api/api/regions"
 	"github.com/killallgit/player-api/api/search"
 	"github.com/killallgit/player-api/api/trending"
 	"github.com/killallgit/player-api/api/types"
@@ -122,10 +122,11 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		waveformGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
 		waveform.RegisterRoutes(waveformGroup, deps)
 
-		// Register regions routes with general rate limiting (10 req/s, burst of 20)
-		regionsGroup := v1.Group("/regions")
-		regionsGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
-		regions.RegisterRoutes(regionsGroup, deps)
+		// Register annotation routes with moderate rate limiting (10 req/s, burst of 20)
+		annotationGroup := v1.Group("/episodes")
+		annotationGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
+		annotations.RegisterRoutes(annotationGroup, deps)
+
 		// Register podcast routes with mixed rate limiting
 		podcastGroup := v1.Group("/podcasts")
 		// Create middleware for different rate limits

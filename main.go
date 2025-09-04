@@ -44,8 +44,8 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 // @tag.name			waveform
 // @tag.description	Audio waveform generation and retrieval
 
-// @tag.name			regions
-// @tag.description	Playback region and bookmark management
+// @tag.name			annotations
+// @tag.description	ML training annotations for audio segments
 
 package main
 
