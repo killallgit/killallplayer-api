@@ -19,7 +19,6 @@ tasks:
     desc: Start the API server
     deps: [build]
     cmds:
-      - kill -9 $(lsof -t -i tcp:8080) || true
       - ./{{.BUILD_DIR}}/{{.BINARY_NAME}} serve
 
   build:

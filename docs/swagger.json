@@ -168,58 +168,6 @@
         },
         "/api/v1/episodes/{id}": {
             "get": {
-                "description": "Retrieve a single episode by its Podcast Index ID with waveform status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "episodes"
-                ],
-                "summary": "Get episode by ID",
-                "parameters": [
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "example": 123456789,
-                        "description": "Episode Podcast Index ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Episode details with waveform",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.EpisodeByGUIDEnhancedResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - invalid ID",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Episode not found",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/episodes/{id}/enhanced": {
-            "get": {
                 "description": "Retrieve a single episode by its Podcast Index ID including waveform processing status",
                 "consumes": [
                     "application/json"

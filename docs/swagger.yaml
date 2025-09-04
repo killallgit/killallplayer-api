@@ -560,42 +560,6 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve a single episode by its Podcast Index ID with waveform
-        status
-      parameters:
-      - description: Episode Podcast Index ID
-        example: 123456789
-        in: path
-        minimum: 1
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Episode details with waveform
-          schema:
-            $ref: '#/definitions/episodes.EpisodeByGUIDEnhancedResponse'
-        "400":
-          description: Bad request - invalid ID
-          schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
-        "404":
-          description: Episode not found
-          schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
-      summary: Get episode by ID
-      tags:
-      - episodes
-  /api/v1/episodes/{id}/enhanced:
-    get:
-      consumes:
-      - application/json
       description: Retrieve a single episode by its Podcast Index ID including waveform
         processing status
       parameters:

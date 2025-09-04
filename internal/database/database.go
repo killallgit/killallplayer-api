@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -30,7 +29,7 @@ func Initialize(dbPath string, verbose bool) (*DB, error) {
 	}
 
 	// Configure GORM logger
-	logLevel := logger.Error
+	logLevel := logger.Silent
 	if verbose {
 		logLevel = logger.Info
 	}
@@ -97,7 +96,8 @@ func (db *DB) AutoMigrate(models ...any) error {
 	if err := db.DB.AutoMigrate(models...); err != nil {
 		return fmt.Errorf("auto migration failed: %w", err)
 	}
-	log.Printf("Successfully migrated %d model(s)", len(models))
+	// Only log migration success if verbose is enabled
+	// to avoid confusion with SQL query logs
 	return nil
 }
 
