@@ -4,11 +4,11 @@ package swagger
 import "github.com/swaggo/swag"
 
 const docTemplate = `{
-    "schemes": [[ marshal .Schemes ]],
+    "schemes": {{ marshal .Schemes }},
     "swagger": "2.0",
     "info": {
-        "description": "[[escape .Description]]",
-        "title": "[[.Title]]",
+        "description": "{{escape .Description}}",
+        "title": "{{.Title}}",
         "contact": {
             "name": "Podcast Player API Support",
             "url": "https://github.com/killallgit/killallplayer-api",
@@ -18,10 +18,10 @@ const docTemplate = `{
             "name": "MIT",
             "url": "https://opensource.org/licenses/MIT"
         },
-        "version": "[[.Version]]"
+        "version": "{{.Version}}"
     },
-    "host": "[[.Host]]",
-    "basePath": "[[.BasePath]]",
+    "host": "{{.Host}}",
+    "basePath": "{{.BasePath}}",
     "paths": {
         "/": {
             "get": {

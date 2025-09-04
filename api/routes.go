@@ -12,6 +12,7 @@ import (
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/podcasts"
+	"github.com/killallgit/player-api/api/recent"
 	"github.com/killallgit/player-api/api/regions"
 	"github.com/killallgit/player-api/api/search"
 	"github.com/killallgit/player-api/api/stream"
@@ -133,6 +134,11 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		episodesMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20)
 		syncMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 1, 2)
 		podcasts.RegisterRoutes(podcastGroup, deps, episodesMiddleware, syncMiddleware)
+
+		// Register recent discovery routes with general rate limiting (10 req/s, burst of 20)
+		recentGroup := v1.Group("/recent")
+		recentGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
+		recent.RegisterRoutes(recentGroup, deps)
 	}
 
 	return nil

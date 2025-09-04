@@ -86,3 +86,25 @@ type EpisodeByGUIDResponse struct {
 	Episode     Episode `json:"episode"`
 	Description string  `json:"description"`
 }
+
+// PodcastResponse represents the response from single podcast APIs
+type PodcastResponse struct {
+	Status      string  `json:"status"`
+	Feed        Podcast `json:"feed"`
+	Description string  `json:"description"`
+}
+
+// AddPodcastResponse represents the response from add podcast API
+type AddPodcastResponse struct {
+	Status      string `json:"status"`
+	Description string `json:"description"`
+}
+
+// RecentFeedsResponse represents the response from recent feeds API
+type RecentFeedsResponse struct {
+	Status      string    `json:"status"`
+	Feeds       []Podcast `json:"feeds"`
+	Count       int       `json:"count"`
+	Max         string    `json:"max"`
+	Description string    `json:"description"`
+}

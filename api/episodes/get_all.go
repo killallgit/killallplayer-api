@@ -19,6 +19,17 @@ import (
 // @Success      200 {object} episodes.PodcastIndexResponse "List of episodes"
 // @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
 // @Router       /api/v1/episodes [get]
+// GetAll returns episodes with optional podcast filtering
+// @Summary      Get episodes
+// @Description  Get recent episodes across all podcasts with optional limit and podcast_id parameters
+// @Tags         episodes
+// @Accept       json
+// @Produce      json
+// @Param        limit query int false "Number of episodes to return (1-1000)" minimum(1) maximum(1000) default(50)
+// @Param        podcast_id query int false "Filter episodes by podcast ID"
+// @Success      200 {object} episodes.PodcastIndexResponse "List of episodes"
+// @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
+// @Router       /api/v1/episodes [get]
 func GetAll(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse limit parameter
@@ -27,8 +38,39 @@ func GetAll(deps *types.Dependencies) gin.HandlerFunc {
 			limit = 50
 		}
 
-		// For now, use GetRecentEpisodes as our "all episodes" endpoint
-		// This returns the most recent episodes across all podcasts
+		// Check if podcast_id is provided for filtering
+		podcastIDStr := c.Query("podcast_id")
+		if podcastIDStr != "" {
+			// Parse podcast ID
+			podcastID, err := strconv.ParseUint(podcastIDStr, 10, 32)
+			if err != nil {
+				log.Printf("[ERROR] Invalid podcast_id parameter '%s': %v", podcastIDStr, err)
+				c.JSON(http.StatusBadRequest, deps.EpisodeTransformer.CreateErrorResponse("Invalid podcast_id parameter"))
+				return
+			}
+
+			// Get episodes for specific podcast from database
+			page := 1
+			episodes, total, err := deps.EpisodeService.GetEpisodesByPodcastID(c.Request.Context(), uint(podcastID), page, limit)
+			if err != nil {
+				log.Printf("[ERROR] Failed to fetch episodes for podcast %d (limit %d): %v", podcastID, limit, err)
+				c.JSON(http.StatusInternalServerError, deps.EpisodeTransformer.CreateErrorResponse("Failed to fetch episodes"))
+				return
+			}
+
+			// Transform and return
+			response := deps.EpisodeTransformer.CreateSuccessResponse(episodes, "Episodes for podcast")
+			response.Query = int64(podcastID)
+
+			if total > int64(len(episodes)) {
+				response.Description = fmt.Sprintf("Episodes for podcast (showing %d of %d total)", len(episodes), total)
+			}
+
+			c.JSON(http.StatusOK, response)
+			return
+		}
+
+		// No podcast_id provided, return recent episodes across all podcasts
 		episodes, err := deps.EpisodeService.GetRecentEpisodes(c.Request.Context(), limit)
 		if err != nil {
 			log.Printf("[ERROR] Failed to fetch episodes (limit %d): %v", limit, err)
@@ -37,7 +79,7 @@ func GetAll(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		// Transform and return
-		response := deps.EpisodeTransformer.CreateSuccessResponse(episodes, "All episodes")
+		response := deps.EpisodeTransformer.CreateSuccessResponse(episodes, "All recent episodes")
 		c.JSON(http.StatusOK, response)
 	}
 }
