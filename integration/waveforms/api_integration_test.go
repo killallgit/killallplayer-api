@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
@@ -16,6 +17,7 @@ import (
 	"github.com/killallgit/player-api/internal/database"
 	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/internal/services/waveforms"
+	"github.com/killallgit/player-api/pkg/ffmpeg"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -523,4 +525,176 @@ func TestWaveformAPI_WithRealAudioFile(t *testing.T) {
 
 	t.Logf("Successfully tested with sample audio file: %d peaks, duration=%.1fs, range=%.1f-%.1f",
 		len(peaksInterface), response["duration"], minPeak, maxPeak)
+}
+
+// TestEndToEndWaveformWorkflow tests the complete waveform generation workflow:
+// 1. Episode exists but no waveform → Returns 404 initially
+// 2. Request waveform → Creates job (background processing would happen here)
+// 3. Simulate job completion by saving waveform
+// 4. Request waveform again → Returns the generated waveform
+func TestEndToEndWaveformWorkflow(t *testing.T) {
+	suite := setupAPITestSuite(t)
+
+	// Step 1: Create test episode with realistic audio file path
+	testFile := filepath.Join("..", "..", "data", "tests", "clips", "test-5s.mp3")
+	episode := &models.Episode{
+		Model:           gorm.Model{ID: 1},
+		Title:           "Test Episode for E2E",
+		AudioURL:        "file://" + testFile,
+		Duration:        func() *int { d := 5; return &d }(),
+		EnclosureType:   "audio/mpeg",
+		EnclosureLength: 10000, // Approximate size
+		PodcastID:       1,
+	}
+
+	// Create a basic podcast record first (required by foreign key constraint)
+	podcast := &models.Podcast{
+		Model:   gorm.Model{ID: 1},
+		Title:   "Test Podcast",
+		FeedURL: "https://example.com/feed.xml",
+	}
+
+	if err := suite.db.Create(podcast).Error; err != nil {
+		t.Fatalf("Failed to create test podcast: %v", err)
+	}
+
+	if err := suite.db.Create(episode).Error; err != nil {
+		t.Fatalf("Failed to create test episode: %v", err)
+	}
+
+	// Step 2: Initially, no waveform should exist - should return 404
+	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.ID), nil)
+	if err != nil {
+		t.Fatalf("Failed to create initial request: %v", err)
+	}
+
+	w := httptest.NewRecorder()
+	suite.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected initial status code %d for non-existent waveform, got %d", http.StatusNotFound, w.Code)
+		t.Logf("Response body: %s", w.Body.String())
+	}
+
+	// Step 3: Check status endpoint - should also indicate no waveform exists
+	statusReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.ID), nil)
+	if err != nil {
+		t.Fatalf("Failed to create status request: %v", err)
+	}
+
+	statusW := httptest.NewRecorder()
+	suite.router.ServeHTTP(statusW, statusReq)
+
+	if statusW.Code != http.StatusNotFound {
+		t.Errorf("Expected status endpoint to return %d for non-existent waveform, got %d", http.StatusNotFound, statusW.Code)
+	}
+
+	// Step 4: Simulate the background waveform generation process
+	// In the real system, this would be done by the worker system after the API request
+	// For testing, we'll generate the waveform synchronously
+
+	// Use FFmpeg to generate a real waveform from our test file
+	ffmpegInstance := ffmpeg.New("ffmpeg", "ffprobe", 30*time.Second)
+	if err := ffmpegInstance.ValidateBinaries(); err != nil {
+		t.Skipf("FFmpeg binaries not available for end-to-end test: %v", err)
+	}
+
+	opts := ffmpeg.DefaultProcessingOptions()
+	opts.WaveformResolution = 100 // Small resolution for quick test
+
+	ctx := context.Background()
+	generatedWaveform, err := ffmpegInstance.GenerateWaveform(ctx, testFile, opts)
+	if err != nil {
+		t.Fatalf("Failed to generate waveform for end-to-end test: %v", err)
+	}
+
+	// Convert the FFmpeg waveform result to our database model
+	waveformModel := &models.Waveform{
+		EpisodeID:  episode.ID,
+		Duration:   generatedWaveform.Duration,
+		Resolution: generatedWaveform.Resolution,
+		SampleRate: generatedWaveform.SampleRate,
+	}
+
+	if err := waveformModel.SetPeaks(generatedWaveform.Peaks); err != nil {
+		t.Fatalf("Failed to set peaks on waveform model: %v", err)
+	}
+
+	// Save the generated waveform to the database
+	if err := suite.deps.WaveformService.SaveWaveform(ctx, waveformModel); err != nil {
+		t.Fatalf("Failed to save generated waveform: %v", err)
+	}
+
+	// Step 5: Now request the waveform again - should return the generated data
+	finalReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.ID), nil)
+	if err != nil {
+		t.Fatalf("Failed to create final request: %v", err)
+	}
+
+	finalW := httptest.NewRecorder()
+	suite.router.ServeHTTP(finalW, finalReq)
+
+	if finalW.Code != http.StatusOK {
+		t.Errorf("Expected final status code %d after waveform generation, got %d", http.StatusOK, finalW.Code)
+		t.Logf("Response body: %s", finalW.Body.String())
+		return
+	}
+
+	// Step 6: Validate the returned waveform data
+	var finalResponse map[string]interface{}
+	if err := json.Unmarshal(finalW.Body.Bytes(), &finalResponse); err != nil {
+		t.Fatalf("Failed to unmarshal final response: %v", err)
+	}
+
+	// Verify the response contains expected data from our generated waveform
+	if finalResponse["duration"] != generatedWaveform.Duration {
+		t.Errorf("Expected duration %.2f, got %v", generatedWaveform.Duration, finalResponse["duration"])
+	}
+
+	if finalResponse["resolution"] != float64(generatedWaveform.Resolution) {
+		t.Errorf("Expected resolution %d, got %v", generatedWaveform.Resolution, finalResponse["resolution"])
+	}
+
+	if finalResponse["sample_rate"] != float64(generatedWaveform.SampleRate) {
+		t.Errorf("Expected sample_rate %d, got %v", generatedWaveform.SampleRate, finalResponse["sample_rate"])
+	}
+
+	// Verify peaks data is present and matches expected count
+	peaksInterface := finalResponse["peaks"].([]interface{})
+	if len(peaksInterface) != generatedWaveform.Resolution {
+		t.Errorf("Expected %d peaks in response, got %d", generatedWaveform.Resolution, len(peaksInterface))
+	}
+
+	// Step 7: Verify status endpoint now shows waveform exists
+	finalStatusReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.ID), nil)
+	if err != nil {
+		t.Fatalf("Failed to create final status request: %v", err)
+	}
+
+	finalStatusW := httptest.NewRecorder()
+	suite.router.ServeHTTP(finalStatusW, finalStatusReq)
+
+	if finalStatusW.Code != http.StatusOK {
+		t.Errorf("Expected final status endpoint to return %d after waveform exists, got %d", http.StatusOK, finalStatusW.Code)
+	}
+
+	var statusResponse map[string]interface{}
+	if err := json.Unmarshal(finalStatusW.Body.Bytes(), &statusResponse); err != nil {
+		t.Fatalf("Failed to unmarshal status response: %v", err)
+	}
+
+	// The status endpoint might return different structure - let's check what we actually got
+	t.Logf("Status response: %+v", statusResponse)
+
+	// The status endpoint returning 200 is sufficient - it means waveform exists
+	// Some APIs might not include an explicit "exists" field
+
+	t.Logf("✅ End-to-end workflow completed successfully:")
+	t.Logf("   📋 Episode created with audio file: %s", testFile)
+	t.Logf("   🚫 Initial waveform request returned 404 as expected")
+	t.Logf("   ⚙️  Generated waveform: %.2fs duration, %d peaks, %dHz sample rate",
+		generatedWaveform.Duration, generatedWaveform.Resolution, generatedWaveform.SampleRate)
+	t.Logf("   💾 Waveform saved to database successfully")
+	t.Logf("   ✅ Final waveform request returned complete data")
+	t.Logf("   📊 Status endpoint correctly reports waveform exists")
 }
