@@ -82,8 +82,8 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	// Get episode details
-	episode, err := p.episodeService.GetEpisodeByID(ctx, episodeID)
+	// Get episode details using Podcast Index ID
+	episode, err := p.episodeService.GetEpisodeByPodcastIndexID(ctx, int64(episodeID))
 	if err != nil {
 		return fmt.Errorf("failed to get episode %d: %w", episodeID, err)
 	}
