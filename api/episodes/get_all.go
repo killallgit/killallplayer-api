@@ -1,6 +1,7 @@
 package episodes
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"

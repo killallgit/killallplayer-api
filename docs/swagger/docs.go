@@ -4,11 +4,11 @@ package swagger
 import "github.com/swaggo/swag"
 
 const docTemplate = `{
-    "schemes": {{ marshal .Schemes }},
+    "schemes": [[ marshal .Schemes ]],
     "swagger": "2.0",
     "info": {
-        "description": "{{escape .Description}}",
-        "title": "{{.Title}}",
+        "description": "[[escape .Description]]",
+        "title": "[[.Title]]",
         "contact": {
             "name": "Podcast Player API Support",
             "url": "https://github.com/killallgit/killallplayer-api",
@@ -18,10 +18,10 @@ const docTemplate = `{
             "name": "MIT",
             "url": "https://opensource.org/licenses/MIT"
         },
-        "version": "{{.Version}}"
+        "version": "[[.Version]]"
     },
-    "host": "{{.Host}}",
-    "basePath": "{{.BasePath}}",
+    "host": "[[.Host]]",
+    "basePath": "[[.BasePath]]",
     "paths": {
         "/": {
             "get": {
@@ -62,17 +62,20 @@ const docTemplate = `{
         },
         "/api/v1/episodes": {
             "get": {
-                "description": "Get recent episodes across all podcasts with optional limit parameter",
+                "description": "Get recent episodes across all podcasts with optional limit parameter\nGet recent episodes across all podcasts with optional limit and podcast_id parameters",
                 "consumes": [
+                    "application/json",
                     "application/json"
                 ],
                 "produces": [
+                    "application/json",
                     "application/json"
                 ],
                 "tags": [
+                    "episodes",
                     "episodes"
                 ],
-                "summary": "Get all episodes",
+                "summary": "Get episodes",
                 "parameters": [
                     {
                         "maximum": 1000,
@@ -81,6 +84,21 @@ const docTemplate = `{
                         "default": 50,
                         "description": "Number of episodes to return (1-1000)",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Number of episodes to return (1-1000)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter episodes by podcast ID",
+                        "name": "podcast_id",
                         "in": "query"
                     }
                 ],
