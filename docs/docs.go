@@ -118,9 +118,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/episodes/by-guid": {
+            "get": {
+                "description": "Retrieve a single episode by its GUID with waveform status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Get episode by GUID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Episode GUID",
+                        "name": "guid",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Episode details with waveform",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.EpisodeByGUIDEnhancedResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing GUID",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Episode not found",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/episodes/{id}": {
             "get": {
-                "description": "Retrieve a single episode by its Podcast Index ID",
+                "description": "Retrieve a single episode by its Podcast Index ID with waveform status",
                 "consumes": [
                     "application/json"
                 ],
@@ -144,9 +194,61 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Episode details",
+                        "description": "Episode details with waveform",
                         "schema": {
-                            "$ref": "#/definitions/episodes.EpisodeByGUIDResponse"
+                            "$ref": "#/definitions/episodes.EpisodeByGUIDEnhancedResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid ID",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Episode not found",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/{id}/enhanced": {
+            "get": {
+                "description": "Retrieve a single episode by its Podcast Index ID including waveform processing status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Get episode by ID with waveform status",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 123456789,
+                        "description": "Episode Podcast Index ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Episode details with waveform status",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.EpisodeByGUIDEnhancedResponse"
                         }
                     },
                     "400": {
@@ -275,9 +377,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of matching podcasts",
+                        "description": "Podcast Index search response",
                         "schema": {
-                            "$ref": "#/definitions/models.SearchResponse"
+                            "$ref": "#/definitions/podcastindex.SearchResponse"
                         }
                     },
                     "400": {
@@ -727,23 +829,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of trending podcasts",
+                        "description": "Podcast Index trending response",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "description": {
-                                    "type": "string"
-                                },
-                                "podcasts": {
-                                    "type": "array"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/podcastindex.SearchResponse"
                         }
                     },
                     "500": {
@@ -799,17 +887,173 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "episodes.EpisodeByGUIDResponse": {
+        "episodes.EnhancedEpisodeResponse": {
+            "type": "object",
+            "properties": {
+                "chaptersUrl": {
+                    "type": "string",
+                    "example": "https://example.com/chapters/episode42.json"
+                },
+                "dateCrawled": {
+                    "type": "integer",
+                    "example": 1704067200
+                },
+                "datePublished": {
+                    "type": "integer",
+                    "example": 1704063600
+                },
+                "datePublishedPretty": {
+                    "type": "string",
+                    "example": "2024-01-01 00:00:00"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "In this episode, we explore the meaning of life, the universe, and everything."
+                },
+                "duration": {
+                    "type": "integer",
+                    "example": 3600
+                },
+                "enclosureLength": {
+                    "type": "integer",
+                    "example": 52428800
+                },
+                "enclosureType": {
+                    "type": "string",
+                    "example": "audio/mpeg"
+                },
+                "enclosureUrl": {
+                    "type": "string",
+                    "example": "https://example.com/audio/episode42.mp3"
+                },
+                "episode": {
+                    "type": "integer",
+                    "example": 42
+                },
+                "episodeType": {
+                    "type": "string",
+                    "example": "full"
+                },
+                "explicit": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "feedDead": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "feedDuplicateOf": {
+                    "type": "integer"
+                },
+                "feedId": {
+                    "type": "integer",
+                    "example": 123456
+                },
+                "feedImage": {
+                    "type": "string",
+                    "example": "https://example.com/podcast-cover.jpg"
+                },
+                "feedItunesId": {
+                    "type": "integer",
+                    "example": 987654321
+                },
+                "feedLanguage": {
+                    "type": "string",
+                    "example": "en"
+                },
+                "feedTitle": {
+                    "type": "string",
+                    "example": "The Tech Show"
+                },
+                "feedUrl": {
+                    "type": "string",
+                    "example": "https://example.com/rss.xml"
+                },
+                "guid": {
+                    "type": "string",
+                    "example": "episode-42-guid-string"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 123456789
+                },
+                "image": {
+                    "type": "string",
+                    "example": "https://example.com/episode42-cover.jpg"
+                },
+                "link": {
+                    "type": "string",
+                    "example": "https://example.com/episode/42"
+                },
+                "persons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/episodes.Person"
+                    }
+                },
+                "podcastGuid": {
+                    "type": "string",
+                    "example": "podcast-guid-string"
+                },
+                "season": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "socialInteract": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/episodes.SocialInteraction"
+                    }
+                },
+                "soundbite": {
+                    "$ref": "#/definitions/episodes.Soundbite"
+                },
+                "soundbites": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/episodes.Soundbite"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Episode 42: The Answer to Everything"
+                },
+                "transcriptUrl": {
+                    "type": "string",
+                    "example": "https://example.com/transcripts/episode42.txt"
+                },
+                "transcripts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/episodes.Transcript"
+                    }
+                },
+                "value": {
+                    "$ref": "#/definitions/episodes.Value"
+                },
+                "waveform": {
+                    "description": "Waveform processing status and data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/episodes.WaveformStatus"
+                        }
+                    ]
+                }
+            }
+        },
+        "episodes.EpisodeByGUIDEnhancedResponse": {
             "type": "object",
             "properties": {
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Episode found"
                 },
                 "episode": {
-                    "$ref": "#/definitions/episodes.PodcastIndexEpisode"
+                    "$ref": "#/definitions/episodes.EnhancedEpisodeResponse"
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "true"
                 }
             }
         },
@@ -1145,32 +1389,63 @@ const docTemplate = `{
                 }
             }
         },
-        "models.PodcastSearchResult": {
+        "episodes.WaveformData": {
             "type": "object",
             "properties": {
-                "author": {
-                    "type": "string",
-                    "example": "John Smith"
+                "duration": {
+                    "description": "Duration in seconds",
+                    "type": "number",
+                    "example": 300.5
                 },
-                "description": {
-                    "type": "string",
-                    "example": "A weekly show about technology and innovation"
+                "peaks": {
+                    "description": "Waveform peak values",
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    },
+                    "example": [
+                        0.1,
+                        0.2,
+                        0.3
+                    ]
                 },
-                "id": {
-                    "type": "string",
-                    "example": "123456"
+                "resolution": {
+                    "description": "Number of peaks",
+                    "type": "integer",
+                    "example": 1000
                 },
-                "image": {
-                    "type": "string",
-                    "example": "https://example.com/podcast-image.jpg"
+                "sample_rate": {
+                    "description": "Sample rate in Hz",
+                    "type": "integer",
+                    "example": 44100
+                }
+            }
+        },
+        "episodes.WaveformStatus": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Only present when status=\"ok\"",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/episodes.WaveformData"
+                        }
+                    ]
                 },
-                "title": {
+                "message": {
+                    "description": "Human-readable status message",
                     "type": "string",
-                    "example": "The Tech Show"
+                    "example": "Waveform ready"
                 },
-                "url": {
+                "progress": {
+                    "description": "0-100 for processing/downloading states",
+                    "type": "integer",
+                    "example": 75
+                },
+                "status": {
+                    "description": "ok|processing|downloading|error",
                     "type": "string",
-                    "example": "https://example.com/rss.xml"
+                    "example": "ok"
                 }
             }
         },
@@ -1194,14 +1469,97 @@ const docTemplate = `{
                 }
             }
         },
-        "models.SearchResponse": {
+        "podcastindex.Podcast": {
             "type": "object",
             "properties": {
-                "podcasts": {
+                "artwork": {
+                    "type": "string"
+                },
+                "author": {
+                    "type": "string"
+                },
+                "categories": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "createdOn": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "episodeCount": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "imageUrlHash": {
+                    "type": "integer"
+                },
+                "itunesId": {
+                    "type": "integer"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "lastCrawlTime": {
+                    "type": "integer"
+                },
+                "lastGoodHttpStatusCode": {
+                    "type": "integer"
+                },
+                "lastParseTime": {
+                    "type": "integer"
+                },
+                "lastUpdateTime": {
+                    "type": "integer"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "locked": {
+                    "type": "integer"
+                },
+                "originalUrl": {
+                    "type": "string"
+                },
+                "ownerName": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "podcastindex.SearchResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "feeds": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.PodcastSearchResult"
+                        "$ref": "#/definitions/podcastindex.Podcast"
                     }
+                },
+                "query": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         }

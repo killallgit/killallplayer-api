@@ -8,7 +8,18 @@ import (
 	"github.com/killallgit/player-api/api/types"
 )
 
-// GetByGUID returns episode by GUID
+// GetByGUID returns episode by GUID with waveform status
+// @Summary      Get episode by GUID
+// @Description  Retrieve a single episode by its GUID with waveform status
+// @Tags         episodes
+// @Accept       json
+// @Produce      json
+// @Param        guid query string true "Episode GUID"
+// @Success      200 {object} episodes.EpisodeByGUIDEnhancedResponse "Episode details with waveform"
+// @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - missing GUID"
+// @Failure      404 {object} episodes.PodcastIndexErrorResponse "Episode not found"
+// @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
+// @Router       /api/v1/episodes/by-guid [get]
 func GetByGUID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		guid := c.Query("guid")
@@ -28,7 +39,17 @@ func GetByGUID(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		response := deps.EpisodeTransformer.CreateSingleEpisodeResponse(episode)
+		// Convert to Podcast Index format and enrich with waveform
+		pieFormat := deps.EpisodeTransformer.ModelToPodcastIndex(episode)
+		enricher := NewEpisodeEnricher(deps)
+		enhanced := enricher.EnrichSingleEpisodeWithWaveform(c.Request.Context(), &pieFormat)
+
+		// Wrap in standard response format
+		response := EpisodeByGUIDEnhancedResponse{
+			Status:      "true",
+			Episode:     enhanced,
+			Description: "Episode found",
+		}
 		c.JSON(http.StatusOK, response)
 	}
 }

@@ -110,9 +110,8 @@ func InitializeWithMigrations() (*DB, error) {
 		return nil, fmt.Errorf("database path is not configured")
 	}
 
-	// Enable verbose logging for debugging
-	dbVerbose := true // Force verbose for debugging
-	log.Printf("[DEBUG] Database path: %s, Verbose: %v", dbPath, dbVerbose)
+	// Get verbose logging setting from config
+	dbVerbose := config.GetBool("database.verbose")
 
 	// Initialize database connection
 	db, err := Initialize(dbPath, dbVerbose)

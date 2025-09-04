@@ -18,7 +18,7 @@ import (
 type EnhancedWaveformProcessor struct {
 	jobService      jobs.Service
 	waveformService waveforms.WaveformService
-	episodeService  episodes.Service
+	episodeService  episodes.EpisodeService
 	ffmpeg          *ffmpeg.FFmpeg
 	downloader      *download.Downloader
 	options         ffmpeg.ProcessingOptions
@@ -28,7 +28,7 @@ type EnhancedWaveformProcessor struct {
 func NewEnhancedWaveformProcessor(
 	jobService jobs.Service,
 	waveformService waveforms.WaveformService,
-	episodeService episodes.Service,
+	episodeService episodes.EpisodeService,
 	ffmpegInstance *ffmpeg.FFmpeg,
 	options ffmpeg.ProcessingOptions,
 ) *EnhancedWaveformProcessor {

@@ -1,12 +1,125 @@
 basePath: /
 definitions:
-  episodes.EpisodeByGUIDResponse:
+  episodes.EnhancedEpisodeResponse:
     properties:
+      chaptersUrl:
+        example: https://example.com/chapters/episode42.json
+        type: string
+      dateCrawled:
+        example: 1704067200
+        type: integer
+      datePublished:
+        example: 1704063600
+        type: integer
+      datePublishedPretty:
+        example: "2024-01-01 00:00:00"
+        type: string
       description:
+        example: In this episode, we explore the meaning of life, the universe, and
+          everything.
+        type: string
+      duration:
+        example: 3600
+        type: integer
+      enclosureLength:
+        example: 52428800
+        type: integer
+      enclosureType:
+        example: audio/mpeg
+        type: string
+      enclosureUrl:
+        example: https://example.com/audio/episode42.mp3
         type: string
       episode:
-        $ref: '#/definitions/episodes.PodcastIndexEpisode'
+        example: 42
+        type: integer
+      episodeType:
+        example: full
+        type: string
+      explicit:
+        example: 0
+        type: integer
+      feedDead:
+        example: 0
+        type: integer
+      feedDuplicateOf:
+        type: integer
+      feedId:
+        example: 123456
+        type: integer
+      feedImage:
+        example: https://example.com/podcast-cover.jpg
+        type: string
+      feedItunesId:
+        example: 987654321
+        type: integer
+      feedLanguage:
+        example: en
+        type: string
+      feedTitle:
+        example: The Tech Show
+        type: string
+      feedUrl:
+        example: https://example.com/rss.xml
+        type: string
+      guid:
+        example: episode-42-guid-string
+        type: string
+      id:
+        example: 123456789
+        type: integer
+      image:
+        example: https://example.com/episode42-cover.jpg
+        type: string
+      link:
+        example: https://example.com/episode/42
+        type: string
+      persons:
+        items:
+          $ref: '#/definitions/episodes.Person'
+        type: array
+      podcastGuid:
+        example: podcast-guid-string
+        type: string
+      season:
+        example: 2
+        type: integer
+      socialInteract:
+        items:
+          $ref: '#/definitions/episodes.SocialInteraction'
+        type: array
+      soundbite:
+        $ref: '#/definitions/episodes.Soundbite'
+      soundbites:
+        items:
+          $ref: '#/definitions/episodes.Soundbite'
+        type: array
+      title:
+        example: 'Episode 42: The Answer to Everything'
+        type: string
+      transcriptUrl:
+        example: https://example.com/transcripts/episode42.txt
+        type: string
+      transcripts:
+        items:
+          $ref: '#/definitions/episodes.Transcript'
+        type: array
+      value:
+        $ref: '#/definitions/episodes.Value'
+      waveform:
+        allOf:
+        - $ref: '#/definitions/episodes.WaveformStatus'
+        description: Waveform processing status and data
+    type: object
+  episodes.EpisodeByGUIDEnhancedResponse:
+    properties:
+      description:
+        example: Episode found
+        type: string
+      episode:
+        $ref: '#/definitions/episodes.EnhancedEpisodeResponse'
       status:
+        example: "true"
         type: string
     type: object
   episodes.Person:
@@ -240,25 +353,47 @@ definitions:
       type:
         type: string
     type: object
-  models.PodcastSearchResult:
+  episodes.WaveformData:
     properties:
-      author:
-        example: John Smith
+      duration:
+        description: Duration in seconds
+        example: 300.5
+        type: number
+      peaks:
+        description: Waveform peak values
+        example:
+        - 0.1
+        - 0.2
+        - 0.3
+        items:
+          type: number
+        type: array
+      resolution:
+        description: Number of peaks
+        example: 1000
+        type: integer
+      sample_rate:
+        description: Sample rate in Hz
+        example: 44100
+        type: integer
+    type: object
+  episodes.WaveformStatus:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/episodes.WaveformData'
+        description: Only present when status="ok"
+      message:
+        description: Human-readable status message
+        example: Waveform ready
         type: string
-      description:
-        example: A weekly show about technology and innovation
-        type: string
-      id:
-        example: "123456"
-        type: string
-      image:
-        example: https://example.com/podcast-image.jpg
-        type: string
-      title:
-        example: The Tech Show
-        type: string
-      url:
-        example: https://example.com/rss.xml
+      progress:
+        description: 0-100 for processing/downloading states
+        example: 75
+        type: integer
+      status:
+        description: ok|processing|downloading|error
+        example: ok
         type: string
     type: object
   models.SearchRequest:
@@ -276,12 +411,67 @@ definitions:
     required:
     - query
     type: object
-  models.SearchResponse:
+  podcastindex.Podcast:
     properties:
-      podcasts:
+      artwork:
+        type: string
+      author:
+        type: string
+      categories:
+        additionalProperties:
+          type: string
+        type: object
+      createdOn:
+        type: string
+      description:
+        type: string
+      episodeCount:
+        type: integer
+      id:
+        type: integer
+      image:
+        type: string
+      imageUrlHash:
+        type: integer
+      itunesId:
+        type: integer
+      language:
+        type: string
+      lastCrawlTime:
+        type: integer
+      lastGoodHttpStatusCode:
+        type: integer
+      lastParseTime:
+        type: integer
+      lastUpdateTime:
+        type: integer
+      link:
+        type: string
+      locked:
+        type: integer
+      originalUrl:
+        type: string
+      ownerName:
+        type: string
+      title:
+        type: string
+      url:
+        type: string
+    type: object
+  podcastindex.SearchResponse:
+    properties:
+      count:
+        type: integer
+      description:
+        type: string
+      feeds:
         items:
-          $ref: '#/definitions/models.PodcastSearchResult'
+          $ref: '#/definitions/podcastindex.Podcast'
         type: array
+      query:
+        type: string
+      status:
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -370,7 +560,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve a single episode by its Podcast Index ID
+      description: Retrieve a single episode by its Podcast Index ID with waveform
+        status
       parameters:
       - description: Episode Podcast Index ID
         example: 123456789
@@ -383,9 +574,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Episode details
+          description: Episode details with waveform
           schema:
-            $ref: '#/definitions/episodes.EpisodeByGUIDResponse'
+            $ref: '#/definitions/episodes.EpisodeByGUIDEnhancedResponse'
         "400":
           description: Bad request - invalid ID
           schema:
@@ -399,6 +590,42 @@ paths:
           schema:
             $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
       summary: Get episode by ID
+      tags:
+      - episodes
+  /api/v1/episodes/{id}/enhanced:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a single episode by its Podcast Index ID including waveform
+        processing status
+      parameters:
+      - description: Episode Podcast Index ID
+        example: 123456789
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Episode details with waveform status
+          schema:
+            $ref: '#/definitions/episodes.EpisodeByGUIDEnhancedResponse'
+        "400":
+          description: Bad request - invalid ID
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+        "404":
+          description: Episode not found
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+      summary: Get episode by ID with waveform status
       tags:
       - episodes
   /api/v1/episodes/{id}/playback:
@@ -453,6 +680,39 @@ paths:
       summary: Update playback status
       tags:
       - episodes
+  /api/v1/episodes/by-guid:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a single episode by its GUID with waveform status
+      parameters:
+      - description: Episode GUID
+        in: query
+        name: guid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Episode details with waveform
+          schema:
+            $ref: '#/definitions/episodes.EpisodeByGUIDEnhancedResponse'
+        "400":
+          description: Bad request - missing GUID
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+        "404":
+          description: Episode not found
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+      summary: Get episode by GUID
+      tags:
+      - episodes
   /api/v1/search:
     post:
       consumes:
@@ -469,9 +729,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: List of matching podcasts
+          description: Podcast Index search response
           schema:
-            $ref: '#/definitions/models.SearchResponse'
+            $ref: '#/definitions/podcastindex.SearchResponse'
         "400":
           description: Bad request - invalid parameters
           schema:
@@ -771,18 +1031,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: List of trending podcasts
+          description: Podcast Index trending response
           schema:
-            properties:
-              count:
-                type: integer
-              description:
-                type: string
-              podcasts:
-                type: array
-              status:
-                type: string
-            type: object
+            $ref: '#/definitions/podcastindex.SearchResponse'
         "500":
           description: Internal server error
           schema:

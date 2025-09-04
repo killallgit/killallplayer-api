@@ -346,3 +346,7 @@ With Phases 1-3 complete, we have:
 - `./data/tests/clips/test-30s.mp3` (60KB, 30 seconds) - Standard tests
 
 **Next step**: Create FFmpeg unit tests with real audio files to validate the complete pipeline.
+
+
+- Match the Podcast index endpoints! there's something off about trending and i think maybe we've got wrong shared types
+- unified responses. there should be a podcast object, an episode object, a waveform object. every endpoint needs to make sure to return its proper type

@@ -2,7 +2,6 @@ package search
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -24,7 +23,7 @@ type PodcastSearcher interface {
 // @Accept       json
 // @Produce      json
 // @Param        request body models.SearchRequest true "Search parameters"
-// @Success      200 {object} models.SearchResponse "List of matching podcasts"
+// @Success      200 {object} podcastindex.SearchResponse "Podcast Index search response"
 // @Failure      400 {object} object{status=string,message=string,details=string} "Bad request - invalid parameters"
 // @Failure      500 {object} object{status=string,message=string,details=string} "Internal server error"
 // @Failure      504 {object} object{status=string,message=string} "Gateway timeout - search request timed out"
@@ -99,22 +98,7 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		// Convert to our response format
-		response := models.SearchResponse{
-			Podcasts: make([]models.PodcastSearchResult, 0, len(results.Feeds)),
-		}
-
-		for _, feed := range results.Feeds {
-			response.Podcasts = append(response.Podcasts, models.PodcastSearchResult{
-				ID:          fmt.Sprintf("%d", feed.ID),
-				Title:       feed.Title,
-				Author:      feed.Author,
-				Description: feed.Description,
-				Image:       feed.Image,
-				URL:         feed.URL,
-			})
-		}
-
-		c.JSON(http.StatusOK, response)
+		// Return the full Podcast Index response
+		c.JSON(http.StatusOK, results)
 	}
 }

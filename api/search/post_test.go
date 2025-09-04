@@ -111,13 +111,13 @@ func TestPost(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, resp map[string]interface{}) {
-				podcasts, ok := resp["podcasts"].([]interface{})
+				feeds, ok := resp["feeds"].([]interface{})
 				require.True(t, ok)
-				assert.Len(t, podcasts, 1)
+				assert.Len(t, feeds, 1)
 
-				podcast := podcasts[0].(map[string]interface{})
-				assert.Equal(t, "1", podcast["id"])
-				assert.Equal(t, "Tech Podcast", podcast["title"])
+				feed := feeds[0].(map[string]interface{})
+				assert.Equal(t, float64(1), feed["id"])
+				assert.Equal(t, "Tech Podcast", feed["title"])
 			},
 		},
 		{
@@ -280,9 +280,9 @@ func TestPost(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, resp map[string]interface{}) {
-				podcasts, ok := resp["podcasts"].([]interface{})
+				feeds, ok := resp["feeds"].([]interface{})
 				require.True(t, ok)
-				assert.Len(t, podcasts, 0)
+				assert.Len(t, feeds, 0)
 			},
 		},
 	}
