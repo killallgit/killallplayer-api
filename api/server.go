@@ -161,7 +161,7 @@ func (s *Server) initializeWorkerPool() error {
 
 	// Create enhanced waveform processor
 	// Note: EpisodeService is already the correct interface type
-	processor := workers.NewEnhancedWaveformProcessor(
+	waveformProcessor := workers.NewEnhancedWaveformProcessor(
 		s.dependencies.JobService,
 		s.dependencies.WaveformService,
 		s.dependencies.EpisodeService,
@@ -169,10 +169,25 @@ func (s *Server) initializeWorkerPool() error {
 		ffmpeg.DefaultProcessingOptions(),
 	)
 
+	// Create transcription processor if transcription service is available
+	var transcriptionProcessor *workers.TranscriptionProcessor
+	if s.dependencies.TranscriptionService != nil {
+		transcriptionProcessor = workers.NewTranscriptionProcessor(
+			s.dependencies.JobService,
+			s.dependencies.TranscriptionService,
+			s.dependencies.EpisodeService,
+		)
+	}
+
 	// Create worker pool with proper arguments
 	pollInterval := 5 * time.Second // Poll for new jobs every 5 seconds
 	s.workerPool = workers.NewWorkerPool(s.dependencies.JobService, numWorkers, pollInterval)
-	s.workerPool.RegisterProcessor(processor)
+	s.workerPool.RegisterProcessor(waveformProcessor)
+
+	// Register transcription processor if available
+	if transcriptionProcessor != nil {
+		s.workerPool.RegisterProcessor(transcriptionProcessor)
+	}
 
 	// Start worker pool in background
 	ctx, cancel := context.WithCancel(context.Background())

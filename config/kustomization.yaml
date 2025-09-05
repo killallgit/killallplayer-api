@@ -1,0 +1,18 @@
+
+namespace: killallplayer
+
+resources:
+  - deployment.yaml
+  - svc.yaml
+  - cm.yaml
+  - pvc.yaml
+  - secret.yaml
+
+
+configMapGenerator:
+  - name: killallplayer-config
+    options:
+      disableNameSuffixHash: true
+    files:
+      - config.yaml=settings.yaml
+

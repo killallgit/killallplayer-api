@@ -15,6 +15,11 @@ tasks:
       - docker build -t ghcr.io/killallgit/killallplayer-api:latest .
       - docker push ghcr.io/killallgit/killallplayer-api:latest
 
+  apply:k8s:
+    desc: Build the application k8s image
+    cmds:
+      - kubectl --context admin@talos-proxmox-cluster -n killallplayer apply -k ./config --dry-run=client -o yaml
+
   serve:
     desc: Start the API server
     deps: [build]
@@ -32,6 +37,21 @@ tasks:
       - go.sum
     generates:
       - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
+
+  download:whisper-model:
+    desc: Download Whisper base English model
+    cmds:
+      - mkdir -p models
+      - |
+        if [ ! -f models/ggml-base.en.bin ]; then
+          echo "Downloading Whisper base English model..."
+          curl -L -o models/ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+          echo "Model downloaded successfully"
+        else
+          echo "Model already exists at models/ggml-base.en.bin"
+        fi
+    status:
+      - test -f models/ggml-base.en.bin
 
   # Testing tasks
   test:

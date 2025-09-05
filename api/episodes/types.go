@@ -20,11 +20,12 @@ type WaveformData struct {
 	SampleRate int       `json:"sample_rate" example:"44100"` // Sample rate in Hz
 }
 
-// EnhancedEpisodeResponse represents a single episode with embedded waveform status
+// EnhancedEpisodeResponse represents a single episode with embedded waveform and transcription status
 // This is used only for single episode GET requests, not for lists/searches
 type EnhancedEpisodeResponse struct {
 	episodes.PodcastIndexEpisode
-	Waveform *WaveformStatus `json:"waveform,omitempty"` // Waveform processing status and data
+	Waveform      *WaveformStatus      `json:"waveform,omitempty"`      // Waveform processing status and data
+	Transcription *TranscriptionStatus `json:"transcription,omitempty"` // Transcription processing status and data
 }
 
 // Status constants for waveform processing
@@ -43,7 +44,39 @@ var WaveformStatusMessages = map[string]string{
 	WaveformStatusError:       "Waveform generation failed",
 }
 
-// EpisodeByGUIDEnhancedResponse represents a single episode response with waveform
+// TranscriptionStatus represents the status of transcription processing
+type TranscriptionStatus struct {
+	Status   string             `json:"status" example:"ok"`                   // ok|processing|downloading|error
+	Message  string             `json:"message" example:"Transcription ready"` // Human-readable status message
+	Progress int                `json:"progress,omitempty" example:"75"`       // 0-100 for processing/downloading states
+	Data     *TranscriptionData `json:"data,omitempty"`                        // Only present when status="ok"
+}
+
+// TranscriptionData represents the transcription data when ready
+type TranscriptionData struct {
+	Text     string  `json:"text" example:"This is the transcription..."` // Full transcription text
+	Language string  `json:"language" example:"en"`                       // Detected or specified language
+	Duration float64 `json:"duration" example:"300.5"`                    // Duration in seconds
+	Model    string  `json:"model" example:"ggml-base.en.bin"`            // Model used for transcription
+}
+
+// Status constants for transcription processing
+const (
+	TranscriptionStatusOK          = "ok"
+	TranscriptionStatusProcessing  = "processing"
+	TranscriptionStatusDownloading = "downloading"
+	TranscriptionStatusError       = "error"
+)
+
+// Status messages for transcription
+var TranscriptionStatusMessages = map[string]string{
+	TranscriptionStatusOK:          "Transcription ready",
+	TranscriptionStatusProcessing:  "Processing transcription...",
+	TranscriptionStatusDownloading: "Downloading audio...",
+	TranscriptionStatusError:       "Transcription generation failed",
+}
+
+// EpisodeByGUIDEnhancedResponse represents a single episode response with waveform and transcription
 type EpisodeByGUIDEnhancedResponse struct {
 	Status      string                   `json:"status" example:"true"`
 	Episode     *EnhancedEpisodeResponse `json:"episode,omitempty"`

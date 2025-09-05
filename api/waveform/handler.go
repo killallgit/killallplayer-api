@@ -133,6 +133,119 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
+// TriggerWaveform manually triggers waveform generation for an episode
+// @Summary Trigger waveform generation
+// @Description Manually trigger waveform generation for a specific episode
+// @Tags Waveform
+// @Accept json
+// @Produce json
+// @Param id path int true "Episode ID (Podcast Index ID)"
+// @Success 200 {object} map[string]interface{} "Waveform already exists"
+// @Success 202 {object} map[string]interface{} "Waveform generation triggered"
+// @Failure 400 {object} map[string]interface{} "Invalid episode ID"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/v1/episodes/{id}/waveform [post]
+func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		episodeIDStr := c.Param("id")
+
+		// Parse episode ID
+		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
+		if err != nil || episodeID < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
+			return
+		}
+
+		// Check if WaveformService is available
+		if deps.WaveformService == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":      "Waveform service not available",
+				"episode_id": episodeID,
+			})
+			return
+		}
+
+		// Check if JobService is available
+		if deps.JobService == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":      "Job service not available",
+				"episode_id": episodeID,
+			})
+			return
+		}
+
+		// Create context with timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// Check if waveform already exists
+		exists, err := deps.WaveformService.WaveformExists(ctx, uint(episodeID))
+		if err == nil && exists {
+			c.JSON(http.StatusOK, gin.H{
+				"message":    "Waveform already exists",
+				"episode_id": episodeID,
+				"status":     "completed",
+				"progress":   100,
+			})
+			return
+		}
+
+		// Check if there's already a job for this episode
+		existingJob, jobErr := deps.JobService.GetJobForWaveform(ctx, uint(episodeID))
+		if jobErr == nil && existingJob != nil {
+			// Job already exists, return status based on job state
+			switch existingJob.Status {
+			case models.JobStatusPending, models.JobStatusProcessing:
+				c.JSON(http.StatusAccepted, gin.H{
+					"message":    "Waveform generation already in progress",
+					"episode_id": episodeID,
+					"job_id":     existingJob.ID,
+					"status":     string(existingJob.Status),
+					"progress":   existingJob.Progress,
+				})
+				return
+			case models.JobStatusCompleted:
+				// Job completed but waveform not found? Try to return success anyway
+				c.JSON(http.StatusOK, gin.H{
+					"message":    "Waveform generation completed",
+					"episode_id": episodeID,
+					"job_id":     existingJob.ID,
+					"status":     "completed",
+					"progress":   100,
+				})
+				return
+			case models.JobStatusFailed:
+				// Job failed, allow creating a new one
+				log.Printf("Previous waveform job %d failed, creating new job", existingJob.ID)
+			}
+		}
+
+		// Create a new waveform generation job
+		payload := models.JobPayload{
+			"episode_id": episodeID,
+		}
+
+		job, err := deps.JobService.EnqueueJob(ctx, models.JobTypeWaveformGeneration, payload)
+		if err != nil {
+			log.Printf("Failed to enqueue waveform job for episode %d: %v", episodeID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":      "Failed to trigger waveform generation",
+				"episode_id": episodeID,
+			})
+			return
+		}
+
+		log.Printf("Enqueued waveform generation job %d for episode %d", job.ID, episodeID)
+		c.JSON(http.StatusAccepted, gin.H{
+			"message":    "Waveform generation triggered",
+			"episode_id": episodeID,
+			"job_id":     job.ID,
+			"status":     string(job.Status),
+			"progress":   job.Progress,
+		})
+	}
+}
+
 // GetWaveformStatus returns the processing status of a waveform
 func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

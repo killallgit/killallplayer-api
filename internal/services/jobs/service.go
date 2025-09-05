@@ -114,6 +114,18 @@ func (s *service) GetJobForWaveform(ctx context.Context, episodeID uint) (*model
 	return job, nil
 }
 
+// GetJobForTranscription finds a transcription generation job for an episode
+func (s *service) GetJobForTranscription(ctx context.Context, episodeID uint) (*models.Job, error) {
+	job, err := s.repo.GetJobByTypeAndPayload(ctx, models.JobTypeTranscriptionGeneration, "episode_id", fmt.Sprintf("%d", episodeID))
+	if err != nil {
+		if errors.Is(err, ErrJobNotFound) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("getting job for transcription: %w", err)
+	}
+	return job, nil
+}
+
 // ClaimNextJob claims the next available job for a worker
 func (s *service) ClaimNextJob(ctx context.Context, workerID string, jobTypes []models.JobType) (*models.Job, error) {
 	job, err := s.repo.ClaimNextJob(ctx, workerID, jobTypes)

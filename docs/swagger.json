@@ -483,6 +483,219 @@
                 }
             }
         },
+        "/api/v1/episodes/{id}/transcribe": {
+            "get": {
+                "description": "Retrieve the transcription text and metadata for an episode",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transcription"
+                ],
+                "summary": "Get transcription data",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID (Podcast Index ID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transcription data",
+                        "schema": {
+                            "$ref": "#/definitions/transcription.TranscriptionData"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid episode ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Transcription not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Manually trigger transcription generation for a specific episode",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transcription"
+                ],
+                "summary": "Trigger transcription generation",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID (Podcast Index ID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transcription already exists",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "202": {
+                        "description": "Transcription generation triggered",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid episode ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/{id}/transcribe/status": {
+            "get": {
+                "description": "Check the status of transcription generation for an episode",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transcription"
+                ],
+                "summary": "Get transcription generation status",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID (Podcast Index ID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transcription status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid episode ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Transcription not available",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/{id}/waveform": {
+            "post": {
+                "description": "Manually trigger waveform generation for a specific episode",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Waveform"
+                ],
+                "summary": "Trigger waveform generation",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID (Podcast Index ID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Waveform already exists",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "202": {
+                        "description": "Waveform generation triggered",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid episode ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/search": {
             "post": {
                 "description": "Search for podcasts by query string with optional result limit",
@@ -784,6 +997,14 @@
                     "type": "string",
                     "example": "https://example.com/transcripts/episode42.txt"
                 },
+                "transcription": {
+                    "description": "Transcription processing status and data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/episodes.TranscriptionStatus"
+                        }
+                    ]
+                },
                 "transcripts": {
                     "type": "array",
                     "items": {
@@ -1079,6 +1300,59 @@
                 },
                 "url": {
                     "type": "string"
+                }
+            }
+        },
+        "episodes.TranscriptionData": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "description": "Duration in seconds",
+                    "type": "number",
+                    "example": 300.5
+                },
+                "language": {
+                    "description": "Detected or specified language",
+                    "type": "string",
+                    "example": "en"
+                },
+                "model": {
+                    "description": "Model used for transcription",
+                    "type": "string",
+                    "example": "ggml-base.en.bin"
+                },
+                "text": {
+                    "description": "Full transcription text",
+                    "type": "string",
+                    "example": "This is the transcription..."
+                }
+            }
+        },
+        "episodes.TranscriptionStatus": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Only present when status=\"ok\"",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/episodes.TranscriptionData"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Human-readable status message",
+                    "type": "string",
+                    "example": "Transcription ready"
+                },
+                "progress": {
+                    "description": "0-100 for processing/downloading states",
+                    "type": "integer",
+                    "example": 75
+                },
+                "status": {
+                    "description": "ok|processing|downloading|error",
+                    "type": "string",
+                    "example": "ok"
                 }
             }
         },
@@ -1507,6 +1781,31 @@
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "transcription.TranscriptionData": {
+            "type": "object",
+            "properties": {
+                "cached": {
+                    "type": "boolean"
+                },
+                "duration": {
+                    "description": "Duration in seconds",
+                    "type": "number"
+                },
+                "episode_id": {
+                    "type": "integer"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "model": {
+                    "description": "Model used for transcription",
+                    "type": "string"
+                },
+                "text": {
                     "type": "string"
                 }
             }

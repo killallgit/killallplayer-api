@@ -8,6 +8,7 @@ import (
 // RegisterRoutes registers all waveform-related routes
 func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
 	// Waveform endpoints
+	router.POST("/:id/waveform", TriggerWaveform(deps))
 	router.GET("/:id/waveform", GetWaveform(deps))
 	router.GET("/:id/waveform/status", GetWaveformStatus(deps))
 }

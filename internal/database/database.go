@@ -126,6 +126,7 @@ func InitializeWithMigrations() (*DB, error) {
 		&models.User{},
 		&models.Subscription{},
 		&models.Waveform{},
+		&models.Transcription{},
 		&models.Job{},
 		&models.Annotation{},
 	); err != nil {

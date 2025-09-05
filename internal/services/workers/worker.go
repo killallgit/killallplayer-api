@@ -83,11 +83,22 @@ func (w *Worker) run(ctx context.Context) {
 func (w *Worker) processNextJob(ctx context.Context) error {
 	// Get supported job types from processors
 	var supportedTypes []models.JobType
-	for _, p := range w.processors {
-		// Add all job types that this processor can handle
-		supportedTypes = append(supportedTypes, models.JobTypeWaveformGeneration)
-		// TODO: Add other job types as they're implemented
-		_ = p // Use the processor variable to avoid unused error
+	typeMap := make(map[models.JobType]bool)
+
+	// Collect all unique job types from all processors
+	allJobTypes := []models.JobType{
+		models.JobTypeWaveformGeneration,
+		models.JobTypeTranscriptionGeneration,
+		models.JobTypePodcastSync,
+	}
+
+	for _, jobType := range allJobTypes {
+		for _, p := range w.processors {
+			if p.CanProcess(jobType) && !typeMap[jobType] {
+				supportedTypes = append(supportedTypes, jobType)
+				typeMap[jobType] = true
+			}
+		}
 	}
 
 	if len(supportedTypes) == 0 {

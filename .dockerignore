@@ -4,7 +4,7 @@
 
 # Documentation
 *.md
-docs/
+# Don't ignore docs/ - it contains generated swagger files needed for build
 
 # IDE and editor files
 .vscode/

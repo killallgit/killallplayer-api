@@ -100,6 +100,10 @@ definitions:
       transcriptUrl:
         example: https://example.com/transcripts/episode42.txt
         type: string
+      transcription:
+        allOf:
+        - $ref: '#/definitions/episodes.TranscriptionStatus'
+        description: Transcription processing status and data
       transcripts:
         items:
           $ref: '#/definitions/episodes.Transcript'
@@ -305,6 +309,44 @@ definitions:
       type:
         type: string
       url:
+        type: string
+    type: object
+  episodes.TranscriptionData:
+    properties:
+      duration:
+        description: Duration in seconds
+        example: 300.5
+        type: number
+      language:
+        description: Detected or specified language
+        example: en
+        type: string
+      model:
+        description: Model used for transcription
+        example: ggml-base.en.bin
+        type: string
+      text:
+        description: Full transcription text
+        example: This is the transcription...
+        type: string
+    type: object
+  episodes.TranscriptionStatus:
+    properties:
+      data:
+        allOf:
+        - $ref: '#/definitions/episodes.TranscriptionData'
+        description: Only present when status="ok"
+      message:
+        description: Human-readable status message
+        example: Transcription ready
+        type: string
+      progress:
+        description: 0-100 for processing/downloading states
+        example: 75
+        type: integer
+      status:
+        description: ok|processing|downloading|error
+        example: ok
         type: string
     type: object
   episodes.Value:
@@ -596,6 +638,23 @@ definitions:
       status:
         type: string
     type: object
+  transcription.TranscriptionData:
+    properties:
+      cached:
+        type: boolean
+      duration:
+        description: Duration in seconds
+        type: number
+      episode_id:
+        type: integer
+      language:
+        type: string
+      model:
+        description: Model used for transcription
+        type: string
+      text:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -797,6 +856,152 @@ paths:
       summary: Create annotation for episode
       tags:
       - annotations
+  /api/v1/episodes/{id}/transcribe:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the transcription text and metadata for an episode
+      parameters:
+      - description: Episode ID (Podcast Index ID)
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transcription data
+          schema:
+            $ref: '#/definitions/transcription.TranscriptionData'
+        "400":
+          description: Invalid episode ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Transcription not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get transcription data
+      tags:
+      - Transcription
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger transcription generation for a specific episode
+      parameters:
+      - description: Episode ID (Podcast Index ID)
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transcription already exists
+          schema:
+            additionalProperties: true
+            type: object
+        "202":
+          description: Transcription generation triggered
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid episode ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Trigger transcription generation
+      tags:
+      - Transcription
+  /api/v1/episodes/{id}/transcribe/status:
+    get:
+      consumes:
+      - application/json
+      description: Check the status of transcription generation for an episode
+      parameters:
+      - description: Episode ID (Podcast Index ID)
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transcription status
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid episode ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Transcription not available
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get transcription generation status
+      tags:
+      - Transcription
+  /api/v1/episodes/{id}/waveform:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger waveform generation for a specific episode
+      parameters:
+      - description: Episode ID (Podcast Index ID)
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Waveform already exists
+          schema:
+            additionalProperties: true
+            type: object
+        "202":
+          description: Waveform generation triggered
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid episode ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Trigger waveform generation
+      tags:
+      - Waveform
   /api/v1/episodes/annotations/{id}:
     delete:
       consumes:

@@ -24,9 +24,10 @@ const (
 type JobType string
 
 const (
-	JobTypeWaveformGeneration JobType = "waveform_generation"
-	JobTypeTranscription      JobType = "transcription"
-	JobTypePodcastSync        JobType = "podcast_sync"
+	JobTypeWaveformGeneration      JobType = "waveform_generation"
+	JobTypeTranscription           JobType = "transcription"
+	JobTypeTranscriptionGeneration JobType = "transcription_generation"
+	JobTypePodcastSync             JobType = "podcast_sync"
 )
 
 // Job represents a background job in the queue

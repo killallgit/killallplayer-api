@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: killallplayer-api
+  labels:
+    app: killallplayer-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: killallplayer-api
+  template:
+    metadata:
+      labels:
+        app: killallplayer-api
+    spec:
+      containers:
+      - name: killallplayer-api
+        image: ghcr.io/killallgit/killallplayer-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        # Load secrets separately
+        - name: KILLALL_PODCAST_INDEX_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: killallplayer-secrets
+              key: podcast-index-api-key
+        - name: KILLALL_PODCAST_INDEX_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: killallplayer-secrets
+              key: podcast-index-api-secret
+        # Optional OpenAI API key (uncomment if needed)
+        # - name: KILLALL_OPENAI_API_KEY
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: killallplayer-secrets
+        #       key: openai-api-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 40
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /app/config.yaml
+          subPath: config.yaml
+        - name: data
+          mountPath: /app/data
+        - name: cache
+          mountPath: /app/cache
+        - name: models
+          mountPath: /app/models
+      volumes:
+      - name: config
+        configMap:
+          name: killallplayer-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: killallplayer-data
+      - name: cache
+        emptyDir:
+          sizeLimit: 5Gi
+      - name: models
+        emptyDir:
+          sizeLimit: 2Gi

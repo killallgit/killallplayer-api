@@ -19,7 +19,7 @@ func NewEpisodeEnricher(deps *types.Dependencies) *EpisodeEnricher {
 	return &EpisodeEnricher{deps: deps}
 }
 
-// EnrichSingleEpisodeWithWaveform adds waveform status to a single episode and triggers generation if needed
+// EnrichSingleEpisodeWithWaveform adds waveform and transcription status to a single episode and triggers generation if needed
 // This is only used for single episode GET requests, not for lists
 func (e *EpisodeEnricher) EnrichSingleEpisodeWithWaveform(ctx context.Context, episode *internalEpisodes.PodcastIndexEpisode) *EnhancedEpisodeResponse {
 	if episode == nil {
@@ -33,6 +33,11 @@ func (e *EpisodeEnricher) EnrichSingleEpisodeWithWaveform(ctx context.Context, e
 	// Add waveform status if waveform service is available
 	if e.deps.WaveformService != nil {
 		enhanced.Waveform = e.getWaveformStatusForSingleEpisode(ctx, episode)
+	}
+
+	// Add transcription status if transcription service is available
+	if e.deps.TranscriptionService != nil {
+		enhanced.Transcription = e.getTranscriptionStatusForSingleEpisode(ctx, episode)
 	}
 
 	return enhanced
@@ -91,6 +96,58 @@ func (e *EpisodeEnricher) getWaveformStatusForSingleEpisode(ctx context.Context,
 	return nil
 }
 
+// getTranscriptionStatusForSingleEpisode retrieves transcription status and triggers generation if needed
+func (e *EpisodeEnricher) getTranscriptionStatusForSingleEpisode(ctx context.Context, episode *internalEpisodes.PodcastIndexEpisode) *TranscriptionStatus {
+	episodeID := episode.ID
+
+	// Check if transcription exists
+	transcription, err := e.deps.TranscriptionService.GetTranscription(ctx, uint(episodeID))
+	if err == nil && transcription != nil {
+		// Transcription exists, return it
+		return &TranscriptionStatus{
+			Status:  TranscriptionStatusOK,
+			Message: TranscriptionStatusMessages[TranscriptionStatusOK],
+			Data: &TranscriptionData{
+				Text:     transcription.Text,
+				Language: transcription.Language,
+				Duration: transcription.Duration,
+				Model:    transcription.Model,
+			},
+		}
+	}
+
+	// Check if there's a job in progress
+	if e.deps.JobService != nil {
+		job, err := e.deps.JobService.GetJobForTranscription(ctx, uint(episodeID))
+		if err == nil && job != nil {
+			return e.mapJobToTranscriptionStatus(job)
+		}
+
+		// No job exists, trigger transcription generation for single episode request
+		// We already have the episode data, so use it directly
+		if episode.EnclosureURL != "" {
+			// Try to enqueue a transcription generation job
+			newJob, err := e.deps.JobService.EnqueueJob(ctx, models.JobTypeTranscriptionGeneration, map[string]interface{}{
+				"episode_id": episodeID,
+				"audio_url":  episode.EnclosureURL,
+			})
+			if err == nil {
+				log.Printf("[DEBUG] Auto-triggered transcription generation for episode %d (job %d)", episodeID, newJob.ID)
+				return &TranscriptionStatus{
+					Status:   TranscriptionStatusProcessing,
+					Message:  "Transcription generation started",
+					Progress: 0,
+				}
+			} else {
+				log.Printf("[ERROR] Failed to enqueue transcription job for episode %d: %v", episodeID, err)
+			}
+		}
+	}
+
+	// No transcription, no job, and couldn't trigger generation
+	return nil
+}
+
 // mapJobToWaveformStatus converts job status to waveform status
 func (e *EpisodeEnricher) mapJobToWaveformStatus(job *models.Job) *WaveformStatus {
 	switch job.Status {
@@ -117,6 +174,38 @@ func (e *EpisodeEnricher) mapJobToWaveformStatus(job *models.Job) *WaveformStatu
 		return &WaveformStatus{
 			Status:  WaveformStatusError,
 			Message: "Processing completed but waveform not found",
+		}
+	default:
+		return nil
+	}
+}
+
+// mapJobToTranscriptionStatus converts job status to transcription status
+func (e *EpisodeEnricher) mapJobToTranscriptionStatus(job *models.Job) *TranscriptionStatus {
+	switch job.Status {
+	case models.JobStatusPending:
+		return &TranscriptionStatus{
+			Status:   TranscriptionStatusProcessing,
+			Message:  "Transcription generation queued",
+			Progress: 0,
+		}
+	case models.JobStatusProcessing:
+		return &TranscriptionStatus{
+			Status:   TranscriptionStatusProcessing,
+			Message:  TranscriptionStatusMessages[TranscriptionStatusProcessing],
+			Progress: job.Progress,
+		}
+	case models.JobStatusFailed:
+		return &TranscriptionStatus{
+			Status:  TranscriptionStatusError,
+			Message: "Transcription generation failed",
+		}
+	case models.JobStatusCompleted:
+		// Job completed but transcription not found - shouldn't happen but handle gracefully
+		log.Printf("[WARNING] Job %d completed but transcription not found", job.ID)
+		return &TranscriptionStatus{
+			Status:  TranscriptionStatusError,
+			Message: "Processing completed but transcription not found",
 		}
 	default:
 		return nil

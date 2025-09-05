@@ -1,0 +1,39 @@
+services:
+  player-api:
+    image: killallplayer-api:test
+    # Uncomment to build instead of using pre-built image
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      # API keys from .env file
+      - KILLALL_PODCAST_INDEX_API_KEY=${KILLALL_PODCAST_INDEX_API_KEY}
+      - KILLALL_PODCAST_INDEX_API_SECRET=${KILLALL_PODCAST_INDEX_API_SECRET}
+      - KILLALL_WHISPER_API_KEY=${KILLALL_WHISPER_API_KEY:-}
+      
+      # Override config file location if needed
+      - KILLALL_CONFIG_PATH=/app/config.yaml
+    
+    volumes:
+      # Mount config file
+      - ./config/docker-compose.yaml:/app/config.yaml:ro
+      
+      # Data persistence
+      - ./data:/app/data
+      - podcast-cache:/app/cache
+      - podcast-models:/app/models
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  podcast-cache:
+  podcast-models:

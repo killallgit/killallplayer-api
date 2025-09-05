@@ -1,0 +1,138 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: killallplayer-config
+data:
+  config.yaml: |
+    # Server configuration
+    server:
+      host: "0.0.0.0"
+      port: 8080
+      read_timeout: "30s"
+      write_timeout: "30s"
+      shutdown_timeout: "10s"
+      max_header_bytes: 1048576
+
+    # Database configuration
+    database:
+      path: "/app/data/podcast-player.db"
+      max_connections: 25
+      max_idle_connections: 5
+      connection_max_lifetime: "1h"
+      enable_wal: true
+      enable_foreign_keys: true
+      log_queries: false
+      verbose: false
+
+    # Processing configuration
+    processing:
+      workers: 2
+      max_queue_size: 100
+      job_timeout: "5m"
+      retry_attempts: 3
+      retry_delay: "5s"
+      ffmpeg_path: "/usr/bin/ffmpeg"
+      ffprobe_path: "/usr/bin/ffprobe"
+      ffmpeg_timeout: "5m"
+      audiowaveform_path: "/usr/bin/audiowaveform"
+      waveform_resolutions: [800, 1600, 3200]
+      waveform_bits: 8
+
+    # Podcast Index API configuration
+    # API keys are loaded from environment/secrets
+    podcast_index:
+      base_url: "https://api.podcastindex.org/api/1.0"
+      timeout: "30s"
+      retry_attempts: 3
+      rate_limit: 10
+      cache_ttl: "1h"
+      user_agent: "PodcastPlayerAPI/1.0"
+
+    # Whisper transcription configuration
+    whisper:
+      api_url: "https://api.openai.com/v1/audio/transcriptions"
+      model: "whisper-1"
+      language: "en"
+      temperature: 0.0
+      timeout: "5m"
+      max_file_size: 26214400
+      chunk_duration: 600
+      cost_per_minute: 0.006
+      monthly_quota: 100.0
+
+    # Storage configuration
+    storage:
+      temp_dir: "/tmp"
+      cache_dir: "/app/cache"
+      max_temp_age: "24h"
+      cleanup_interval: "1h"
+      max_cache_size: 10737418240
+
+    # Cache configuration
+    cache:
+      memory:
+        default_ttl: "1h"
+        cleanup_interval: "10m"
+        max_entries: 1000
+      api:
+        search_ttl: "5m"
+        podcast_ttl: "1h"
+        episode_ttl: "1h"
+
+    # Streaming configuration
+    streaming:
+      buffer_size: 32768
+      enable_range_requests: true
+      max_concurrent_streams: 100
+      bandwidth_limit: 0
+
+    # Rate limiting configuration
+    rate_limiting:
+      enabled: true
+      endpoints:
+        "/api/v1/search": 5
+        "/api/v1/episodes": 10
+        "/api/v1/trending": 10
+        "/api/v1/stream": 20
+        "/api/v1/waveform": 10
+        "/api/v1/regions": 10
+        "/api/v1/podcasts/*/episodes/sync": 1
+
+    # Security configuration
+    security:
+      enable_cors: true
+      cors_origins: ["*"]
+      cors_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+      cors_headers: ["Content-Type", "Authorization", "Range"]
+      enable_request_id: true
+      enable_recovery: true
+
+    # Logging configuration
+    logging:
+      level: "info"
+      format: "json"
+      output: "stdout"
+      file_path: ""
+      max_size: 100
+      max_backups: 3
+      max_age: 28
+      compress: true
+      enable_caller: false
+      enable_stacktrace: false
+
+    # Monitoring configuration
+    monitoring:
+      enabled: true
+      metrics_path: "/metrics"
+      health_path: "/health"
+      pprof_enabled: false
+      pprof_path: "/debug/pprof"
+
+    # Feature flags
+    features:
+      enable_transcription: true
+      enable_waveform: true
+      enable_tagging: true
+      enable_caching: true
+      maintenance_mode: false

@@ -45,3 +45,4 @@ bin/*
 data/*
 !data/tests/
 .devbox
+models

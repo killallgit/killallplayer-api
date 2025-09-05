@@ -14,6 +14,7 @@ import (
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/podcasts"
 	"github.com/killallgit/player-api/api/search"
+	transcriptionAPI "github.com/killallgit/player-api/api/transcription"
 	"github.com/killallgit/player-api/api/trending"
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/api/version"
@@ -22,6 +23,7 @@ import (
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/jobs"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
+	"github.com/killallgit/player-api/internal/services/transcription"
 	"github.com/killallgit/player-api/internal/services/waveforms"
 	"github.com/killallgit/player-api/pkg/config"
 	"github.com/spf13/viper"
@@ -106,6 +108,11 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 			initializeWaveformService(deps)
 		}
 
+		// Initialize transcription service if not set
+		if deps.TranscriptionService == nil {
+			initializeTranscriptionService(deps)
+		}
+
 		// Initialize job service if not set
 		if deps.JobService == nil {
 			initializeJobService(deps)
@@ -121,6 +128,12 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		waveformGroup := v1.Group("/episodes")
 		waveformGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
 		waveform.RegisterRoutes(waveformGroup, deps)
+
+		// Register transcription routes with moderate rate limiting (10 req/s, burst of 20)
+		// Transcription generation may be CPU intensive, so we limit the rate
+		transcriptionGroup := v1.Group("/episodes")
+		transcriptionGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
+		transcriptionAPI.RegisterRoutes(transcriptionGroup, deps)
 
 		// Register annotation routes with moderate rate limiting (10 req/s, burst of 20)
 		annotationGroup := v1.Group("/episodes")
@@ -176,6 +189,15 @@ func initializeWaveformService(deps *types.Dependencies) {
 
 	// Create service
 	deps.WaveformService = waveforms.NewService(waveformRepo)
+}
+
+// initializeTranscriptionService creates and configures the transcription service
+func initializeTranscriptionService(deps *types.Dependencies) {
+	// Create dependencies
+	transcriptionRepo := transcription.NewRepository(deps.DB.DB)
+
+	// Create service
+	deps.TranscriptionService = transcription.NewService(transcriptionRepo)
 }
 
 // initializeJobService creates and configures the job service
