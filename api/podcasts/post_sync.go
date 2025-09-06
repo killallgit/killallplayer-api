@@ -12,11 +12,9 @@ import (
 // PostSync manually triggers episode sync from Podcast Index
 func PostSync(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		podcastIDStr := c.Param("id")
-		podcastID, err := strconv.ParseInt(podcastIDStr, 10, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, deps.EpisodeTransformer.CreateErrorResponse("Invalid podcast ID"))
-			return
+		podcastID, ok := types.ParseInt64Param(c, "id")
+		if !ok {
+			return // Error response already sent by utility
 		}
 
 		max, _ := strconv.Atoi(c.DefaultQuery("max", "50"))
@@ -28,7 +26,7 @@ func PostSync(deps *types.Dependencies) gin.HandlerFunc {
 		response, err := deps.EpisodeService.FetchAndSyncEpisodes(c.Request.Context(), podcastID, max)
 		if err != nil {
 			log.Printf("[ERROR] Failed to sync episodes for podcast %d: %v", podcastID, err)
-			c.JSON(http.StatusInternalServerError, deps.EpisodeTransformer.CreateErrorResponse("Failed to sync episodes"))
+			types.SendInternalError(c, "Failed to sync episodes")
 			return
 		}
 

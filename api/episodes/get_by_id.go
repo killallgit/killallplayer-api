@@ -3,7 +3,6 @@ package episodes
 import (
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
@@ -23,14 +22,10 @@ import (
 // @Router       /api/v1/episodes/{id} [get]
 func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		episodeIDStr := c.Param("id")
-
 		// Parse Podcast Index ID (int64)
-		podcastIndexID, err := strconv.ParseInt(episodeIDStr, 10, 64)
-		if err != nil {
-			log.Printf("[ERROR] Invalid episode ID '%s': %v", episodeIDStr, err)
-			c.JSON(http.StatusBadRequest, deps.EpisodeTransformer.CreateErrorResponse("Invalid episode ID"))
-			return
+		podcastIndexID, ok := types.ParseInt64Param(c, "id")
+		if !ok {
+			return // Error response already sent by utility
 		}
 
 		// Fetch episode
@@ -38,10 +33,10 @@ func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 		if err != nil {
 			if IsNotFound(err) {
 				log.Printf("[WARN] Episode not found - Podcast Index ID: %d, Error: %v", podcastIndexID, err)
-				c.JSON(http.StatusNotFound, deps.EpisodeTransformer.CreateErrorResponse("Episode not found"))
+				types.SendNotFound(c, "Episode not found")
 			} else {
 				log.Printf("[ERROR] Failed to fetch episode with Podcast Index ID %d: %v", podcastIndexID, err)
-				c.JSON(http.StatusInternalServerError, deps.EpisodeTransformer.CreateErrorResponse("Failed to fetch episode"))
+				types.SendInternalError(c, "Failed to fetch episode")
 			}
 			return
 		}

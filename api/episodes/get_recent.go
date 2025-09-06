@@ -20,7 +20,7 @@ func GetRecent(deps *types.Dependencies) gin.HandlerFunc {
 		episodes, err := deps.EpisodeService.GetRecentEpisodes(c.Request.Context(), max)
 		if err != nil {
 			log.Printf("[ERROR] Failed to fetch recent episodes (limit %d): %v", max, err)
-			c.JSON(http.StatusInternalServerError, deps.EpisodeTransformer.CreateErrorResponse("Failed to fetch recent episodes"))
+			types.SendInternalError(c, "Failed to fetch recent episodes")
 			return
 		}
 
