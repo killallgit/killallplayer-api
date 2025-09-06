@@ -147,7 +147,7 @@ func TestCreateAnnotation(t *testing.T) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Contains(t, response["error"], "Invalid episode ID")
+				assert.Contains(t, response["error"], "Invalid id")
 			},
 		},
 	}
@@ -217,7 +217,7 @@ func TestGetAnnotations(t *testing.T) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Contains(t, response["error"], "Invalid episode ID")
+				assert.Contains(t, response["error"], "Invalid id")
 			},
 		},
 		{

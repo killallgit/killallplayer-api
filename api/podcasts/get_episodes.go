@@ -10,6 +10,17 @@ import (
 )
 
 // GetEpisodes returns episodes for a specific podcast
+// @Summary      Get episodes for a podcast
+// @Description  Retrieve all episodes for a specific podcast by its Podcast Index ID. This is the correct endpoint to use after getting podcast IDs from /trending.
+// @Tags         podcasts
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "Podcast ID from trending or search results" minimum(1) example(6780065)
+// @Param        max query int false "Maximum number of episodes to return (1-1000)" minimum(1) maximum(1000) default(20)
+// @Success      200 {object} episodes.PodcastIndexResponse "List of episodes for the podcast"
+// @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - invalid podcast ID"
+// @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
+// @Router       /api/v1/podcasts/{id}/episodes [get]
 func GetEpisodes(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse and validate podcast ID

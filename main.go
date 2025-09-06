@@ -49,7 +49,10 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 
 package main
 
-import "github.com/killallgit/player-api/cmd"
+import (
+	"github.com/killallgit/player-api/cmd"
+	_ "github.com/killallgit/player-api/docs" // Import swagger docs
+)
 
 func main() {
 	cmd.Execute()

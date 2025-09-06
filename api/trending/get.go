@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
-	_ "github.com/killallgit/player-api/internal/services/podcastindex"
 )
 
 // Get returns trending podcasts from Podcast Index API

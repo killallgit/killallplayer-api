@@ -71,8 +71,8 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 
 	log.Printf("[DEBUG] Processing waveform generation job %d", job.ID)
 
-	// Parse job payload to get episode ID
-	episodeID, err := p.parseEpisodeID(job.Payload)
+	// Parse job payload to get episode ID (this is the Podcast Index ID)
+	podcastIndexID, err := p.parseEpisodeID(job.Payload)
 	if err != nil {
 		return fmt.Errorf("invalid job payload: %w", err)
 	}
@@ -83,14 +83,14 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 	}
 
 	// Get episode details using Podcast Index ID
-	episode, err := p.episodeService.GetEpisodeByPodcastIndexID(ctx, int64(episodeID))
+	episode, err := p.episodeService.GetEpisodeByPodcastIndexID(ctx, int64(podcastIndexID))
 	if err != nil {
-		return fmt.Errorf("failed to get episode %d: %w", episodeID, err)
+		return fmt.Errorf("failed to get episode %d: %w", podcastIndexID, err)
 	}
 
 	// Check if episode has audio URL
 	if episode.AudioURL == "" {
-		return fmt.Errorf("episode %d has no audio URL", episodeID)
+		return fmt.Errorf("episode %d has no audio URL", podcastIndexID)
 	}
 
 	// Update progress: Starting download
@@ -98,10 +98,10 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	log.Printf("[DEBUG] Downloading audio for episode %d from URL: %s", episodeID, episode.AudioURL)
+	log.Printf("[DEBUG] Downloading audio for episode %d (database ID: %d) from URL: %s", podcastIndexID, episode.ID, episode.AudioURL)
 
-	// Download audio to temp file
-	downloadResult, err := p.downloader.DownloadToTemp(ctx, episode.AudioURL, episodeID)
+	// Download audio to temp file (use Podcast Index ID for logging)
+	downloadResult, err := p.downloader.DownloadToTemp(ctx, episode.AudioURL, podcastIndexID)
 	if err != nil {
 		return fmt.Errorf("failed to download audio: %w", err)
 	}
@@ -134,9 +134,9 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	// Create waveform model
+	// Create waveform model - IMPORTANT: Use database episode ID, not Podcast Index ID
 	waveformModel := &models.Waveform{
-		EpisodeID:  episodeID,
+		EpisodeID:  uint(episode.ID),  // Use the database ID from the episode model
 		Duration:   waveformData.Duration,
 		Resolution: waveformData.Resolution,
 		SampleRate: waveformData.SampleRate,
@@ -159,14 +159,15 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 
 	// Create job result with additional download info
 	result := map[string]interface{}{
-		"episode_id":    episodeID,
-		"duration":      waveformData.Duration,
-		"resolution":    waveformData.Resolution,
-		"sample_rate":   waveformData.SampleRate,
-		"peaks_count":   len(waveformData.Peaks),
-		"file_size":     downloadResult.ContentLength,
-		"content_type":  downloadResult.ContentType,
-		"download_etag": downloadResult.ETag,
+		"episode_id":      podcastIndexID,  // Keep Podcast Index ID in result for consistency
+		"database_id":     episode.ID,      // Also include database ID for reference
+		"duration":        waveformData.Duration,
+		"resolution":      waveformData.Resolution,
+		"sample_rate":     waveformData.SampleRate,
+		"peaks_count":     len(waveformData.Peaks),
+		"file_size":       downloadResult.ContentLength,
+		"content_type":    downloadResult.ContentType,
+		"download_etag":   downloadResult.ETag,
 	}
 
 	// Complete the job
@@ -174,8 +175,8 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		return fmt.Errorf("failed to complete job: %w", err)
 	}
 
-	log.Printf("[DEBUG] Waveform generation completed for episode %d (%.1fs, %d peaks, %.2f MB)",
-		episodeID, waveformData.Duration, len(waveformData.Peaks),
+	log.Printf("[DEBUG] Waveform generation completed for episode %d (database ID: %d) (%.1fs, %d peaks, %.2f MB)",
+		podcastIndexID, episode.ID, waveformData.Duration, len(waveformData.Peaks),
 		float64(downloadResult.ContentLength)/(1024*1024))
 
 	return nil

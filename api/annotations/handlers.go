@@ -23,40 +23,36 @@ import (
 // @Router       /api/v1/episodes/{id}/annotations [post]
 func CreateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		episodeIDStr := c.Param("id")
-
-		// Parse episode ID
-		episodeID, err := strconv.ParseUint(episodeIDStr, 10, 32)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
-			return
+		// Parse episode ID using utility function
+		episodeID, ok := types.ParseUintParam(c, "id")
+		if !ok {
+			return // Error response already sent by utility
 		}
 
-		// Parse request body
+		// Parse request body using utility function
 		var annotation models.Annotation
-		if err := c.ShouldBindJSON(&annotation); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
-			return
+		if !types.BindJSONOrError(c, &annotation) {
+			return // Error response already sent by utility
 		}
 
 		// Set episode ID and validate required fields
-		annotation.EpisodeID = uint(episodeID)
+		annotation.EpisodeID = episodeID
 		if annotation.Label == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Label is required"})
+			types.SendBadRequest(c, "Label is required")
 			return
 		}
 		if annotation.StartTime >= annotation.EndTime {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Start time must be before end time"})
+			types.SendBadRequest(c, "Start time must be before end time")
 			return
 		}
 
 		// Create annotation in database
 		if err := deps.DB.Create(&annotation).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create annotation"})
+			types.SendInternalError(c, "Failed to create annotation")
 			return
 		}
 
-		c.JSON(http.StatusCreated, annotation)
+		types.SendCreated(c, annotation)
 	}
 }
 
@@ -73,13 +69,10 @@ func CreateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 // @Router       /api/v1/episodes/{id}/annotations [get]
 func GetAnnotations(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		episodeIDStr := c.Param("id")
-
-		// Parse episode ID
-		episodeID, err := strconv.ParseUint(episodeIDStr, 10, 32)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
-			return
+		// Parse episode ID using common utility
+		episodeID, ok := types.ParseUintParam(c, "id")
+		if !ok {
+			return // Error response already sent by utility
 		}
 
 		// Get annotations from database

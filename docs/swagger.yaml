@@ -427,113 +427,7 @@ definitions:
         example: ok
         type: string
     type: object
-  gorm.DeletedAt:
-    properties:
-      time:
-        type: string
-      valid:
-        description: Valid is true if Time is not NULL
-        type: boolean
-    type: object
   models.Annotation:
-    properties:
-      createdAt:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      end_time:
-        description: Time in seconds
-        type: number
-      episode:
-        allOf:
-        - $ref: '#/definitions/models.Episode'
-        description: Relationship
-      episode_id:
-        type: integer
-      id:
-        type: integer
-      label:
-        type: string
-      start_time:
-        description: Time in seconds
-        type: number
-      updatedAt:
-        type: string
-    type: object
-  models.Episode:
-    properties:
-      annotations:
-        items:
-          $ref: '#/definitions/models.Annotation'
-        type: array
-      audio_url:
-        description: Media information
-        type: string
-      chapters_url:
-        description: Podcast 2.0 features
-        type: string
-      createdAt:
-        type: string
-      date_crawled:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      description:
-        type: string
-      duration:
-        description: Duration in seconds, nullable
-        type: integer
-      enclosure_length:
-        type: integer
-      enclosure_type:
-        type: string
-      episode_number:
-        description: Episode metadata
-        type: integer
-      episode_type:
-        description: full, trailer, bonus
-        type: string
-      explicit:
-        description: 0=not explicit, 1=explicit
-        type: integer
-      feed_image:
-        type: string
-      feed_itunes_id:
-        type: integer
-      feed_language:
-        type: string
-      feed_title:
-        description: Feed metadata (denormalized for performance)
-        type: string
-      guid:
-        type: string
-      id:
-        type: integer
-      image:
-        type: string
-      link:
-        type: string
-      podcast_id:
-        description: Core episode fields
-        type: integer
-      podcast_index_id:
-        description: Podcast Index episode ID
-        type: integer
-      published_at:
-        description: Timestamps
-        type: string
-      season:
-        type: integer
-      title:
-        type: string
-      transcript_url:
-        type: string
-      updatedAt:
-        type: string
-      waveform:
-        allOf:
-        - $ref: '#/definitions/models.Waveform'
-        description: Relationships
     type: object
   models.SearchRequest:
     properties:
@@ -549,32 +443,6 @@ definitions:
         type: string
     required:
     - query
-    type: object
-  models.Waveform:
-    properties:
-      createdAt:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      duration:
-        description: Duration in seconds
-        type: number
-      episode:
-        allOf:
-        - $ref: '#/definitions/models.Episode'
-        description: Relationship
-      episode_id:
-        type: integer
-      id:
-        type: integer
-      resolution:
-        description: Number of peaks
-        type: integer
-      sample_rate:
-        description: Sample rate of original audio
-        type: integer
-      updatedAt:
-        type: string
     type: object
   podcastindex.Podcast:
     properties:
@@ -654,6 +522,25 @@ definitions:
         type: string
       text:
         type: string
+    type: object
+  waveform.WaveformData:
+    properties:
+      cached:
+        type: boolean
+      duration:
+        description: Duration in seconds
+        type: number
+      episode_id:
+        type: integer
+      peaks:
+        items:
+          type: number
+        type: array
+      resolution:
+        description: Number of peaks
+        type: integer
+      sample_rate:
+        type: integer
     type: object
 host: localhost:8080
 info:
@@ -966,6 +853,47 @@ paths:
       tags:
       - Transcription
   /api/v1/episodes/{id}/waveform:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve generated waveform data for a specific episode. If waveform
+        doesn't exist, it will be queued for generation.
+      parameters:
+      - description: Episode ID (Podcast Index ID)
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Waveform data retrieved successfully
+          schema:
+            $ref: '#/definitions/waveform.WaveformData'
+        "202":
+          description: Waveform generation in progress
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid episode ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Episode or waveform not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get waveform data for an episode
+      tags:
+      - Waveform
     post:
       consumes:
       - application/json
@@ -1000,6 +928,43 @@ paths:
             additionalProperties: true
             type: object
       summary: Trigger waveform generation
+      tags:
+      - Waveform
+  /api/v1/episodes/{id}/waveform/status:
+    get:
+      consumes:
+      - application/json
+      description: Check the status of waveform generation for a specific episode
+      parameters:
+      - description: Episode ID (Podcast Index ID)
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status information
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid episode ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Waveform not found or episode not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get waveform generation status
       tags:
       - Waveform
   /api/v1/episodes/annotations/{id}:
@@ -1127,6 +1092,45 @@ paths:
       summary: Get episode by GUID
       tags:
       - episodes
+  /api/v1/podcasts/{id}/episodes:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all episodes for a specific podcast by its Podcast Index
+        ID. This is the correct endpoint to use after getting podcast IDs from /trending.
+      parameters:
+      - description: Podcast ID from trending or search results
+        example: 6780065
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - default: 20
+        description: Maximum number of episodes to return (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: max
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of episodes for the podcast
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexResponse'
+        "400":
+          description: Bad request - invalid podcast ID
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+      summary: Get episodes for a podcast
+      tags:
+      - podcasts
   /api/v1/search:
     post:
       consumes:

@@ -29,6 +29,21 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Rate limiting constants to avoid duplication
+const (
+	// Search endpoints have stricter limits due to external API calls
+	SearchRateLimit      = 5
+	SearchRateLimitBurst = 10
+
+	// General API endpoints have moderate limits
+	GeneralRateLimit      = 10
+	GeneralRateLimitBurst = 20
+
+	// Sync operations have very strict limits due to resource intensity
+	SyncRateLimit      = 1
+	SyncRateLimitBurst = 2
+)
+
 // RegisterRoutes registers all API routes
 func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *sync.Map, cleanupStop chan struct{}, cleanupInitialized *sync.Once) error {
 	// Register public routes (no rate limiting)
@@ -87,69 +102,64 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		})
 	}
 
-	// Register search routes with dedicated rate limiting (5 req/s, burst of 10)
+	// Register search routes with dedicated rate limiting
 	searchGroup := v1.Group("/search")
-	searchGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 5, 10))
+	searchGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, SearchRateLimit, SearchRateLimitBurst))
 	search.RegisterRoutes(searchGroup, deps)
 
-	// Register trending routes with general rate limiting (10 req/s, burst of 20)
+	// Register trending routes with general rate limiting
 	trendingGroup := v1.Group("/trending")
-	trendingGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
+	trendingGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
 	trending.RegisterRoutes(trendingGroup, deps)
 
-	// Initialize services if database is available
+	// Initialize all services if database is available
 	if deps.DB != nil && deps.DB.DB != nil {
-		if deps.EpisodeService == nil || deps.EpisodeTransformer == nil {
-			initializeEpisodeService(deps, cfg)
-		}
+		initializeAllServices(deps, cfg)
 
-		// Initialize waveform service if not set
-		if deps.WaveformService == nil {
-			initializeWaveformService(deps)
-		}
-
-		// Initialize transcription service if not set
-		if deps.TranscriptionService == nil {
-			initializeTranscriptionService(deps)
-		}
-
-		// Initialize job service if not set
-		if deps.JobService == nil {
-			initializeJobService(deps)
-		}
-
-		// Register episode routes with general rate limiting (10 req/s, burst of 20)
+		// Register all episode-related routes with general rate limiting
+		// All episode features share the same rate limits since they operate on the same resource
 		episodeGroup := v1.Group("/episodes")
-		episodeGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
+		episodeGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
+
+		// Register all episode-related routes under the same group
 		episodes.RegisterRoutes(episodeGroup, deps)
-
-		// Register waveform routes with moderate rate limiting (10 req/s, burst of 20)
-		// Waveform generation may be CPU intensive, so we limit the rate
-		waveformGroup := v1.Group("/episodes")
-		waveformGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
-		waveform.RegisterRoutes(waveformGroup, deps)
-
-		// Register transcription routes with moderate rate limiting (10 req/s, burst of 20)
-		// Transcription generation may be CPU intensive, so we limit the rate
-		transcriptionGroup := v1.Group("/episodes")
-		transcriptionGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
-		transcriptionAPI.RegisterRoutes(transcriptionGroup, deps)
-
-		// Register annotation routes with moderate rate limiting (10 req/s, burst of 20)
-		annotationGroup := v1.Group("/episodes")
-		annotationGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20))
-		annotations.RegisterRoutes(annotationGroup, deps)
+		waveform.RegisterRoutes(episodeGroup, deps)         // Waveform generation may be CPU intensive
+		transcriptionAPI.RegisterRoutes(episodeGroup, deps) // Transcription generation may be CPU intensive
+		annotations.RegisterRoutes(episodeGroup, deps)
 
 		// Register podcast routes with mixed rate limiting
 		podcastGroup := v1.Group("/podcasts")
 		// Create middleware for different rate limits
-		episodesMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 10, 20)
-		syncMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, 1, 2)
+		episodesMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst)
+		syncMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, SyncRateLimit, SyncRateLimitBurst)
 		podcasts.RegisterRoutes(podcastGroup, deps, episodesMiddleware, syncMiddleware)
 
 	}
 
 	return nil
+}
+
+// initializeAllServices creates and configures all services in one place
+func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
+	// Initialize episode service if not set
+	if deps.EpisodeService == nil || deps.EpisodeTransformer == nil {
+		initializeEpisodeService(deps, cfg)
+	}
+
+	// Initialize waveform service if not set
+	if deps.WaveformService == nil {
+		initializeWaveformService(deps)
+	}
+
+	// Initialize transcription service if not set
+	if deps.TranscriptionService == nil {
+		initializeTranscriptionService(deps)
+	}
+
+	// Initialize job service if not set
+	if deps.JobService == nil {
+		initializeJobService(deps)
+	}
 }
 
 // initializeEpisodeService creates and configures the episode service

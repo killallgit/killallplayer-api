@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestWaveformProcessor_CanProcess tests job type filtering (basic functionality test)
-func TestWaveformProcessor_CanProcess(t *testing.T) {
-	// Create a basic processor for testing
-	processor := &WaveformProcessor{}
+// TestEnhancedWaveformProcessor_CanProcess tests job type filtering (basic functionality test)
+func TestEnhancedWaveformProcessor_CanProcess(t *testing.T) {
+	// Create an enhanced processor for testing
+	processor := &EnhancedWaveformProcessor{}
 
 	// Should accept waveform jobs
 	assert.True(t, processor.CanProcess(models.JobTypeWaveformGeneration))
@@ -26,9 +26,9 @@ func TestWaveformProcessor_CanProcess(t *testing.T) {
 	assert.False(t, processor.CanProcess("unknown_type"))
 }
 
-// TestWaveformProcessor_ParseEpisodeID tests job payload parsing
-func TestWaveformProcessor_ParseEpisodeID(t *testing.T) {
-	processor := &WaveformProcessor{}
+// TestEnhancedWaveformProcessor_ParseEpisodeID tests job payload parsing
+func TestEnhancedWaveformProcessor_ParseEpisodeID(t *testing.T) {
+	processor := &EnhancedWaveformProcessor{}
 
 	tests := []struct {
 		name     string
