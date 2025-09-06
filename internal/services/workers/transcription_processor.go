@@ -14,6 +14,7 @@ import (
 	"github.com/killallgit/player-api/internal/services/jobs"
 	"github.com/killallgit/player-api/internal/services/transcription"
 	"github.com/killallgit/player-api/pkg/download"
+	"github.com/killallgit/player-api/pkg/transcript"
 	"github.com/spf13/viper"
 )
 
@@ -23,9 +24,12 @@ type TranscriptionProcessor struct {
 	transcriptionService transcription.TranscriptionService
 	episodeService       episodes.EpisodeService
 	downloader           *download.Downloader
+	transcriptFetcher    *transcript.Fetcher
+	transcriptParser     *transcript.Parser
 	modelPath            string
 	whisperPath          string
 	language             string
+	preferExisting       bool
 }
 
 // NewTranscriptionProcessor creates a new transcription processor
@@ -62,14 +66,30 @@ func NewTranscriptionProcessor(
 		language = "en"
 	}
 
+	// Get preference for using existing transcripts
+	preferExisting := viper.GetBool("transcription.prefer_existing")
+	if !viper.IsSet("transcription.prefer_existing") {
+		preferExisting = true // Default to true
+	}
+
+	// Create transcript fetcher
+	fetchOpts := transcript.DefaultFetchOptions()
+	fetchTimeout := viper.GetDuration("transcription.fetch_timeout")
+	if fetchTimeout > 0 {
+		fetchOpts.Timeout = fetchTimeout
+	}
+
 	return &TranscriptionProcessor{
 		jobService:           jobService,
 		transcriptionService: transcriptionService,
 		episodeService:       episodeService,
 		downloader:           download.NewDownloader(downloadOpts),
+		transcriptFetcher:    transcript.NewFetcher(fetchOpts),
+		transcriptParser:     transcript.NewParser(),
 		modelPath:            modelPath,
 		whisperPath:          whisperPath,
 		language:             language,
+		preferExisting:       preferExisting,
 	}
 }
 
@@ -103,17 +123,99 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 		return fmt.Errorf("failed to get episode %d: %w", episodeID, err)
 	}
 
-	// Check if episode has audio URL
-	if episode.AudioURL == "" {
-		return fmt.Errorf("episode %d has no audio URL", episodeID)
+	// Try to fetch existing transcript first if preferred and available
+	if p.preferExisting && episode.TranscriptURL != "" {
+		log.Printf("[DEBUG] Episode %d has transcript URL: %s, attempting to fetch", episodeID, episode.TranscriptURL)
+
+		// Update progress: Fetching existing transcript
+		if err := p.jobService.UpdateProgress(ctx, job.ID, 10); err != nil {
+			log.Printf("Failed to update job progress: %v", err)
+		}
+
+		// Try to fetch and parse the transcript
+		transcriptResult, fetchErr := p.transcriptFetcher.Fetch(ctx, episode.TranscriptURL)
+		if fetchErr == nil {
+			log.Printf("[DEBUG] Successfully fetched transcript for episode %d (format: %s, size: %d bytes)",
+				episodeID, transcriptResult.Format, transcriptResult.Size)
+
+			// Update progress: Parsing transcript
+			if err := p.jobService.UpdateProgress(ctx, job.ID, 30); err != nil {
+				log.Printf("Failed to update job progress: %v", err)
+			}
+
+			// Parse the transcript
+			parsedTranscript, parseErr := p.transcriptParser.Parse(transcriptResult.Content, transcriptResult.Format)
+			if parseErr == nil {
+				log.Printf("[DEBUG] Successfully parsed transcript for episode %d (segments: %d, duration: %v)",
+					episodeID, len(parsedTranscript.Segments), parsedTranscript.Duration)
+
+				// Update progress: Saving to database
+				if err := p.jobService.UpdateProgress(ctx, job.ID, 85); err != nil {
+					log.Printf("Failed to update job progress: %v", err)
+				}
+
+				// Create transcription model
+				transcriptionModel := &models.Transcription{
+					EpisodeID: episodeID,
+					Text:      parsedTranscript.ToPlainText(),
+					Language:  p.language, // We might want to detect this from the transcript
+					Model:     fmt.Sprintf("fetched-%s", parsedTranscript.Format),
+					Duration:  parsedTranscript.Duration.Seconds(),
+					Source:    "fetched",
+					SourceURL: episode.TranscriptURL,
+					Format:    string(parsedTranscript.Format),
+				}
+
+				// Save transcription to database
+				if err := p.transcriptionService.SaveTranscription(ctx, transcriptionModel); err != nil {
+					log.Printf("[ERROR] Failed to save fetched transcript: %v", err)
+				} else {
+					// Update progress: Complete
+					if err := p.jobService.UpdateProgress(ctx, job.ID, 100); err != nil {
+						log.Printf("Failed to update job progress: %v", err)
+					}
+
+					// Create job result
+					result := map[string]interface{}{
+						"episode_id":  episodeID,
+						"source":      "fetched",
+						"source_url":  episode.TranscriptURL,
+						"format":      string(parsedTranscript.Format),
+						"segments":    len(parsedTranscript.Segments),
+						"duration":    parsedTranscript.Duration.Seconds(),
+						"text_length": len(parsedTranscript.FullText),
+					}
+
+					// Complete the job
+					if err := p.jobService.CompleteJob(ctx, job.ID, models.JobResult(result)); err != nil {
+						return fmt.Errorf("failed to complete job: %w", err)
+					}
+
+					log.Printf("[DEBUG] Successfully processed transcript from URL for episode %d", episodeID)
+					return nil
+				}
+			} else {
+				log.Printf("[WARNING] Failed to parse transcript for episode %d: %v", episodeID, parseErr)
+			}
+		} else {
+			log.Printf("[WARNING] Failed to fetch transcript from URL for episode %d: %v", episodeID, fetchErr)
+		}
+
+		// If we get here, fetching/parsing failed, fall back to Whisper transcription
+		log.Printf("[INFO] Falling back to Whisper transcription for episode %d", episodeID)
 	}
 
-	// Update progress: Starting download
+	// Check if episode has audio URL for Whisper transcription
+	if episode.AudioURL == "" {
+		return fmt.Errorf("episode %d has no audio URL for transcription", episodeID)
+	}
+
+	// Update progress: Starting download for Whisper transcription
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 10); err != nil {
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	log.Printf("[DEBUG] Downloading audio for transcription of episode %d from URL: %s", episodeID, episode.AudioURL)
+	log.Printf("[DEBUG] Downloading audio for Whisper transcription of episode %d from URL: %s", episodeID, episode.AudioURL)
 
 	// Download audio to temp file
 	downloadResult, err := p.downloader.DownloadToTemp(ctx, episode.AudioURL, episodeID)
@@ -156,6 +258,9 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 		Language:  p.language,
 		Model:     filepath.Base(p.modelPath),
 		Duration:  duration,
+		Source:    "generated",
+		SourceURL: "",        // No source URL for generated transcripts
+		Format:    "whisper", // Whisper output format
 	}
 
 	// Save transcription to database
@@ -171,6 +276,7 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 	// Create job result
 	result := map[string]interface{}{
 		"episode_id":    episodeID,
+		"source":        "generated",
 		"duration":      duration,
 		"language":      p.language,
 		"model":         filepath.Base(p.modelPath),

@@ -24,12 +24,12 @@ type TranscriptionData struct {
 
 // TriggerTranscription manually triggers transcription generation for an episode
 // @Summary Trigger transcription generation
-// @Description Manually trigger transcription generation for a specific episode
+// @Description Manually trigger transcription generation for a specific episode. Will first check for existing transcripts at the episode's transcriptURL before using Whisper.
 // @Tags Transcription
 // @Accept json
 // @Produce json
 // @Param id path int true "Episode ID (Podcast Index ID)"
-// @Success 200 {object} map[string]interface{} "Transcription already exists"
+// @Success 200 {object} map[string]interface{} "Transcription already exists (source: 'fetched' or 'generated')"
 // @Success 202 {object} map[string]interface{} "Transcription generation triggered"
 // @Failure 400 {object} map[string]interface{} "Invalid episode ID"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
@@ -137,12 +137,12 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 
 // GetTranscription returns transcription data for an episode
 // @Summary Get transcription data
-// @Description Retrieve the transcription text and metadata for an episode
+// @Description Retrieve the transcription text and metadata for an episode. Returns transcriptions that were either fetched from external URLs or generated via Whisper.
 // @Tags Transcription
 // @Accept json
 // @Produce json
 // @Param id path int true "Episode ID (Podcast Index ID)"
-// @Success 200 {object} TranscriptionData "Transcription data"
+// @Success 200 {object} TranscriptionData "Transcription data (includes source: 'fetched' or 'generated')"
 // @Failure 400 {object} map[string]interface{} "Invalid episode ID"
 // @Failure 404 {object} map[string]interface{} "Transcription not found"
 // @Failure 500 {object} map[string]interface{} "Internal server error"

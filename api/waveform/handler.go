@@ -27,7 +27,7 @@ type WaveformData struct {
 // GetWaveform returns waveform data for an episode
 // GetWaveform returns waveform data for an episode
 // @Summary Get waveform data for an episode
-// @Description Retrieve generated waveform data for a specific episode. If waveform doesn't exist, it will be queued for generation.
+// @Description Retrieve generated waveform data for a specific episode. If waveform doesn't exist, it will be queued for generation. Failed jobs are retried with exponential backoff.
 // @Tags Waveform
 // @Accept json
 // @Produce json
@@ -37,6 +37,7 @@ type WaveformData struct {
 // @Failure 400 {object} map[string]interface{} "Invalid episode ID"
 // @Failure 404 {object} map[string]interface{} "Episode or waveform not found"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Failure 503 {object} map[string]interface{} "Waveform generation failed, retry pending (includes retry_after in seconds)"
 // @Router /api/v1/episodes/{id}/waveform [get]
 func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -81,6 +82,15 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
+		// Debug logging to diagnose ID mismatch issue
+		log.Printf("[DEBUG] GetWaveform: PodcastIndexID=%d, episode.ID=%d, episode.PodcastIndexID=%d",
+			podcastIndexID, episode.ID, episode.PodcastIndexID)
+
+		// Validate that the IDs are different (they should be)
+		if episode.ID == uint(episode.PodcastIndexID) {
+			log.Printf("[WARNING] Episode ID mismatch detected! Database ID equals PodcastIndexID: %d", episode.ID)
+		}
+
 		// Get waveform from database using the database episode ID
 		waveformModel, err := deps.WaveformService.GetWaveform(ctx, uint(episode.ID))
 		if err != nil {
@@ -101,8 +111,25 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 							})
 							return
 						case models.JobStatusFailed:
-							// Job failed, create a new one
-							break
+							// Check if job can be retried
+							minRetryDelay := 30 * time.Second // Minimum 30 seconds between retries
+							if !existingJob.CanRetryNow(minRetryDelay) {
+								remainingDelay := minRetryDelay*time.Duration(1<<uint(existingJob.RetryCount)) - time.Since(*existingJob.LastFailedAt)
+								c.JSON(http.StatusServiceUnavailable, gin.H{
+									"message":     "Waveform generation failed, retry pending",
+									"episode_id":  podcastIndexID,
+									"job_id":      existingJob.ID,
+									"status":      string(existingJob.Status),
+									"retry_count": existingJob.RetryCount,
+									"max_retries": existingJob.MaxRetries,
+									"retry_after": remainingDelay.Seconds(),
+									"error":       existingJob.Error,
+								})
+								return
+							}
+							// Job can be retried, allow creating a new one
+							log.Printf("Retrying failed waveform job %d for episode %d (attempt %d/%d)",
+								existingJob.ID, podcastIndexID, existingJob.RetryCount+1, existingJob.MaxRetries)
 						case models.JobStatusCompleted:
 							// Job completed but waveform not found? Try to check again with database ID
 							// This might happen if the job just completed
@@ -174,7 +201,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 
 // TriggerWaveform manually triggers waveform generation for an episode
 // @Summary Trigger waveform generation
-// @Description Manually trigger waveform generation for a specific episode
+// @Description Manually trigger waveform generation for a specific episode. Implements retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries.
 // @Tags Waveform
 // @Accept json
 // @Produce json
@@ -183,6 +210,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 // @Success 202 {object} map[string]interface{} "Waveform generation triggered"
 // @Failure 400 {object} map[string]interface{} "Invalid episode ID"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Failure 503 {object} map[string]interface{} "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)"
 // @Router /api/v1/episodes/{id}/waveform [post]
 func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -236,6 +264,10 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
+		// Debug logging
+		log.Printf("[DEBUG] TriggerWaveform: PodcastIndexID=%d, episode.ID=%d, episode.PodcastIndexID=%d",
+			podcastIndexID, episode.ID, episode.PodcastIndexID)
+
 		// Check if waveform already exists (using database ID)
 		exists, err := deps.WaveformService.WaveformExists(ctx, uint(episode.ID))
 		if err == nil && exists {
@@ -273,8 +305,25 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 				})
 				return
 			case models.JobStatusFailed:
-				// Job failed, allow creating a new one
-				log.Printf("Previous waveform job %d failed, creating new job", existingJob.ID)
+				// Check if job can be retried
+				minRetryDelay := 30 * time.Second
+				if !existingJob.CanRetryNow(minRetryDelay) {
+					remainingDelay := minRetryDelay*time.Duration(1<<uint(existingJob.RetryCount)) - time.Since(*existingJob.LastFailedAt)
+					c.JSON(http.StatusServiceUnavailable, gin.H{
+						"message":     "Waveform generation failed, retry pending",
+						"episode_id":  podcastIndexID,
+						"job_id":      existingJob.ID,
+						"status":      string(existingJob.Status),
+						"retry_count": existingJob.RetryCount,
+						"max_retries": existingJob.MaxRetries,
+						"retry_after": remainingDelay.Seconds(),
+						"error":       existingJob.Error,
+					})
+					return
+				}
+				// Job can be retried, allow creating a new one
+				log.Printf("Retrying failed waveform job %d for episode %d (attempt %d/%d)",
+					existingJob.ID, podcastIndexID, existingJob.RetryCount+1, existingJob.MaxRetries)
 			}
 		}
 
@@ -381,6 +430,10 @@ func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 			})
 			return
 		}
+
+		// Debug logging
+		log.Printf("[DEBUG] GetWaveformStatus: PodcastIndexID=%d, episode.ID=%d, episode.PodcastIndexID=%d",
+			podcastIndexID, episode.ID, episode.PodcastIndexID)
 
 		// Check if waveform exists (using database ID)
 		exists, err := deps.WaveformService.WaveformExists(ctx, uint(episode.ID))

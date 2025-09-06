@@ -25,15 +25,15 @@ func (s *service) GetWaveform(ctx context.Context, episodeID uint) (*models.Wave
 		return nil, ErrInvalidEpisodeID
 	}
 
-	log.Printf("[DEBUG] Getting waveform for episode ID: %d", episodeID)
+	log.Printf("[DEBUG] Getting waveform for episode database ID: %d", episodeID)
 
 	waveform, err := s.repo.GetByEpisodeID(ctx, episodeID)
 	if err != nil {
-		log.Printf("[DEBUG] Failed to get waveform for episode %d: %v", episodeID, err)
+		log.Printf("[DEBUG] Failed to get waveform for episode database ID %d: %v", episodeID, err)
 		return nil, err
 	}
 
-	log.Printf("[DEBUG] Found waveform for episode %d: resolution=%d, duration=%.2f",
+	log.Printf("[DEBUG] Found waveform for episode database ID %d: resolution=%d, duration=%.2f",
 		episodeID, waveform.Resolution, waveform.Duration)
 
 	return waveform, nil
@@ -56,11 +56,11 @@ func (s *service) SaveWaveform(ctx context.Context, waveform *models.Waveform) e
 	}
 
 	if exists {
-		log.Printf("[DEBUG] Updating existing waveform for episode ID: %d", waveform.EpisodeID)
+		log.Printf("[DEBUG] Updating existing waveform for episode database ID: %d", waveform.EpisodeID)
 		return s.repo.Update(ctx, waveform)
 	}
 
-	log.Printf("[DEBUG] Creating new waveform for episode ID: %d", waveform.EpisodeID)
+	log.Printf("[DEBUG] Creating new waveform for episode database ID: %d", waveform.EpisodeID)
 	return s.repo.Create(ctx, waveform)
 }
 
@@ -70,7 +70,7 @@ func (s *service) DeleteWaveform(ctx context.Context, episodeID uint) error {
 		return ErrInvalidEpisodeID
 	}
 
-	log.Printf("[DEBUG] Deleting waveform for episode ID: %d", episodeID)
+	log.Printf("[DEBUG] Deleting waveform for episode database ID: %d", episodeID)
 	return s.repo.Delete(ctx, episodeID)
 }
 
@@ -81,6 +81,6 @@ func (s *service) WaveformExists(ctx context.Context, episodeID uint) (bool, err
 	}
 
 	exists, err := s.repo.Exists(ctx, episodeID)
-	log.Printf("[DEBUG] Checking if waveform exists for episode %d: %t", episodeID, exists)
+	log.Printf("[DEBUG] Checking if waveform exists for episode database ID %d: %t", episodeID, exists)
 	return exists, err
 }

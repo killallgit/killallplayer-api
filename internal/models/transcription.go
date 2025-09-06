@@ -14,6 +14,9 @@ type Transcription struct {
 	Language  string         `json:"language"`
 	Model     string         `json:"model"`
 	Duration  float64        `json:"duration"`
+	Source    string         `json:"source"`     // "fetched" or "generated"
+	SourceURL string         `json:"source_url"` // Original transcript URL if fetched
+	Format    string         `json:"format"`     // Original format (vtt, srt, json, text)
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

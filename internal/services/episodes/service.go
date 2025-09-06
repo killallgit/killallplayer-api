@@ -210,10 +210,13 @@ func (s *Service) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID
 
 	// Check cache first
 	if episode, found := s.cache.GetEpisode(key); found {
+		log.Printf("[DEBUG] Service.GetEpisodeByPodcastIndexID: Cache HIT for PodcastIndexID=%d, returning episode with ID=%d",
+			podcastIndexID, episode.ID)
 		return episode, nil
 	}
 
 	// Fetch from repository
+	log.Printf("[DEBUG] Service.GetEpisodeByPodcastIndexID: Cache MISS for PodcastIndexID=%d, fetching from repository", podcastIndexID)
 	episode, err := s.repository.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
 	if err != nil {
 		if IsNotFound(err) {
@@ -223,6 +226,9 @@ func (s *Service) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID
 		}
 		return nil, err
 	}
+
+	log.Printf("[DEBUG] Service.GetEpisodeByPodcastIndexID: Repository returned episode with ID=%d for PodcastIndexID=%d",
+		episode.ID, podcastIndexID)
 
 	// Cache the result
 	s.cache.SetEpisode(key, episode)

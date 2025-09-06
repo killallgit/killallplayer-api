@@ -16,12 +16,84 @@ import (
 	"github.com/killallgit/player-api/api/waveform"
 	"github.com/killallgit/player-api/internal/database"
 	"github.com/killallgit/player-api/internal/models"
+	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/waveforms"
 	"github.com/killallgit/player-api/pkg/ffmpeg"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+// mockEpisodeService is a simple mock implementation for testing
+type mockEpisodeService struct {
+	db *gorm.DB
+}
+
+func (m *mockEpisodeService) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) {
+	var episode models.Episode
+	err := m.db.Where("podcast_index_id = ?", podcastIndexID).First(&episode).Error
+	if err != nil {
+		return nil, err
+	}
+	return &episode, nil
+}
+
+func (m *mockEpisodeService) GetEpisodeByID(ctx context.Context, id uint) (*models.Episode, error) {
+	var episode models.Episode
+	err := m.db.First(&episode, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &episode, nil
+}
+
+func (m *mockEpisodeService) SyncEpisodes(ctx context.Context, podcastID int64, maxEpisodes int) (int, error) {
+	return 0, nil
+}
+
+func (m *mockEpisodeService) GetEpisodes(ctx context.Context, limit int) ([]*models.Episode, error) {
+	return nil, nil
+}
+
+func (m *mockEpisodeService) GetEpisodeByGUID(ctx context.Context, guid string) (*models.Episode, error) {
+	return nil, nil
+}
+
+func (m *mockEpisodeService) GetPodcastIndexEpisode(ctx context.Context, episodeID int64) (*episodes.PodcastIndexEpisode, error) {
+	return nil, nil
+}
+
+func (m *mockEpisodeService) SearchEpisodes(ctx context.Context, query string, limit int) ([]*episodes.PodcastIndexEpisode, error) {
+	return nil, nil
+}
+
+func (m *mockEpisodeService) GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error) {
+	return nil, nil
+}
+
+func (m *mockEpisodeService) GetEpisodesByFeedID(ctx context.Context, feedID int64, limit int) ([]*episodes.PodcastIndexEpisode, error) {
+	return nil, nil
+}
+
+func (m *mockEpisodeService) GetEpisodesByFeedURL(ctx context.Context, feedURL string, limit int) ([]*episodes.PodcastIndexEpisode, error) {
+	return nil, nil
+}
+
+func (m *mockEpisodeService) GetEpisodesByITunesID(ctx context.Context, itunesID int64, limit int) ([]*episodes.PodcastIndexEpisode, error) {
+	return nil, nil
+}
+
+func (m *mockEpisodeService) FetchAndSyncEpisodes(ctx context.Context, podcastID int64, maxEpisodes int) (*episodes.PodcastIndexResponse, error) {
+	return nil, nil
+}
+
+func (m *mockEpisodeService) GetEpisodesByPodcastID(ctx context.Context, podcastID uint, limit int, offset int) ([]models.Episode, int64, error) {
+	return nil, 0, nil
+}
+
+func (m *mockEpisodeService) SyncEpisodesToDatabase(ctx context.Context, episodes []episodes.PodcastIndexEpisode, podcastID uint) (int, error) {
+	return 0, nil
+}
 
 // abs returns the absolute value of a float64
 func abs(x float64) float64 {
@@ -63,9 +135,13 @@ func setupAPITestSuite(t *testing.T) *APITestSuite {
 	waveformRepo := waveforms.NewRepository(db)
 	waveformService := waveforms.NewService(waveformRepo)
 
+	// Create a mock episode service for testing
+	mockEpisodeService := &mockEpisodeService{db: db}
+
 	deps := &types.Dependencies{
 		DB:              dbWrapper,
 		WaveformService: waveformService,
+		EpisodeService:  mockEpisodeService,
 	}
 
 	// Setup router
@@ -130,8 +206,8 @@ func TestWaveformAPI_GetWaveform_NotFound(t *testing.T) {
 	// Create test episode but no waveform
 	episode := suite.createTestEpisode(123)
 
-	// Make request
-	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.ID), nil)
+	// Make request using PodcastIndexID (not database ID)
+	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.PodcastIndexID), nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -154,8 +230,8 @@ func TestWaveformAPI_GetWaveform_NotFound(t *testing.T) {
 		t.Errorf("Expected error message 'Waveform not found for episode', got %v", response["error"])
 	}
 
-	if response["episode_id"] != float64(episode.ID) {
-		t.Errorf("Expected episode_id %d, got %v", episode.ID, response["episode_id"])
+	if response["episode_id"] != float64(episode.PodcastIndexID) {
+		t.Errorf("Expected episode_id %d, got %v", episode.PodcastIndexID, response["episode_id"])
 	}
 }
 
@@ -167,8 +243,8 @@ func TestWaveformAPI_GetWaveform_Success(t *testing.T) {
 	expectedPeaks := []float32{0.1, 0.5, 0.8, 0.3, 0.9, 0.2}
 	suite.createTestWaveform(episode.ID, expectedPeaks)
 
-	// Make request
-	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.ID), nil)
+	// Make request using PodcastIndexID (not database ID)
+	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.PodcastIndexID), nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -189,8 +265,8 @@ func TestWaveformAPI_GetWaveform_Success(t *testing.T) {
 	}
 
 	// Verify response fields
-	if response["episode_id"] != float64(episode.ID) {
-		t.Errorf("Expected episode_id %d, got %v", episode.ID, response["episode_id"])
+	if response["episode_id"] != float64(episode.PodcastIndexID) {
+		t.Errorf("Expected episode_id %d, got %v", episode.PodcastIndexID, response["episode_id"])
 	}
 
 	if response["duration"] != 300.0 {
@@ -241,7 +317,7 @@ func TestWaveformAPI_GetWaveformStatus_NotFound(t *testing.T) {
 	episode := suite.createTestEpisode(123)
 
 	// Make request
-	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.ID), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.PodcastIndexID), nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -282,7 +358,7 @@ func TestWaveformAPI_GetWaveformStatus_Success(t *testing.T) {
 	suite.createTestWaveform(episode.ID, expectedPeaks)
 
 	// Make request
-	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.ID), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.PodcastIndexID), nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -314,8 +390,8 @@ func TestWaveformAPI_GetWaveformStatus_Success(t *testing.T) {
 		t.Errorf("Expected message 'Waveform ready', got %v", response["message"])
 	}
 
-	if response["episode_id"] != float64(episode.ID) {
-		t.Errorf("Expected episode_id %d, got %v", episode.ID, response["episode_id"])
+	if response["episode_id"] != float64(episode.PodcastIndexID) {
+		t.Errorf("Expected episode_id %d, got %v", episode.PodcastIndexID, response["episode_id"])
 	}
 }
 
@@ -376,7 +452,7 @@ func TestWaveformAPI_DatabaseIntegration(t *testing.T) {
 
 	// Test that each episode returns its own waveform
 	for i, episode := range episodes {
-		req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.ID), nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.PodcastIndexID), nil)
 		if err != nil {
 			t.Fatalf("Failed to create request for episode %d: %v", episode.ID, err)
 		}
@@ -395,8 +471,8 @@ func TestWaveformAPI_DatabaseIntegration(t *testing.T) {
 			t.Fatalf("Failed to unmarshal response for episode %d: %v", episode.ID, err)
 		}
 
-		if response["episode_id"] != float64(episode.ID) {
-			t.Errorf("Expected episode_id %d, got %v", episode.ID, response["episode_id"])
+		if response["episode_id"] != float64(episode.PodcastIndexID) {
+			t.Errorf("Expected episode_id %d, got %v", episode.PodcastIndexID, response["episode_id"])
 		}
 
 		// Verify that each waveform is different
@@ -429,6 +505,7 @@ func TestWaveformAPI_WithRealAudioFile(t *testing.T) {
 	// Create test episode with realistic metadata
 	episode := &models.Episode{
 		Model:           gorm.Model{ID: 1},
+		PodcastIndexID:  1000, // Add PodcastIndexID for API
 		Title:           "Sample Audio Episode",
 		AudioURL:        "file://" + samplePath,
 		Duration:        func() *int { d := 10; return &d }(), // Assume 10 second sample
@@ -469,7 +546,7 @@ func TestWaveformAPI_WithRealAudioFile(t *testing.T) {
 	}
 
 	// Test the API endpoint
-	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.ID), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.PodcastIndexID), nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -577,7 +654,7 @@ func TestEndToEndWaveformWorkflow(t *testing.T) {
 	}
 
 	// Step 3: Check status endpoint - should also indicate no waveform exists
-	statusReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.ID), nil)
+	statusReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.PodcastIndexID), nil)
 	if err != nil {
 		t.Fatalf("Failed to create status request: %v", err)
 	}
@@ -626,7 +703,7 @@ func TestEndToEndWaveformWorkflow(t *testing.T) {
 	}
 
 	// Step 5: Now request the waveform again - should return the generated data
-	finalReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.ID), nil)
+	finalReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.PodcastIndexID), nil)
 	if err != nil {
 		t.Fatalf("Failed to create final request: %v", err)
 	}
@@ -666,7 +743,7 @@ func TestEndToEndWaveformWorkflow(t *testing.T) {
 	}
 
 	// Step 7: Verify status endpoint now shows waveform exists
-	finalStatusReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.ID), nil)
+	finalStatusReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.PodcastIndexID), nil)
 	if err != nil {
 		t.Fatalf("Failed to create final status request: %v", err)
 	}

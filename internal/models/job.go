@@ -33,18 +33,19 @@ const (
 // Job represents a background job in the queue
 type Job struct {
 	gorm.Model
-	Type        JobType    `json:"type" gorm:"not null;index:idx_jobs_type_status"`
-	Status      JobStatus  `json:"status" gorm:"default:'pending';index:idx_jobs_status_priority"`
-	Payload     JobPayload `json:"payload" gorm:"type:json"`
-	Priority    int        `json:"priority" gorm:"default:0;index:idx_jobs_status_priority"`
-	MaxRetries  int        `json:"max_retries" gorm:"default:3"`
-	RetryCount  int        `json:"retry_count" gorm:"default:0"`
-	Progress    int        `json:"progress" gorm:"default:0"` // 0-100
-	StartedAt   *time.Time `json:"started_at"`
-	CompletedAt *time.Time `json:"completed_at"`
-	Error       string     `json:"error,omitempty"`
-	Result      JobResult  `json:"result,omitempty" gorm:"type:json"`
-	WorkerID    string     `json:"worker_id,omitempty"` // ID of the worker processing this job
+	Type         JobType    `json:"type" gorm:"not null;index:idx_jobs_type_status"`
+	Status       JobStatus  `json:"status" gorm:"default:'pending';index:idx_jobs_status_priority"`
+	Payload      JobPayload `json:"payload" gorm:"type:json"`
+	Priority     int        `json:"priority" gorm:"default:0;index:idx_jobs_status_priority"`
+	MaxRetries   int        `json:"max_retries" gorm:"default:3"`
+	RetryCount   int        `json:"retry_count" gorm:"default:0"`
+	Progress     int        `json:"progress" gorm:"default:0"` // 0-100
+	StartedAt    *time.Time `json:"started_at"`
+	CompletedAt  *time.Time `json:"completed_at"`
+	LastFailedAt *time.Time `json:"last_failed_at"`
+	Error        string     `json:"error,omitempty"`
+	Result       JobResult  `json:"result,omitempty" gorm:"type:json"`
+	WorkerID     string     `json:"worker_id,omitempty"` // ID of the worker processing this job
 
 	// Metadata
 	CreatedBy string `json:"created_by,omitempty"` // Optional user/system identifier
@@ -107,6 +108,23 @@ func (r *JobResult) Scan(value interface{}) error {
 // IsRetryable returns true if the job can be retried
 func (j *Job) IsRetryable() bool {
 	return j.Status == JobStatusFailed && j.RetryCount < j.MaxRetries
+}
+
+// CanRetryNow returns true if the job can be retried now (considering retry delay)
+func (j *Job) CanRetryNow(minDelay time.Duration) bool {
+	if !j.IsRetryable() {
+		return false
+	}
+
+	// If never failed, can retry immediately
+	if j.LastFailedAt == nil {
+		return true
+	}
+
+	// Check if enough time has passed since last failure
+	// Use exponential backoff: minDelay * 2^(retryCount)
+	backoffDelay := minDelay * time.Duration(1<<uint(j.RetryCount))
+	return time.Since(*j.LastFailedAt) >= backoffDelay
 }
 
 // CanProcess returns true if the job is ready to be processed

@@ -263,9 +263,11 @@ func (r *repository) FailJob(ctx context.Context, jobID uint, errorMsg string) e
 	}
 
 	updates := map[string]interface{}{
-		"status":       models.JobStatusFailed,
-		"error":        errorMsg,
-		"completed_at": &now,
+		"status":         models.JobStatusFailed,
+		"error":          errorMsg,
+		"completed_at":   &now,
+		"last_failed_at": &now,
+		"retry_count":    job.RetryCount + 1,
 	}
 
 	// Reset worker_id so it can be picked up again if retryable

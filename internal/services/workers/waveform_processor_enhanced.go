@@ -88,6 +88,32 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		return fmt.Errorf("failed to get episode %d: %w", podcastIndexID, err)
 	}
 
+	// Check if waveform already exists for this episode
+	existingWaveform, err := p.waveformService.GetWaveform(ctx, uint(episode.ID))
+	if err == nil && existingWaveform != nil {
+		log.Printf("[DEBUG] Waveform already exists for episode %d (database ID: %d), skipping generation", podcastIndexID, episode.ID)
+
+		// Complete the job immediately since waveform exists
+		result := map[string]interface{}{
+			"episode_id":  podcastIndexID,
+			"database_id": episode.ID,
+			"status":      "already_exists",
+			"message":     "Waveform already exists for this episode",
+		}
+
+		// Update progress to 100%
+		if err := p.jobService.UpdateProgress(ctx, job.ID, 100); err != nil {
+			log.Printf("Failed to update job progress: %v", err)
+		}
+
+		// Complete the job
+		if err := p.jobService.CompleteJob(ctx, job.ID, models.JobResult(result)); err != nil {
+			return fmt.Errorf("failed to complete job: %w", err)
+		}
+
+		return nil
+	}
+
 	// Check if episode has audio URL
 	if episode.AudioURL == "" {
 		return fmt.Errorf("episode %d has no audio URL", podcastIndexID)
@@ -136,7 +162,7 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 
 	// Create waveform model - IMPORTANT: Use database episode ID, not Podcast Index ID
 	waveformModel := &models.Waveform{
-		EpisodeID:  uint(episode.ID),  // Use the database ID from the episode model
+		EpisodeID:  uint(episode.ID), // Use the database ID from the episode model
 		Duration:   waveformData.Duration,
 		Resolution: waveformData.Resolution,
 		SampleRate: waveformData.SampleRate,
@@ -159,15 +185,15 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 
 	// Create job result with additional download info
 	result := map[string]interface{}{
-		"episode_id":      podcastIndexID,  // Keep Podcast Index ID in result for consistency
-		"database_id":     episode.ID,      // Also include database ID for reference
-		"duration":        waveformData.Duration,
-		"resolution":      waveformData.Resolution,
-		"sample_rate":     waveformData.SampleRate,
-		"peaks_count":     len(waveformData.Peaks),
-		"file_size":       downloadResult.ContentLength,
-		"content_type":    downloadResult.ContentType,
-		"download_etag":   downloadResult.ETag,
+		"episode_id":    podcastIndexID, // Keep Podcast Index ID in result for consistency
+		"database_id":   episode.ID,     // Also include database ID for reference
+		"duration":      waveformData.Duration,
+		"resolution":    waveformData.Resolution,
+		"sample_rate":   waveformData.SampleRate,
+		"peaks_count":   len(waveformData.Peaks),
+		"file_size":     downloadResult.ContentLength,
+		"content_type":  downloadResult.ContentType,
+		"download_etag": downloadResult.ETag,
 	}
 
 	// Complete the job

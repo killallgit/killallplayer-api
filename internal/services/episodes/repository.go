@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/killallgit/player-api/internal/models"
 	"gorm.io/gorm"
@@ -71,6 +72,11 @@ func (r *Repository) GetEpisodeByPodcastIndexID(ctx context.Context, podcastInde
 		}
 		return nil, fmt.Errorf("getting episode by podcast index id: %w", err)
 	}
+
+	// Debug logging to diagnose ID issues
+	log.Printf("[DEBUG] Repository.GetEpisodeByPodcastIndexID: Query for PodcastIndexID=%d returned episode with ID=%d, PodcastIndexID=%d",
+		podcastIndexID, episode.ID, episode.PodcastIndexID)
+
 	return &episode, nil
 }
 

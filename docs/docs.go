@@ -487,7 +487,7 @@ const docTemplate = `{
         },
         "/api/v1/episodes/{id}/transcribe": {
             "get": {
-                "description": "Retrieve the transcription text and metadata for an episode",
+                "description": "Retrieve the transcription text and metadata for an episode. Returns transcriptions that were either fetched from external URLs or generated via Whisper.",
                 "consumes": [
                     "application/json"
                 ],
@@ -509,7 +509,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Transcription data",
+                        "description": "Transcription data (includes source: 'fetched' or 'generated')",
                         "schema": {
                             "$ref": "#/definitions/transcription.TranscriptionData"
                         }
@@ -538,7 +538,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Manually trigger transcription generation for a specific episode",
+                "description": "Manually trigger transcription generation for a specific episode. Will first check for existing transcripts at the episode's transcriptURL before using Whisper.",
                 "consumes": [
                     "application/json"
                 ],
@@ -560,7 +560,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Transcription already exists",
+                        "description": "Transcription already exists (source: 'fetched' or 'generated')",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -646,7 +646,7 @@ const docTemplate = `{
         },
         "/api/v1/episodes/{id}/waveform": {
             "get": {
-                "description": "Retrieve generated waveform data for a specific episode. If waveform doesn't exist, it will be queued for generation.",
+                "description": "Retrieve generated waveform data for a specific episode. If waveform doesn't exist, it will be queued for generation. Failed jobs are retried with exponential backoff.",
                 "consumes": [
                     "application/json"
                 ],
@@ -700,11 +700,18 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "503": {
+                        "description": "Waveform generation failed, retry pending (includes retry_after in seconds)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
                     }
                 }
             },
             "post": {
-                "description": "Manually trigger waveform generation for a specific episode",
+                "description": "Manually trigger waveform generation for a specific episode. Implements retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries.",
                 "consumes": [
                     "application/json"
                 ],
@@ -748,6 +755,13 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "503": {
+                        "description": "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1639,8 +1653,166 @@ const docTemplate = `{
                 }
             }
         },
+        "gorm.DeletedAt": {
+            "type": "object",
+            "properties": {
+                "time": {
+                    "type": "string"
+                },
+                "valid": {
+                    "description": "Valid is true if Time is not NULL",
+                    "type": "boolean"
+                }
+            }
+        },
         "models.Annotation": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "end_time": {
+                    "description": "Time in seconds",
+                    "type": "number"
+                },
+                "episode": {
+                    "description": "Relationship",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Episode"
+                        }
+                    ]
+                },
+                "episode_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "description": "Time in seconds",
+                    "type": "number"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Episode": {
+            "type": "object",
+            "properties": {
+                "annotations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Annotation"
+                    }
+                },
+                "audio_url": {
+                    "description": "Media information",
+                    "type": "string"
+                },
+                "chapters_url": {
+                    "description": "Podcast 2.0 features",
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "date_crawled": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "description": "Duration in seconds, nullable",
+                    "type": "integer"
+                },
+                "enclosure_length": {
+                    "type": "integer"
+                },
+                "enclosure_type": {
+                    "type": "string"
+                },
+                "episode_number": {
+                    "description": "Episode metadata",
+                    "type": "integer"
+                },
+                "episode_type": {
+                    "description": "full, trailer, bonus",
+                    "type": "string"
+                },
+                "explicit": {
+                    "description": "0=not explicit, 1=explicit",
+                    "type": "integer"
+                },
+                "feed_image": {
+                    "type": "string"
+                },
+                "feed_itunes_id": {
+                    "type": "integer"
+                },
+                "feed_language": {
+                    "type": "string"
+                },
+                "feed_title": {
+                    "description": "Feed metadata (denormalized for performance)",
+                    "type": "string"
+                },
+                "guid": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "podcast_id": {
+                    "description": "Core episode fields",
+                    "type": "integer"
+                },
+                "podcast_index_id": {
+                    "description": "Podcast Index episode ID",
+                    "type": "integer"
+                },
+                "published_at": {
+                    "description": "Timestamps",
+                    "type": "string"
+                },
+                "season": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "transcript_url": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "waveform": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Waveform"
+                        }
+                    ]
+                }
+            }
         },
         "models.SearchRequest": {
             "type": "object",
@@ -1659,6 +1831,46 @@ const docTemplate = `{
                     "maxLength": 200,
                     "minLength": 1,
                     "example": "technology podcasts"
+                }
+            }
+        },
+        "models.Waveform": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "duration": {
+                    "description": "Duration in seconds",
+                    "type": "number"
+                },
+                "episode": {
+                    "description": "Relationship",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Episode"
+                        }
+                    ]
+                },
+                "episode_id": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "resolution": {
+                    "description": "Number of peaks",
+                    "type": "integer"
+                },
+                "sample_rate": {
+                    "description": "Sample rate of original audio",
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         },

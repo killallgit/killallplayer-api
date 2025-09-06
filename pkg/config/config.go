@@ -243,6 +243,11 @@ func setDefaults() {
 	viper.SetDefault("processing.max_queue_size", 100)
 	viper.SetDefault("processing.timeout", "5m")
 
+	// Transcription defaults
+	viper.SetDefault("transcription.prefer_existing", true)
+	viper.SetDefault("transcription.fetch_timeout", "30s")
+	viper.SetDefault("transcription.allowed_transcript_formats", "vtt,srt,txt,json")
+
 	// Cache defaults
 	viper.SetDefault("cache.type", "memory")
 	viper.SetDefault("cache.ttl", "1h")
