@@ -673,6 +673,9 @@ definitions:
         type: integer
       sample_rate:
         type: integer
+      status:
+        description: Status of the waveform (completed, processing, etc.)
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -994,7 +997,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Waveform data retrieved successfully
+          description: Waveform data retrieved successfully (status='completed')
           schema:
             $ref: '#/definitions/waveform.WaveformData'
         "202":
@@ -1477,57 +1480,6 @@ paths:
           schema:
             $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
       summary: Sync episodes for podcast
-      tags:
-      - podcasts
-  /api/v1/podcasts/add:
-    post:
-      consumes:
-      - application/json
-      description: Add a new podcast to the Podcast Index by providing its RSS feed
-        URL
-      parameters:
-      - description: Feed URL to add
-        in: body
-        name: request
-        required: true
-        schema:
-          properties:
-            url:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Podcast added successfully
-          schema:
-            properties:
-              data:
-                type: object
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad request - missing or invalid feed URL
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-      summary: Add podcast to index
       tags:
       - podcasts
   /api/v1/podcasts/by-feed-id:

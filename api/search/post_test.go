@@ -52,10 +52,6 @@ func (m *mockSearcher) GetPodcastByiTunesID(ctx context.Context, itunesID int64)
 	return &podcastindex.PodcastResponse{}, nil
 }
 
-func (m *mockSearcher) AddPodcastByFeedURL(ctx context.Context, feedURL string) (*podcastindex.AddPodcastResponse, error) {
-	return &podcastindex.AddPodcastResponse{}, nil
-}
-
 func (m *mockSearcher) GetEpisodesByFeedURL(ctx context.Context, feedURL string, limit int) (*podcastindex.EpisodesResponse, error) {
 	return &podcastindex.EpisodesResponse{}, nil
 }

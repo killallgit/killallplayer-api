@@ -16,7 +16,6 @@ type PodcastClient interface {
 	GetPodcastByFeedURL(ctx context.Context, feedURL string) (*podcastindex.PodcastResponse, error)
 	GetPodcastByFeedID(ctx context.Context, feedID int64) (*podcastindex.PodcastResponse, error)
 	GetPodcastByiTunesID(ctx context.Context, itunesID int64) (*podcastindex.PodcastResponse, error)
-	AddPodcastByFeedURL(ctx context.Context, feedURL string) (*podcastindex.AddPodcastResponse, error)
 
 	// Alternative episode endpoints
 	GetEpisodesByFeedURL(ctx context.Context, feedURL string, limit int) (*podcastindex.EpisodesResponse, error)

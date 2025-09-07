@@ -17,6 +17,7 @@ import (
 // WaveformData represents the waveform peaks for an audio file
 type WaveformData struct {
 	EpisodeID  int64     `json:"episode_id"`
+	Status     string    `json:"status"` // Status of the waveform (completed, processing, etc.)
 	Peaks      []float32 `json:"peaks"`
 	Duration   float64   `json:"duration"`   // Duration in seconds
 	Resolution int       `json:"resolution"` // Number of peaks
@@ -31,7 +32,7 @@ type WaveformData struct {
 // @Accept       json
 // @Produce      json
 // @Param        id path int true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} WaveformData "Waveform data retrieved successfully"
+// @Success      200 {object} WaveformData "Waveform data retrieved successfully (status='completed')"
 // @Success      202 {object} map[string]interface{} "Waveform generation in progress"
 // @Failure      400 {object} map[string]interface{} "Invalid episode ID"
 // @Failure      404 {object} map[string]interface{} "Episode or waveform not found"
@@ -171,6 +172,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 		// Convert to response format (use Podcast Index ID in response for consistency)
 		waveformData := &WaveformData{
 			EpisodeID:  podcastIndexID,
+			Status:     "completed",
 			Peaks:      peaks,
 			Duration:   waveformModel.Duration,
 			Resolution: waveformModel.Resolution,

@@ -94,10 +94,18 @@ type PodcastResponse struct {
 	Description string  `json:"description"`
 }
 
-// AddPodcastResponse represents the response from add podcast API
-type AddPodcastResponse struct {
-	Status      string `json:"status"`
-	Description string `json:"description"`
+// Category represents a podcast category
+type Category struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// CategoriesResponse represents the response from categories/list API
+type CategoriesResponse struct {
+	Status      string     `json:"status"`
+	Feeds       []Category `json:"feeds"`
+	Count       int        `json:"count"`
+	Description string     `json:"description"`
 }
 
 // RecentFeedsResponse represents the response from recent feeds API

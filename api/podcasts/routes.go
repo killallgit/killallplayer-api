@@ -24,7 +24,4 @@ func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies, episodesM
 
 	// GET /api/v1/podcasts/by-itunes-id?id=<itunes_id>
 	router.GET("/by-itunes-id", episodesMiddleware, GetByiTunesID(deps))
-
-	// POST /api/v1/podcasts/add - with strict rate limiting (similar to sync)
-	router.POST("/add", syncMiddleware, PostAdd(deps))
 }

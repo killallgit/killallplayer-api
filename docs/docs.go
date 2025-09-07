@@ -903,7 +903,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Waveform data retrieved successfully",
+                        "description": "Waveform data retrieved successfully (status='completed')",
                         "schema": {
                             "$ref": "#/definitions/waveform.WaveformData"
                         }
@@ -1054,84 +1054,6 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/podcasts/add": {
-            "post": {
-                "description": "Add a new podcast to the Podcast Index by providing its RSS feed URL",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "podcasts"
-                ],
-                "summary": "Add podcast to index",
-                "parameters": [
-                    {
-                        "description": "Feed URL to add",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "url": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Podcast added successfully",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "type": "object"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - missing or invalid feed URL",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
                         }
                     }
                 }
@@ -2584,6 +2506,10 @@ const docTemplate = `{
                 },
                 "sample_rate": {
                     "type": "integer"
+                },
+                "status": {
+                    "description": "Status of the waveform (completed, processing, etc.)",
+                    "type": "string"
                 }
             }
         }
