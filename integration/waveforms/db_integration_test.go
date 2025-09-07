@@ -92,7 +92,7 @@ func TestDatabaseIntegration_FullWorkflow(t *testing.T) {
 	episode := suite.createTestEpisode(1)
 
 	// Test 1: Verify waveform doesn't exist initially
-	exists, err := suite.waveformService.WaveformExists(ctx, episode.ID)
+	exists, err := suite.waveformService.WaveformExists(ctx, uint(episode.PodcastIndexID))
 	if err != nil {
 		t.Errorf("WaveformExists() error = %v", err)
 	}
@@ -101,7 +101,7 @@ func TestDatabaseIntegration_FullWorkflow(t *testing.T) {
 	}
 
 	// Test 2: Try to get non-existent waveform
-	_, err = suite.waveformService.GetWaveform(ctx, episode.ID)
+	_, err = suite.waveformService.GetWaveform(ctx, uint(episode.PodcastIndexID))
 	if err == nil {
 		t.Error("GetWaveform() expected error for non-existent waveform, got nil")
 	}
@@ -109,7 +109,7 @@ func TestDatabaseIntegration_FullWorkflow(t *testing.T) {
 	// Test 3: Create waveform
 	testPeaks := []float32{0.1, 0.5, 0.8, 0.3, 0.9, 0.2, 0.7, 0.4, 0.6, 0.0}
 	waveform := &models.Waveform{
-		EpisodeID:  episode.ID,
+		EpisodeID:  uint(episode.PodcastIndexID),
 		Duration:   300.0,
 		SampleRate: 44100,
 	}
@@ -124,7 +124,7 @@ func TestDatabaseIntegration_FullWorkflow(t *testing.T) {
 	}
 
 	// Test 4: Verify waveform now exists
-	exists, err = suite.waveformService.WaveformExists(ctx, episode.ID)
+	exists, err = suite.waveformService.WaveformExists(ctx, uint(episode.PodcastIndexID))
 	if err != nil {
 		t.Errorf("WaveformExists() after save error = %v", err)
 	}
@@ -133,13 +133,13 @@ func TestDatabaseIntegration_FullWorkflow(t *testing.T) {
 	}
 
 	// Test 5: Retrieve waveform and verify data
-	retrieved, err := suite.waveformService.GetWaveform(ctx, episode.ID)
+	retrieved, err := suite.waveformService.GetWaveform(ctx, uint(episode.PodcastIndexID))
 	if err != nil {
 		t.Errorf("GetWaveform() after save error = %v", err)
 	}
 
-	if retrieved.EpisodeID != episode.ID {
-		t.Errorf("Retrieved EpisodeID = %v, want %v", retrieved.EpisodeID, episode.ID)
+	if retrieved.EpisodeID != uint(episode.PodcastIndexID) {
+		t.Errorf("Retrieved EpisodeID = %v, want %v", retrieved.EpisodeID, episode.PodcastIndexID)
 	}
 
 	if retrieved.Duration != 300.0 {
@@ -180,7 +180,7 @@ func TestDatabaseIntegration_FullWorkflow(t *testing.T) {
 	}
 
 	// Test 7: Verify update
-	updated, err := suite.waveformService.GetWaveform(ctx, episode.ID)
+	updated, err := suite.waveformService.GetWaveform(ctx, uint(episode.PodcastIndexID))
 	if err != nil {
 		t.Errorf("GetWaveform() after update error = %v", err)
 	}
@@ -203,13 +203,13 @@ func TestDatabaseIntegration_FullWorkflow(t *testing.T) {
 	}
 
 	// Test 8: Delete waveform
-	err = suite.waveformService.DeleteWaveform(ctx, episode.ID)
+	err = suite.waveformService.DeleteWaveform(ctx, uint(episode.PodcastIndexID))
 	if err != nil {
 		t.Errorf("DeleteWaveform() error = %v", err)
 	}
 
 	// Test 9: Verify deletion
-	exists, err = suite.waveformService.WaveformExists(ctx, episode.ID)
+	exists, err = suite.waveformService.WaveformExists(ctx, uint(episode.PodcastIndexID))
 	if err != nil {
 		t.Errorf("WaveformExists() after delete error = %v", err)
 	}
@@ -217,7 +217,7 @@ func TestDatabaseIntegration_FullWorkflow(t *testing.T) {
 		t.Error("WaveformExists() after delete = true, want false")
 	}
 
-	_, err = suite.waveformService.GetWaveform(ctx, episode.ID)
+	_, err = suite.waveformService.GetWaveform(ctx, uint(episode.PodcastIndexID))
 	if err == nil {
 		t.Error("GetWaveform() after delete expected error, got nil")
 	}
@@ -249,7 +249,7 @@ func TestDatabaseIntegration_MultipleEpisodesAndConcurrency(t *testing.T) {
 			}
 
 			waveform := &models.Waveform{
-				EpisodeID:  ep.ID,
+				EpisodeID:  uint(ep.PodcastIndexID),
 				Duration:   float64(300 + episodeIndex*10), // Different duration for each
 				SampleRate: 44100,
 			}
@@ -277,7 +277,7 @@ func TestDatabaseIntegration_MultipleEpisodesAndConcurrency(t *testing.T) {
 
 	// Verify all waveforms were created correctly
 	for i, episode := range episodes {
-		exists, err := suite.waveformService.WaveformExists(ctx, episode.ID)
+		exists, err := suite.waveformService.WaveformExists(ctx, uint(episode.PodcastIndexID))
 		if err != nil {
 			t.Errorf("WaveformExists() for episode %d error = %v", i+1, err)
 		}
@@ -285,7 +285,7 @@ func TestDatabaseIntegration_MultipleEpisodesAndConcurrency(t *testing.T) {
 			t.Errorf("WaveformExists() for episode %d = false, want true", i+1)
 		}
 
-		waveform, err := suite.waveformService.GetWaveform(ctx, episode.ID)
+		waveform, err := suite.waveformService.GetWaveform(ctx, uint(episode.PodcastIndexID))
 		if err != nil {
 			t.Errorf("GetWaveform() for episode %d error = %v", i+1, err)
 			continue
@@ -363,7 +363,7 @@ func TestDatabaseIntegration_LargeWaveformData(t *testing.T) {
 	}
 
 	waveform := &models.Waveform{
-		EpisodeID:  episode.ID,
+		EpisodeID:  uint(episode.PodcastIndexID),
 		Duration:   3600.0, // 1 hour
 		SampleRate: 44100,
 	}
@@ -385,7 +385,7 @@ func TestDatabaseIntegration_LargeWaveformData(t *testing.T) {
 
 	// Measure time to retrieve large waveform
 	start = time.Now()
-	retrieved, err := suite.waveformService.GetWaveform(ctx, episode.ID)
+	retrieved, err := suite.waveformService.GetWaveform(ctx, uint(episode.PodcastIndexID))
 	retrieveTime := time.Since(start)
 
 	if err != nil {
@@ -436,7 +436,7 @@ func TestDatabaseIntegration_TransactionAndRollback(t *testing.T) {
 
 	// Create waveform
 	waveform := &models.Waveform{
-		EpisodeID:  episode.ID,
+		EpisodeID:  uint(episode.PodcastIndexID),
 		Duration:   300.0,
 		SampleRate: 44100,
 	}
@@ -471,7 +471,7 @@ func TestDatabaseIntegration_TransactionAndRollback(t *testing.T) {
 	tx.Rollback()
 
 	// Verify waveform still exists after rollback
-	exists, err := suite.waveformService.WaveformExists(ctx, episode.ID)
+	exists, err := suite.waveformService.WaveformExists(ctx, uint(episode.PodcastIndexID))
 	if err != nil {
 		t.Errorf("WaveformExists() after rollback error = %v", err)
 	}

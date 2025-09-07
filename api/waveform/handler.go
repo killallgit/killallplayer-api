@@ -25,20 +25,19 @@ type WaveformData struct {
 }
 
 // GetWaveform returns waveform data for an episode
-// GetWaveform returns waveform data for an episode
-// @Summary Get waveform data for an episode
+// @Summary      Get waveform data for an episode
 // @Description Retrieve generated waveform data for a specific episode. If waveform doesn't exist, it will be queued for generation. Failed jobs are retried with exponential backoff.
-// @Tags Waveform
-// @Accept json
-// @Produce json
-// @Param id path int true "Episode ID (Podcast Index ID)"
-// @Success 200 {object} WaveformData "Waveform data retrieved successfully"
-// @Success 202 {object} map[string]interface{} "Waveform generation in progress"
-// @Failure 400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure 404 {object} map[string]interface{} "Episode or waveform not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Failure 503 {object} map[string]interface{} "Waveform generation failed, retry pending (includes retry_after in seconds)"
-// @Router /api/v1/episodes/{id}/waveform [get]
+// @Tags         waveform
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} WaveformData "Waveform data retrieved successfully"
+// @Success      202 {object} map[string]interface{} "Waveform generation in progress"
+// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
+// @Failure      404 {object} map[string]interface{} "Episode or waveform not found"
+// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Failure      503 {object} map[string]interface{} "Waveform generation failed, retry pending (includes retry_after in seconds)"
+// @Router       /api/v1/episodes/{id}/waveform [get]
 func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
@@ -184,18 +183,18 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 }
 
 // TriggerWaveform manually triggers waveform generation for an episode
-// @Summary Trigger waveform generation
+// @Summary      Trigger waveform generation
 // @Description Manually trigger waveform generation for a specific episode. Implements retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries.
-// @Tags Waveform
-// @Accept json
-// @Produce json
-// @Param id path int true "Episode ID (Podcast Index ID)"
-// @Success 200 {object} map[string]interface{} "Waveform already exists"
-// @Success 202 {object} map[string]interface{} "Waveform generation triggered"
-// @Failure 400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Failure 503 {object} map[string]interface{} "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)"
-// @Router /api/v1/episodes/{id}/waveform [post]
+// @Tags         waveform
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} map[string]interface{} "Waveform already exists"
+// @Success      202 {object} map[string]interface{} "Waveform generation triggered"
+// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
+// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Failure      503 {object} map[string]interface{} "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)"
+// @Router       /api/v1/episodes/{id}/waveform [post]
 func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
@@ -327,18 +326,17 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 }
 
 // GetWaveformStatus returns the processing status of a waveform
-// GetWaveformStatus returns the processing status of a waveform
-// @Summary Get waveform generation status
+// @Summary      Get waveform generation status
 // @Description Check the status of waveform generation for a specific episode
-// @Tags Waveform
-// @Accept json
-// @Produce json
-// @Param id path int true "Episode ID (Podcast Index ID)"
-// @Success 200 {object} map[string]interface{} "Status information"
-// @Success 404 {object} map[string]interface{} "Waveform not found or episode not found"
-// @Failure 400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/episodes/{id}/waveform/status [get]
+// @Tags         waveform
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} map[string]interface{} "Status information"
+// @Success      404 {object} map[string]interface{} "Waveform not found or episode not found"
+// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
+// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Router       /api/v1/episodes/{id}/waveform/status [get]
 func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")

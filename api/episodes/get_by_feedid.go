@@ -10,6 +10,17 @@ import (
 )
 
 // GetByFeedID returns episodes by podcast/feed ID
+// @Summary      Get episodes by feed ID
+// @Description  Get episodes for a specific podcast using its feed ID (query parameter format for Podcast Index API compatibility)
+// @Tags         episodes
+// @Accept       json
+// @Produce      json
+// @Param        id query int true "Podcast feed ID" minimum(1) example(6780065)
+// @Param        max query int false "Maximum number of episodes to return (1-1000)" minimum(1) maximum(1000) default(20)
+// @Success      200 {object} episodes.PodcastIndexResponse "List of episodes for the podcast"
+// @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - missing or invalid feed ID"
+// @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
+// @Router       /api/v1/episodes/byfeedid [get]
 func GetByFeedID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get ID from query parameter (Podcast Index API compatibility)

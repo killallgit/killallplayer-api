@@ -8,7 +8,16 @@ import (
 )
 
 // GetByiTunesID fetches podcast information by iTunes ID
-// GET /api/v1/podcasts/by-itunes-id?id=<itunes_id>
+// @Summary      Get podcast by iTunes ID
+// @Description  Get podcast information using its iTunes/Apple Podcasts ID from Podcast Index API
+// @Tags         podcasts
+// @Accept       json
+// @Produce      json
+// @Param        id query int true "iTunes/Apple Podcasts ID" minimum(1) example(1234567890)
+// @Success      200 {object} object{status=string,data=object} "Podcast information"
+// @Failure      400 {object} object{status=string,message=string} "Bad request - missing or invalid iTunes ID"
+// @Failure      500 {object} object{status=string,message=string} "Internal server error"
+// @Router       /api/v1/podcasts/by-itunes-id [get]
 func GetByiTunesID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		itunesIDStr := c.Query("id")

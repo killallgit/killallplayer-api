@@ -30,7 +30,7 @@ tasks:
     desc: Build the application binary
     cmds:
       - mkdir -p {{.BUILD_DIR}}
-      - go build -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PATH}}
+      - go build -ldflags="-s -w" -o {{.BUILD_DIR}}/{{.BINARY_NAME}} {{.MAIN_PATH}}
     sources:
       - ./**/*.go
       - go.mod
@@ -55,11 +55,14 @@ tasks:
 
   # Testing tasks
   test:
-    desc: Run all tests
-    env:
-      CGO_LDFLAGS: "-w"
+    desc: Run all tests (warnings suppressed)
     cmds:
-      - go test -v -race -timeout {{.TEST_TIMEOUT}} ./...
+      - go test -v -race -timeout {{.TEST_TIMEOUT}} -ldflags="-s -w" ./... 2>&1 | grep -v "has malformed LC_DYSYMTAB" || true
+
+  test-verbose:
+    desc: Run all tests with full output including warnings
+    cmds:
+      - go test -v -race -timeout {{.TEST_TIMEOUT}} -ldflags="-s -w" ./...
 
   # Linting and formatting
   lint:

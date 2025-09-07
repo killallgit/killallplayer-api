@@ -9,7 +9,17 @@ import (
 )
 
 // GetByiTunesID fetches episodes for a podcast by iTunes ID
-// GET /api/v1/episodes/by-itunes-id?id=<itunes_id>&limit=<limit>
+// @Summary      Get episodes by iTunes ID
+// @Description  Get episodes for a specific podcast using its iTunes/Apple Podcasts ID from Podcast Index API
+// @Tags         episodes
+// @Accept       json
+// @Produce      json
+// @Param        id query int true "iTunes/Apple Podcasts ID" minimum(1) example(1234567890)
+// @Param        limit query int false "Maximum number of episodes to return (1-100)" minimum(1) maximum(100) default(25)
+// @Success      200 {object} object{status=string,data=object{episodes=[]object,count=int,limit=int}} "Episodes from iTunes podcast"
+// @Failure      400 {object} object{error=string} "Bad request - missing or invalid iTunes ID"
+// @Failure      500 {object} object{error=string} "Internal server error"
+// @Router       /api/v1/episodes/by-itunes-id [get]
 func GetByiTunesID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		itunesIDStr := c.Query("id")

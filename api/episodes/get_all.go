@@ -12,16 +12,6 @@ import (
 
 // GetAll returns recent episodes (acts as the main episodes endpoint)
 // @Summary      Get all episodes
-// @Description  Get recent episodes across all podcasts with optional limit parameter
-// @Tags         episodes
-// @Accept       json
-// @Produce      json
-// @Param        limit query int false "Number of episodes to return (1-1000)" minimum(1) maximum(1000) default(50)
-// @Success      200 {object} episodes.PodcastIndexResponse "List of episodes"
-// @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
-// @Router       /api/v1/episodes [get]
-// GetAll returns episodes with optional podcast filtering
-// @Summary      Get episodes
 // @Description  Get recent episodes across all podcasts with optional limit and podcast_id parameters
 // @Tags         episodes
 // @Accept       json
