@@ -9,7 +9,16 @@ import (
 )
 
 // GetByFeedID fetches podcast information by feed ID
-// GET /api/v1/podcasts/by-feed-id?id=<feed_id>
+// @Summary      Get podcast by feed ID
+// @Description  Get podcast information using its feed ID from Podcast Index API
+// @Tags         podcasts
+// @Accept       json
+// @Produce      json
+// @Param        id query int true "Podcast feed ID" minimum(1) example(6780065)
+// @Success      200 {object} object{status=string,data=object} "Podcast information"
+// @Failure      400 {object} object{error=string} "Bad request - missing or invalid feed ID"
+// @Failure      500 {object} object{error=string} "Internal server error"
+// @Router       /api/v1/podcasts/by-feed-id [get]
 func GetByFeedID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		feedIDStr := c.Query("id")

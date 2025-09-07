@@ -89,16 +89,15 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 	}
 
 	// Check if waveform already exists for this episode
-	existingWaveform, err := p.waveformService.GetWaveform(ctx, uint(episode.ID))
+	existingWaveform, err := p.waveformService.GetWaveform(ctx, uint(podcastIndexID))
 	if err == nil && existingWaveform != nil {
-		log.Printf("[DEBUG] Waveform already exists for episode %d (database ID: %d), skipping generation", podcastIndexID, episode.ID)
+		log.Printf("[DEBUG] Waveform already exists for Podcast Index Episode %d, skipping generation", podcastIndexID)
 
 		// Complete the job immediately since waveform exists
 		result := map[string]interface{}{
-			"episode_id":  podcastIndexID,
-			"database_id": episode.ID,
-			"status":      "already_exists",
-			"message":     "Waveform already exists for this episode",
+			"episode_id": podcastIndexID,
+			"status":     "already_exists",
+			"message":    "Waveform already exists for this episode",
 		}
 
 		// Update progress to 100%
@@ -160,9 +159,9 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	// Create waveform model - IMPORTANT: Use database episode ID, not Podcast Index ID
+	// Create waveform model - Use Podcast Index Episode ID for API consistency
 	waveformModel := &models.Waveform{
-		EpisodeID:  uint(episode.ID), // Use the database ID from the episode model
+		EpisodeID:  uint(podcastIndexID), // Use Podcast Index Episode ID, not database ID
 		Duration:   waveformData.Duration,
 		Resolution: waveformData.Resolution,
 		SampleRate: waveformData.SampleRate,
@@ -185,8 +184,7 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 
 	// Create job result with additional download info
 	result := map[string]interface{}{
-		"episode_id":    podcastIndexID, // Keep Podcast Index ID in result for consistency
-		"database_id":   episode.ID,     // Also include database ID for reference
+		"episode_id":    podcastIndexID,
 		"duration":      waveformData.Duration,
 		"resolution":    waveformData.Resolution,
 		"sample_rate":   waveformData.SampleRate,
@@ -201,8 +199,8 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		return fmt.Errorf("failed to complete job: %w", err)
 	}
 
-	log.Printf("[DEBUG] Waveform generation completed for episode %d (database ID: %d) (%.1fs, %d peaks, %.2f MB)",
-		podcastIndexID, episode.ID, waveformData.Duration, len(waveformData.Peaks),
+	log.Printf("[DEBUG] Waveform generation completed for Podcast Index Episode %d (%.1fs, %d peaks, %.2f MB)",
+		podcastIndexID, waveformData.Duration, len(waveformData.Peaks),
 		float64(downloadResult.ContentLength)/(1024*1024))
 
 	return nil

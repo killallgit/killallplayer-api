@@ -24,11 +24,9 @@ import (
 func GetEpisodes(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse and validate podcast ID
-		podcastIDStr := c.Param("id")
-		podcastID, err := strconv.ParseInt(podcastIDStr, 10, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, deps.EpisodeTransformer.CreateErrorResponse("Invalid podcast ID"))
-			return
+		podcastID, ok := types.ParseInt64Param(c, "id")
+		if !ok {
+			return // Error response already sent by utility
 		}
 
 		// Parse pagination
@@ -49,7 +47,7 @@ func GetEpisodes(deps *types.Dependencies) gin.HandlerFunc {
 		episodes, total, dbErr := deps.EpisodeService.GetEpisodesByPodcastID(c.Request.Context(), uint(podcastID), page, max)
 		if dbErr != nil {
 			log.Printf("[ERROR] Failed to fetch episodes from database for podcast %d: %v", podcastID, dbErr)
-			c.JSON(http.StatusInternalServerError, deps.EpisodeTransformer.CreateErrorResponse("Failed to fetch episodes"))
+			types.SendInternalError(c, "Failed to fetch episodes")
 			return
 		}
 

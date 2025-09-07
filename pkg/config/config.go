@@ -42,15 +42,6 @@ func Init() error {
 	return validateConfig()
 }
 
-// Load loads configuration from ./config/settings.yaml
-// Deprecated: Use Init() instead for better control
-func Load() (*Config, error) {
-	if err := Init(); err != nil {
-		return nil, err
-	}
-	return GetConfig()
-}
-
 // GetConfig returns the current configuration as a struct
 func GetConfig() (*Config, error) {
 	var config Config

@@ -13,8 +13,8 @@ func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
 	// GET /api/v1/episodes/byfeedid
 	router.GET("/byfeedid", GetByFeedID(deps))
 
-	// GET /api/v1/episodes/byguid
-	router.GET("/byguid", GetByGUID(deps))
+	// GET /api/v1/episodes/by-guid
+	router.GET("/by-guid", GetByGUID(deps))
 
 	// GET /api/v1/episodes/recent
 	router.GET("/recent", GetRecent(deps))

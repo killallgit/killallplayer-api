@@ -718,18 +718,9 @@ paths:
     get:
       consumes:
       - application/json
-      - application/json
-      description: |-
-        Get recent episodes across all podcasts with optional limit parameter
-        Get recent episodes across all podcasts with optional limit and podcast_id parameters
+      description: Get recent episodes across all podcasts with optional limit and
+        podcast_id parameters
       parameters:
-      - default: 50
-        description: Number of episodes to return (1-1000)
-        in: query
-        maximum: 1000
-        minimum: 1
-        name: limit
-        type: integer
       - default: 50
         description: Number of episodes to return (1-1000)
         in: query
@@ -743,7 +734,6 @@ paths:
         type: integer
       produces:
       - application/json
-      - application/json
       responses:
         "200":
           description: List of episodes
@@ -753,9 +743,8 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
-      summary: Get episodes
+      summary: Get all episodes
       tags:
-      - episodes
       - episodes
   /api/v1/episodes/{id}:
     get:
@@ -912,7 +901,7 @@ paths:
             type: object
       summary: Get transcription data
       tags:
-      - Transcription
+      - transcription
     post:
       consumes:
       - application/json
@@ -950,7 +939,7 @@ paths:
             type: object
       summary: Trigger transcription generation
       tags:
-      - Transcription
+      - transcription
   /api/v1/episodes/{id}/transcribe/status:
     get:
       consumes:
@@ -987,7 +976,7 @@ paths:
             type: object
       summary: Get transcription generation status
       tags:
-      - Transcription
+      - transcription
   /api/v1/episodes/{id}/waveform:
     get:
       consumes:
@@ -1036,7 +1025,7 @@ paths:
             type: object
       summary: Get waveform data for an episode
       tags:
-      - Waveform
+      - waveform
     post:
       consumes:
       - application/json
@@ -1079,7 +1068,7 @@ paths:
             type: object
       summary: Trigger waveform generation
       tags:
-      - Waveform
+      - waveform
   /api/v1/episodes/{id}/waveform/status:
     get:
       consumes:
@@ -1116,7 +1105,7 @@ paths:
             type: object
       summary: Get waveform generation status
       tags:
-      - Waveform
+      - waveform
   /api/v1/episodes/annotations/{id}:
     delete:
       consumes:
@@ -1209,6 +1198,50 @@ paths:
       summary: Update annotation
       tags:
       - annotations
+  /api/v1/episodes/by-feed-url:
+    get:
+      consumes:
+      - application/json
+      description: Get episodes for a specific podcast using its RSS feed URL
+      parameters:
+      - description: RSS feed URL of the podcast
+        example: '"https://feeds.buzzsprout.com/123456.rss"'
+        format: url
+        in: query
+        name: url
+        required: true
+        type: string
+      - default: 20
+        description: Maximum number of episodes to return (1-100)
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Podcast Index episodes response
+          schema:
+            $ref: '#/definitions/podcastindex.SearchResponse'
+        "400":
+          description: Bad request - missing or invalid feed URL
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get episodes by feed URL
+      tags:
+      - episodes
   /api/v1/episodes/by-guid:
     get:
       consumes:
@@ -1240,6 +1273,132 @@ paths:
           schema:
             $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
       summary: Get episode by GUID
+      tags:
+      - episodes
+  /api/v1/episodes/by-itunes-id:
+    get:
+      consumes:
+      - application/json
+      description: Get episodes for a specific podcast using its iTunes/Apple Podcasts
+        ID from Podcast Index API
+      parameters:
+      - description: iTunes/Apple Podcasts ID
+        example: 1234567890
+        in: query
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - default: 25
+        description: Maximum number of episodes to return (1-100)
+        in: query
+        maximum: 100
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Episodes from iTunes podcast
+          schema:
+            properties:
+              data:
+                properties:
+                  count:
+                    type: integer
+                  episodes:
+                    items:
+                      type: object
+                    type: array
+                  limit:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad request - missing or invalid iTunes ID
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get episodes by iTunes ID
+      tags:
+      - episodes
+  /api/v1/episodes/byfeedid:
+    get:
+      consumes:
+      - application/json
+      description: Get episodes for a specific podcast using its feed ID (query parameter
+        format for Podcast Index API compatibility)
+      parameters:
+      - description: Podcast feed ID
+        example: 6780065
+        in: query
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - default: 20
+        description: Maximum number of episodes to return (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: max
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of episodes for the podcast
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexResponse'
+        "400":
+          description: Bad request - missing or invalid feed ID
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+      summary: Get episodes by feed ID
+      tags:
+      - episodes
+  /api/v1/episodes/recent:
+    get:
+      consumes:
+      - application/json
+      description: Get the most recent episodes across all podcasts, sorted by publish
+        date
+      parameters:
+      - default: 20
+        description: Maximum number of episodes to return (1-100)
+        in: query
+        maximum: 100
+        minimum: 1
+        name: max
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of recent episodes
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+      summary: Get recent episodes
       tags:
       - episodes
   /api/v1/podcasts/{id}/episodes:
@@ -1279,6 +1438,228 @@ paths:
           schema:
             $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
       summary: Get episodes for a podcast
+      tags:
+      - podcasts
+  /api/v1/podcasts/{id}/episodes/sync:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger synchronization of episodes from Podcast Index
+        API for a specific podcast
+      parameters:
+      - description: Podcast ID
+        example: 6780065
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - default: 50
+        description: Maximum number of episodes to sync (1-1000)
+        in: query
+        maximum: 1000
+        minimum: 1
+        name: max
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Episodes successfully synced
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexResponse'
+        "400":
+          description: Bad request - invalid podcast ID
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+      summary: Sync episodes for podcast
+      tags:
+      - podcasts
+  /api/v1/podcasts/add:
+    post:
+      consumes:
+      - application/json
+      description: Add a new podcast to the Podcast Index by providing its RSS feed
+        URL
+      parameters:
+      - description: Feed URL to add
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            url:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Podcast added successfully
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad request - missing or invalid feed URL
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Add podcast to index
+      tags:
+      - podcasts
+  /api/v1/podcasts/by-feed-id:
+    get:
+      consumes:
+      - application/json
+      description: Get podcast information using its feed ID from Podcast Index API
+      parameters:
+      - description: Podcast feed ID
+        example: 6780065
+        in: query
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Podcast information
+          schema:
+            properties:
+              data:
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad request - missing or invalid feed ID
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get podcast by feed ID
+      tags:
+      - podcasts
+  /api/v1/podcasts/by-feed-url:
+    get:
+      consumes:
+      - application/json
+      description: Get podcast information using its RSS feed URL from Podcast Index
+        API
+      parameters:
+      - description: RSS feed URL of the podcast
+        example: '"https://feeds.buzzsprout.com/123456.rss"'
+        format: url
+        in: query
+        name: url
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Podcast information
+          schema:
+            properties:
+              data:
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad request - missing or invalid feed URL
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get podcast by feed URL
+      tags:
+      - podcasts
+  /api/v1/podcasts/by-itunes-id:
+    get:
+      consumes:
+      - application/json
+      description: Get podcast information using its iTunes/Apple Podcasts ID from
+        Podcast Index API
+      parameters:
+      - description: iTunes/Apple Podcasts ID
+        example: 1234567890
+        in: query
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Podcast information
+          schema:
+            properties:
+              data:
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad request - missing or invalid iTunes ID
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Get podcast by iTunes ID
       tags:
       - podcasts
   /api/v1/search:

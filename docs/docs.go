@@ -62,30 +62,18 @@ const docTemplate = `{
         },
         "/api/v1/episodes": {
             "get": {
-                "description": "Get recent episodes across all podcasts with optional limit parameter\nGet recent episodes across all podcasts with optional limit and podcast_id parameters",
+                "description": "Get recent episodes across all podcasts with optional limit and podcast_id parameters",
                 "consumes": [
-                    "application/json",
                     "application/json"
                 ],
                 "produces": [
-                    "application/json",
                     "application/json"
                 ],
                 "tags": [
-                    "episodes",
                     "episodes"
                 ],
-                "summary": "Get episodes",
+                "summary": "Get all episodes",
                 "parameters": [
-                    {
-                        "maximum": 1000,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 50,
-                        "description": "Number of episodes to return (1-1000)",
-                        "name": "limit",
-                        "in": "query"
-                    },
                     {
                         "maximum": 1000,
                         "minimum": 1,
@@ -260,6 +248,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/episodes/by-feed-url": {
+            "get": {
+                "description": "Get episodes for a specific podcast using its RSS feed URL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Get episodes by feed URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "url",
+                        "example": "\"https://feeds.buzzsprout.com/123456.rss\"",
+                        "description": "RSS feed URL of the podcast",
+                        "name": "url",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Maximum number of episodes to return (1-100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Podcast Index episodes response",
+                        "schema": {
+                            "$ref": "#/definitions/podcastindex.SearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing or invalid feed URL",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/episodes/by-guid": {
             "get": {
                 "description": "Retrieve a single episode by its GUID with waveform status",
@@ -299,6 +352,188 @@ const docTemplate = `{
                         "description": "Episode not found",
                         "schema": {
                             "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/by-itunes-id": {
+            "get": {
+                "description": "Get episodes for a specific podcast using its iTunes/Apple Podcasts ID from Podcast Index API",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Get episodes by iTunes ID",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1234567890,
+                        "description": "iTunes/Apple Podcasts ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 25,
+                        "description": "Maximum number of episodes to return (1-100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Episodes from iTunes podcast",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "object",
+                                    "properties": {
+                                        "count": {
+                                            "type": "integer"
+                                        },
+                                        "episodes": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "limit": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing or invalid iTunes ID",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/byfeedid": {
+            "get": {
+                "description": "Get episodes for a specific podcast using its feed ID (query parameter format for Podcast Index API compatibility)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Get episodes by feed ID",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 6780065,
+                        "description": "Podcast feed ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Maximum number of episodes to return (1-1000)",
+                        "name": "max",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of episodes for the podcast",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing or invalid feed ID",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/recent": {
+            "get": {
+                "description": "Get the most recent episodes across all podcasts, sorted by publish date",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Get recent episodes",
+                "parameters": [
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Maximum number of episodes to return (1-100)",
+                        "name": "max",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of recent episodes",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexResponse"
                         }
                     },
                     "500": {
@@ -495,7 +730,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transcription"
+                    "transcription"
                 ],
                 "summary": "Get transcription data",
                 "parameters": [
@@ -546,7 +781,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transcription"
+                    "transcription"
                 ],
                 "summary": "Trigger transcription generation",
                 "parameters": [
@@ -600,7 +835,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Transcription"
+                    "transcription"
                 ],
                 "summary": "Get transcription generation status",
                 "parameters": [
@@ -654,7 +889,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Waveform"
+                    "waveform"
                 ],
                 "summary": "Get waveform data for an episode",
                 "parameters": [
@@ -719,7 +954,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Waveform"
+                    "waveform"
                 ],
                 "summary": "Trigger waveform generation",
                 "parameters": [
@@ -780,7 +1015,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Waveform"
+                    "waveform"
                 ],
                 "summary": "Get waveform generation status",
                 "parameters": [
@@ -824,6 +1059,282 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/podcasts/add": {
+            "post": {
+                "description": "Add a new podcast to the Podcast Index by providing its RSS feed URL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "podcasts"
+                ],
+                "summary": "Add podcast to index",
+                "parameters": [
+                    {
+                        "description": "Feed URL to add",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "url": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Podcast added successfully",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "object"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing or invalid feed URL",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/podcasts/by-feed-id": {
+            "get": {
+                "description": "Get podcast information using its feed ID from Podcast Index API",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "podcasts"
+                ],
+                "summary": "Get podcast by feed ID",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 6780065,
+                        "description": "Podcast feed ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Podcast information",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "object"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing or invalid feed ID",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/podcasts/by-feed-url": {
+            "get": {
+                "description": "Get podcast information using its RSS feed URL from Podcast Index API",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "podcasts"
+                ],
+                "summary": "Get podcast by feed URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "url",
+                        "example": "\"https://feeds.buzzsprout.com/123456.rss\"",
+                        "description": "RSS feed URL of the podcast",
+                        "name": "url",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Podcast information",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "object"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing or invalid feed URL",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/podcasts/by-itunes-id": {
+            "get": {
+                "description": "Get podcast information using its iTunes/Apple Podcasts ID from Podcast Index API",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "podcasts"
+                ],
+                "summary": "Get podcast by iTunes ID",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 1234567890,
+                        "description": "iTunes/Apple Podcasts ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Podcast information",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "object"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing or invalid iTunes ID",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/podcasts/{id}/episodes": {
             "get": {
                 "description": "Retrieve all episodes for a specific podcast by its Podcast Index ID. This is the correct endpoint to use after getting podcast IDs from /trending.",
@@ -860,6 +1371,61 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "List of episodes for the podcast",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid podcast ID",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/podcasts/{id}/episodes/sync": {
+            "post": {
+                "description": "Manually trigger synchronization of episodes from Podcast Index API for a specific podcast",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "podcasts"
+                ],
+                "summary": "Sync episodes for podcast",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 6780065,
+                        "description": "Podcast ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Maximum number of episodes to sync (1-1000)",
+                        "name": "max",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Episodes successfully synced",
                         "schema": {
                             "$ref": "#/definitions/episodes.PodcastIndexResponse"
                         }

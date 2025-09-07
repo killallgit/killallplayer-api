@@ -25,20 +25,19 @@ type WaveformData struct {
 }
 
 // GetWaveform returns waveform data for an episode
-// GetWaveform returns waveform data for an episode
-// @Summary Get waveform data for an episode
+// @Summary      Get waveform data for an episode
 // @Description Retrieve generated waveform data for a specific episode. If waveform doesn't exist, it will be queued for generation. Failed jobs are retried with exponential backoff.
-// @Tags Waveform
-// @Accept json
-// @Produce json
-// @Param id path int true "Episode ID (Podcast Index ID)"
-// @Success 200 {object} WaveformData "Waveform data retrieved successfully"
-// @Success 202 {object} map[string]interface{} "Waveform generation in progress"
-// @Failure 400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure 404 {object} map[string]interface{} "Episode or waveform not found"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Failure 503 {object} map[string]interface{} "Waveform generation failed, retry pending (includes retry_after in seconds)"
-// @Router /api/v1/episodes/{id}/waveform [get]
+// @Tags         waveform
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} WaveformData "Waveform data retrieved successfully"
+// @Success      202 {object} map[string]interface{} "Waveform generation in progress"
+// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
+// @Failure      404 {object} map[string]interface{} "Episode or waveform not found"
+// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Failure      503 {object} map[string]interface{} "Waveform generation failed, retry pending (includes retry_after in seconds)"
+// @Router       /api/v1/episodes/{id}/waveform [get]
 func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
@@ -72,27 +71,11 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		// Get the episode from the database using Podcast Index ID to get the database ID
-		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error":      "Episode not found",
-				"episode_id": podcastIndexID,
-			})
-			return
-		}
+		// Debug logging
+		log.Printf("[DEBUG] GetWaveform: PodcastIndexID=%d", podcastIndexID)
 
-		// Debug logging to diagnose ID mismatch issue
-		log.Printf("[DEBUG] GetWaveform: PodcastIndexID=%d, episode.ID=%d, episode.PodcastIndexID=%d",
-			podcastIndexID, episode.ID, episode.PodcastIndexID)
-
-		// Validate that the IDs are different (they should be)
-		if episode.ID == uint(episode.PodcastIndexID) {
-			log.Printf("[WARNING] Episode ID mismatch detected! Database ID equals PodcastIndexID: %d", episode.ID)
-		}
-
-		// Get waveform from database using the database episode ID
-		waveformModel, err := deps.WaveformService.GetWaveform(ctx, uint(episode.ID))
+		// Get waveform directly using Podcast Index Episode ID
+		waveformModel, err := deps.WaveformService.GetWaveform(ctx, uint(podcastIndexID))
 		if err != nil {
 			if errors.Is(err, waveforms.ErrWaveformNotFound) {
 				// Check if there's already a job for this episode (using Podcast Index ID)
@@ -131,9 +114,9 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 							log.Printf("Retrying failed waveform job %d for episode %d (attempt %d/%d)",
 								existingJob.ID, podcastIndexID, existingJob.RetryCount+1, existingJob.MaxRetries)
 						case models.JobStatusCompleted:
-							// Job completed but waveform not found? Try to check again with database ID
+							// Job completed but waveform not found? Try to check again
 							// This might happen if the job just completed
-							waveformModel, err = deps.WaveformService.GetWaveform(ctx, uint(episode.ID))
+							waveformModel, err = deps.WaveformService.GetWaveform(ctx, uint(podcastIndexID))
 							if err == nil {
 								// Found it! Continue to return the waveform
 								goto returnWaveform
@@ -155,7 +138,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 					if jobErr != nil {
 						log.Printf("Failed to enqueue waveform job for episode %d: %v", podcastIndexID, jobErr)
 					} else {
-						log.Printf("Enqueued waveform generation job %d for episode %d (database ID: %d)", job.ID, podcastIndexID, episode.ID)
+						log.Printf("Enqueued waveform generation job %d for Podcast Index Episode %d", job.ID, podcastIndexID)
 					}
 				}
 
@@ -200,18 +183,18 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 }
 
 // TriggerWaveform manually triggers waveform generation for an episode
-// @Summary Trigger waveform generation
+// @Summary      Trigger waveform generation
 // @Description Manually trigger waveform generation for a specific episode. Implements retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries.
-// @Tags Waveform
-// @Accept json
-// @Produce json
-// @Param id path int true "Episode ID (Podcast Index ID)"
-// @Success 200 {object} map[string]interface{} "Waveform already exists"
-// @Success 202 {object} map[string]interface{} "Waveform generation triggered"
-// @Failure 400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Failure 503 {object} map[string]interface{} "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)"
-// @Router /api/v1/episodes/{id}/waveform [post]
+// @Tags         waveform
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} map[string]interface{} "Waveform already exists"
+// @Success      202 {object} map[string]interface{} "Waveform generation triggered"
+// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
+// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Failure      503 {object} map[string]interface{} "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)"
+// @Router       /api/v1/episodes/{id}/waveform [post]
 func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
@@ -254,22 +237,11 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		// Get the episode from the database using Podcast Index ID to get the database ID
-		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error":      "Episode not found",
-				"episode_id": podcastIndexID,
-			})
-			return
-		}
-
 		// Debug logging
-		log.Printf("[DEBUG] TriggerWaveform: PodcastIndexID=%d, episode.ID=%d, episode.PodcastIndexID=%d",
-			podcastIndexID, episode.ID, episode.PodcastIndexID)
+		log.Printf("[DEBUG] TriggerWaveform: PodcastIndexID=%d", podcastIndexID)
 
-		// Check if waveform already exists (using database ID)
-		exists, err := deps.WaveformService.WaveformExists(ctx, uint(episode.ID))
+		// Check if waveform already exists (using Podcast Index Episode ID)
+		exists, err := deps.WaveformService.WaveformExists(ctx, uint(podcastIndexID))
 		if err == nil && exists {
 			c.JSON(http.StatusOK, gin.H{
 				"message":    "Waveform already exists",
@@ -342,7 +314,7 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("Enqueued waveform generation job %d for episode %d (database ID: %d)", job.ID, podcastIndexID, episode.ID)
+		log.Printf("Enqueued waveform generation job %d for Podcast Index Episode %d", job.ID, podcastIndexID)
 		c.JSON(http.StatusAccepted, gin.H{
 			"message":    "Waveform generation triggered",
 			"episode_id": podcastIndexID,
@@ -354,18 +326,17 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 }
 
 // GetWaveformStatus returns the processing status of a waveform
-// GetWaveformStatus returns the processing status of a waveform
-// @Summary Get waveform generation status
+// @Summary      Get waveform generation status
 // @Description Check the status of waveform generation for a specific episode
-// @Tags Waveform
-// @Accept json
-// @Produce json
-// @Param id path int true "Episode ID (Podcast Index ID)"
-// @Success 200 {object} map[string]interface{} "Status information"
-// @Success 404 {object} map[string]interface{} "Waveform not found or episode not found"
-// @Failure 400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/v1/episodes/{id}/waveform/status [get]
+// @Tags         waveform
+// @Accept       json
+// @Produce      json
+// @Param        id path int true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} map[string]interface{} "Status information"
+// @Success      404 {object} map[string]interface{} "Waveform not found or episode not found"
+// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
+// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Router       /api/v1/episodes/{id}/waveform/status [get]
 func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")
@@ -399,10 +370,13 @@ func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// Get the episode from the database using Podcast Index ID to get the database ID
-		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
+		// Debug logging
+		log.Printf("[DEBUG] GetWaveformStatus: PodcastIndexID=%d", podcastIndexID)
+
+		// Check if waveform exists using Podcast Index Episode ID
+		exists, err := deps.WaveformService.WaveformExists(ctx, uint(podcastIndexID))
 		if err != nil {
-			// Episode not found, check if there's a job anyway
+			// Check if there's a job in progress
 			if deps.JobService != nil {
 				job, jobErr := deps.JobService.GetJobForWaveform(ctx, uint(podcastIndexID))
 				if jobErr == nil && job != nil {
@@ -424,20 +398,6 @@ func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 				}
 			}
 
-			c.JSON(http.StatusNotFound, gin.H{
-				"error":      "Episode not found",
-				"episode_id": podcastIndexID,
-			})
-			return
-		}
-
-		// Debug logging
-		log.Printf("[DEBUG] GetWaveformStatus: PodcastIndexID=%d, episode.ID=%d, episode.PodcastIndexID=%d",
-			podcastIndexID, episode.ID, episode.PodcastIndexID)
-
-		// Check if waveform exists (using database ID)
-		exists, err := deps.WaveformService.WaveformExists(ctx, uint(episode.ID))
-		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error":      "Failed to check waveform status",
 				"episode_id": podcastIndexID,

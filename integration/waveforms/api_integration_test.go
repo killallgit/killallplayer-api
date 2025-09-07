@@ -241,7 +241,7 @@ func TestWaveformAPI_GetWaveform_Success(t *testing.T) {
 	// Create test episode and waveform
 	episode := suite.createTestEpisode(123)
 	expectedPeaks := []float32{0.1, 0.5, 0.8, 0.3, 0.9, 0.2}
-	suite.createTestWaveform(episode.ID, expectedPeaks)
+	suite.createTestWaveform(uint(episode.PodcastIndexID), expectedPeaks)
 
 	// Make request using PodcastIndexID (not database ID)
 	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.PodcastIndexID), nil)
@@ -355,7 +355,7 @@ func TestWaveformAPI_GetWaveformStatus_Success(t *testing.T) {
 	// Create test episode and waveform
 	episode := suite.createTestEpisode(123)
 	expectedPeaks := []float32{0.1, 0.5, 0.8}
-	suite.createTestWaveform(episode.ID, expectedPeaks)
+	suite.createTestWaveform(uint(episode.PodcastIndexID), expectedPeaks)
 
 	// Make request
 	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.PodcastIndexID), nil)
@@ -447,7 +447,7 @@ func TestWaveformAPI_DatabaseIntegration(t *testing.T) {
 		for j := 0; j < 5; j++ {
 			peaks[j] = float32(i+1) * 0.1 * float32(j+1) // Different patterns for each episode
 		}
-		suite.createTestWaveform(episodes[i].ID, peaks)
+		suite.createTestWaveform(uint(episodes[i].PodcastIndexID), peaks)
 	}
 
 	// Test that each episode returns its own waveform
@@ -528,8 +528,8 @@ func TestWaveformAPI_WithRealAudioFile(t *testing.T) {
 	}
 
 	waveform := &models.Waveform{
-		EpisodeID:  episode.ID,
-		Duration:   10.0, // 10 seconds
+		EpisodeID:  uint(episode.PodcastIndexID), // Use Podcast Index ID for consistency
+		Duration:   10.0,                         // 10 seconds
 		Resolution: len(realPeaks),
 		SampleRate: 44100,
 	}
@@ -622,6 +622,7 @@ func TestEndToEndWaveformWorkflow(t *testing.T) {
 		EnclosureType:   "audio/mpeg",
 		EnclosureLength: 10000, // Approximate size
 		PodcastID:       1,
+		PodcastIndexID:  1000, // Set PodcastIndexID
 	}
 
 	// Create a basic podcast record first (required by foreign key constraint)
@@ -640,7 +641,7 @@ func TestEndToEndWaveformWorkflow(t *testing.T) {
 	}
 
 	// Step 2: Initially, no waveform should exist - should return 404
-	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.ID), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.PodcastIndexID), nil)
 	if err != nil {
 		t.Fatalf("Failed to create initial request: %v", err)
 	}
@@ -687,7 +688,7 @@ func TestEndToEndWaveformWorkflow(t *testing.T) {
 
 	// Convert the FFmpeg waveform result to our database model
 	waveformModel := &models.Waveform{
-		EpisodeID:  episode.ID,
+		EpisodeID:  uint(episode.PodcastIndexID),
 		Duration:   generatedWaveform.Duration,
 		Resolution: generatedWaveform.Resolution,
 		SampleRate: generatedWaveform.SampleRate,

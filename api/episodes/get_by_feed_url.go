@@ -10,7 +10,17 @@ import (
 )
 
 // GetByFeedURL fetches episodes for a podcast by feed URL
-// GET /api/v1/episodes/by-feed-url?url=<feed_url>&limit=<limit>
+// @Summary      Get episodes by feed URL
+// @Description  Get episodes for a specific podcast using its RSS feed URL
+// @Tags         episodes
+// @Accept       json
+// @Produce      json
+// @Param        url query string true "RSS feed URL of the podcast" format(url) example("https://feeds.buzzsprout.com/123456.rss")
+// @Param        limit query int false "Maximum number of episodes to return (1-100)" minimum(1) maximum(100) default(20)
+// @Success      200 {object} podcastindex.SearchResponse "Podcast Index episodes response"
+// @Failure      400 {object} object{error=string} "Bad request - missing or invalid feed URL"
+// @Failure      500 {object} object{error=string} "Internal server error"
+// @Router       /api/v1/episodes/by-feed-url [get]
 func GetByFeedURL(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		feedURL := c.Query("url")
