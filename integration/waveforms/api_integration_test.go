@@ -382,16 +382,49 @@ func TestWaveformAPI_GetWaveformStatus_Success(t *testing.T) {
 		t.Errorf("Expected status 'completed', got %v", response["status"])
 	}
 
-	if response["progress"] != float64(100) {
-		t.Errorf("Expected progress 100, got %v", response["progress"])
-	}
-
-	if response["message"] != "Waveform ready" {
-		t.Errorf("Expected message 'Waveform ready', got %v", response["message"])
-	}
-
 	if response["episode_id"] != float64(episode.PodcastIndexID) {
 		t.Errorf("Expected episode_id %d, got %v", episode.PodcastIndexID, response["episode_id"])
+	}
+
+	// Now expect full waveform data since status endpoint returns complete data when available
+	if response["duration"] != 300.0 {
+		t.Errorf("Expected duration 300.0, got %v", response["duration"])
+	}
+
+	if response["resolution"] != float64(len(expectedPeaks)) {
+		t.Errorf("Expected resolution %d, got %v", len(expectedPeaks), response["resolution"])
+	}
+
+	if response["sample_rate"] != 44100.0 {
+		t.Errorf("Expected sample_rate 44100, got %v", response["sample_rate"])
+	}
+
+	if response["cached"] != true {
+		t.Errorf("Expected cached true, got %v", response["cached"])
+	}
+
+	// Verify peaks data is present and matches expected values
+	peaksInterface, ok := response["peaks"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected peaks to be array, got %T", response["peaks"])
+	}
+
+	if len(peaksInterface) != len(expectedPeaks) {
+		t.Errorf("Expected %d peaks, got %d", len(expectedPeaks), len(peaksInterface))
+	}
+
+	for i, peakInterface := range peaksInterface {
+		peak, ok := peakInterface.(float64)
+		if !ok {
+			t.Errorf("Expected peak to be float64, got %T", peakInterface)
+			continue
+		}
+
+		expectedPeak := float64(expectedPeaks[i])
+		// Use approximate comparison for float values due to JSON marshaling precision
+		if abs(peak-expectedPeak) > 0.0001 {
+			t.Errorf("Expected peaks[%d] = %v, got %v (diff: %v)", i, expectedPeak, peak, abs(peak-expectedPeak))
+		}
 	}
 }
 

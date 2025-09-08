@@ -31,7 +31,7 @@ When fetching an episode, the transcription status is included:
     "title": "Episode Title",
     // ... other episode fields
     "transcription": {
-      "status": "ok",
+      "status": "completed",
       "message": "Transcription ready",
       "data": {
         "text": "This is the full transcription text...",

@@ -744,7 +744,7 @@
                     "200": {
                         "description": "Transcription data (includes source: 'fetched' or 'generated')",
                         "schema": {
-                            "$ref": "#/definitions/transcription.TranscriptionData"
+                            "$ref": "#/definitions/types.TranscriptionData"
                         }
                     },
                     "400": {
@@ -903,7 +903,7 @@
                     "200": {
                         "description": "Waveform data retrieved successfully (status='completed')",
                         "schema": {
-                            "$ref": "#/definitions/waveform.WaveformData"
+                            "$ref": "#/definitions/types.WaveformData"
                         }
                     },
                     "202": {
@@ -1534,6 +1534,12 @@
         "episodes.EnhancedEpisodeResponse": {
             "type": "object",
             "properties": {
+                "annotations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Annotation"
+                    }
+                },
                 "chaptersUrl": {
                     "type": "string",
                     "example": "https://example.com/chapters/episode42.json"
@@ -1732,6 +1738,12 @@
         "episodes.PodcastIndexEpisode": {
             "type": "object",
             "properties": {
+                "annotations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Annotation"
+                    }
+                },
                 "chaptersUrl": {
                     "type": "string",
                     "example": "https://example.com/chapters/episode42.json"
@@ -1972,39 +1984,14 @@
                 }
             }
         },
-        "episodes.TranscriptionData": {
-            "type": "object",
-            "properties": {
-                "duration": {
-                    "description": "Duration in seconds",
-                    "type": "number",
-                    "example": 300.5
-                },
-                "language": {
-                    "description": "Detected or specified language",
-                    "type": "string",
-                    "example": "en"
-                },
-                "model": {
-                    "description": "Model used for transcription",
-                    "type": "string",
-                    "example": "ggml-base.en.bin"
-                },
-                "text": {
-                    "description": "Full transcription text",
-                    "type": "string",
-                    "example": "This is the transcription..."
-                }
-            }
-        },
         "episodes.TranscriptionStatus": {
             "type": "object",
             "properties": {
                 "data": {
-                    "description": "Only present when status=\"ok\"",
+                    "description": "Only present when status=\"completed\"",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/episodes.TranscriptionData"
+                            "$ref": "#/definitions/types.TranscriptionData"
                         }
                     ]
                 },
@@ -2079,46 +2066,14 @@
                 }
             }
         },
-        "episodes.WaveformData": {
-            "type": "object",
-            "properties": {
-                "duration": {
-                    "description": "Duration in seconds",
-                    "type": "number",
-                    "example": 300.5
-                },
-                "peaks": {
-                    "description": "Waveform peak values",
-                    "type": "array",
-                    "items": {
-                        "type": "number"
-                    },
-                    "example": [
-                        0.1,
-                        0.2,
-                        0.3
-                    ]
-                },
-                "resolution": {
-                    "description": "Number of peaks",
-                    "type": "integer",
-                    "example": 1000
-                },
-                "sample_rate": {
-                    "description": "Sample rate in Hz",
-                    "type": "integer",
-                    "example": 44100
-                }
-            }
-        },
         "episodes.WaveformStatus": {
             "type": "object",
             "properties": {
                 "data": {
-                    "description": "Only present when status=\"ok\"",
+                    "description": "Only present when status=\"completed\"",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/episodes.WaveformData"
+                            "$ref": "#/definitions/types.WaveformData"
                         }
                     ]
                 },
@@ -2454,59 +2409,83 @@
                 }
             }
         },
-        "transcription.TranscriptionData": {
+        "types.TranscriptionData": {
             "type": "object",
             "properties": {
                 "cached": {
+                    "description": "Whether data is cached - optional for some responses",
                     "type": "boolean"
                 },
                 "duration": {
                     "description": "Duration in seconds",
-                    "type": "number"
+                    "type": "number",
+                    "example": 300.5
                 },
                 "episode_id": {
+                    "description": "Episode ID (optional for some responses)",
                     "type": "integer"
                 },
                 "language": {
-                    "type": "string"
+                    "description": "Detected or specified language",
+                    "type": "string",
+                    "example": "en"
                 },
                 "model": {
                     "description": "Model used for transcription",
+                    "type": "string",
+                    "example": "ggml-base.en.bin"
+                },
+                "source": {
+                    "description": "\"fetched\" or \"generated\" - optional for some responses",
                     "type": "string"
                 },
                 "text": {
-                    "type": "string"
+                    "description": "Full transcription text",
+                    "type": "string",
+                    "example": "This is the transcription..."
                 }
             }
         },
-        "waveform.WaveformData": {
+        "types.WaveformData": {
             "type": "object",
             "properties": {
                 "cached": {
+                    "description": "Whether data is cached - optional for some responses",
                     "type": "boolean"
                 },
                 "duration": {
                     "description": "Duration in seconds",
-                    "type": "number"
+                    "type": "number",
+                    "example": 300.5
                 },
                 "episode_id": {
+                    "description": "Episode ID (optional for some responses)",
                     "type": "integer"
                 },
                 "peaks": {
+                    "description": "Waveform peak values",
                     "type": "array",
                     "items": {
                         "type": "number"
-                    }
+                    },
+                    "example": [
+                        0.1,
+                        0.2,
+                        0.3
+                    ]
                 },
                 "resolution": {
                     "description": "Number of peaks",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1000
                 },
                 "sample_rate": {
-                    "type": "integer"
+                    "description": "Sample rate in Hz - optional",
+                    "type": "integer",
+                    "example": 44100
                 },
                 "status": {
-                    "description": "Status of the waveform (completed, processing, etc.)",
+                    "description": "Status of the waveform (completed, processing, etc.) - optional for simple responses",
                     "type": "string"
                 }
             }

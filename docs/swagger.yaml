@@ -2,6 +2,10 @@ basePath: /
 definitions:
   episodes.EnhancedEpisodeResponse:
     properties:
+      annotations:
+        items:
+          $ref: '#/definitions/models.Annotation'
+        type: array
       chaptersUrl:
         example: https://example.com/chapters/episode42.json
         type: string
@@ -141,6 +145,10 @@ definitions:
     type: object
   episodes.PodcastIndexEpisode:
     properties:
+      annotations:
+        items:
+          $ref: '#/definitions/models.Annotation'
+        type: array
       chaptersUrl:
         example: https://example.com/chapters/episode42.json
         type: string
@@ -311,31 +319,12 @@ definitions:
       url:
         type: string
     type: object
-  episodes.TranscriptionData:
-    properties:
-      duration:
-        description: Duration in seconds
-        example: 300.5
-        type: number
-      language:
-        description: Detected or specified language
-        example: en
-        type: string
-      model:
-        description: Model used for transcription
-        example: ggml-base.en.bin
-        type: string
-      text:
-        description: Full transcription text
-        example: This is the transcription...
-        type: string
-    type: object
   episodes.TranscriptionStatus:
     properties:
       data:
         allOf:
-        - $ref: '#/definitions/episodes.TranscriptionData'
-        description: Only present when status="ok"
+        - $ref: '#/definitions/types.TranscriptionData'
+        description: Only present when status="completed"
       message:
         description: Human-readable status message
         example: Transcription ready
@@ -384,36 +373,12 @@ definitions:
       type:
         type: string
     type: object
-  episodes.WaveformData:
-    properties:
-      duration:
-        description: Duration in seconds
-        example: 300.5
-        type: number
-      peaks:
-        description: Waveform peak values
-        example:
-        - 0.1
-        - 0.2
-        - 0.3
-        items:
-          type: number
-        type: array
-      resolution:
-        description: Number of peaks
-        example: 1000
-        type: integer
-      sample_rate:
-        description: Sample rate in Hz
-        example: 44100
-        type: integer
-    type: object
   episodes.WaveformStatus:
     properties:
       data:
         allOf:
-        - $ref: '#/definitions/episodes.WaveformData'
-        description: Only present when status="ok"
+        - $ref: '#/definitions/types.WaveformData'
+        description: Only present when status="completed"
       message:
         description: Human-readable status message
         example: Waveform ready
@@ -638,43 +603,66 @@ definitions:
       status:
         type: string
     type: object
-  transcription.TranscriptionData:
+  types.TranscriptionData:
     properties:
       cached:
+        description: Whether data is cached - optional for some responses
         type: boolean
       duration:
         description: Duration in seconds
+        example: 300.5
         type: number
       episode_id:
+        description: Episode ID (optional for some responses)
         type: integer
       language:
+        description: Detected or specified language
+        example: en
         type: string
       model:
         description: Model used for transcription
+        example: ggml-base.en.bin
+        type: string
+      source:
+        description: '"fetched" or "generated" - optional for some responses'
         type: string
       text:
+        description: Full transcription text
+        example: This is the transcription...
         type: string
     type: object
-  waveform.WaveformData:
+  types.WaveformData:
     properties:
       cached:
+        description: Whether data is cached - optional for some responses
         type: boolean
       duration:
         description: Duration in seconds
+        example: 300.5
         type: number
       episode_id:
+        description: Episode ID (optional for some responses)
         type: integer
       peaks:
+        description: Waveform peak values
+        example:
+        - 0.1
+        - 0.2
+        - 0.3
         items:
           type: number
         type: array
       resolution:
         description: Number of peaks
+        example: 1000
         type: integer
       sample_rate:
+        description: Sample rate in Hz - optional
+        example: 44100
         type: integer
       status:
-        description: Status of the waveform (completed, processing, etc.)
+        description: Status of the waveform (completed, processing, etc.) - optional
+          for simple responses
         type: string
     type: object
 host: localhost:8080
@@ -886,7 +874,7 @@ paths:
         "200":
           description: 'Transcription data (includes source: ''fetched'' or ''generated'')'
           schema:
-            $ref: '#/definitions/transcription.TranscriptionData'
+            $ref: '#/definitions/types.TranscriptionData'
         "400":
           description: Invalid episode ID
           schema:
@@ -999,7 +987,7 @@ paths:
         "200":
           description: Waveform data retrieved successfully (status='completed')
           schema:
-            $ref: '#/definitions/waveform.WaveformData'
+            $ref: '#/definitions/types.WaveformData'
         "202":
           description: Waveform generation in progress
           schema:

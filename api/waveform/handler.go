@@ -14,16 +14,6 @@ import (
 	"github.com/killallgit/player-api/internal/services/waveforms"
 )
 
-// WaveformData represents the waveform peaks for an audio file
-type WaveformData struct {
-	EpisodeID  int64     `json:"episode_id"`
-	Status     string    `json:"status"` // Status of the waveform (completed, processing, etc.)
-	Peaks      []float32 `json:"peaks"`
-	Duration   float64   `json:"duration"`   // Duration in seconds
-	Resolution int       `json:"resolution"` // Number of peaks
-	SampleRate int       `json:"sample_rate,omitempty"`
-	Cached     bool      `json:"cached"`
-}
 
 // GetWaveform returns waveform data for an episode
 // @Summary      Get waveform data for an episode
@@ -32,7 +22,7 @@ type WaveformData struct {
 // @Accept       json
 // @Produce      json
 // @Param        id path int true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} WaveformData "Waveform data retrieved successfully (status='completed')"
+// @Success      200 {object} types.WaveformData "Waveform data retrieved successfully (status='completed')"
 // @Success      202 {object} map[string]interface{} "Waveform generation in progress"
 // @Failure      400 {object} map[string]interface{} "Invalid episode ID"
 // @Failure      404 {object} map[string]interface{} "Episode or waveform not found"
@@ -170,7 +160,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		// Convert to response format (use Podcast Index ID in response for consistency)
-		waveformData := &WaveformData{
+		waveformData := &types.WaveformData{
 			EpisodeID:  podcastIndexID,
 			Status:     "completed",
 			Peaks:      peaks,
@@ -408,13 +398,45 @@ func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		if exists {
-			status := gin.H{
-				"episode_id": podcastIndexID,
-				"status":     "completed",
-				"progress":   100,
-				"message":    "Waveform ready",
+			// Get the actual waveform data to return full response
+			waveformModel, err := deps.WaveformService.GetWaveform(ctx, uint(podcastIndexID))
+			if err != nil {
+				// Fallback to basic status response if we can't get the waveform data
+				status := gin.H{
+					"episode_id": podcastIndexID,
+					"status":     "completed",
+					"progress":   100,
+					"message":    "Waveform ready",
+				}
+				c.JSON(http.StatusOK, status)
+				return
 			}
-			c.JSON(http.StatusOK, status)
+
+			// Decode peaks data
+			peaks, err := waveformModel.Peaks()
+			if err != nil {
+				// Fallback to basic status response if we can't decode peaks
+				status := gin.H{
+					"episode_id": podcastIndexID,
+					"status":     "completed",
+					"progress":   100,
+					"message":    "Waveform ready",
+				}
+				c.JSON(http.StatusOK, status)
+				return
+			}
+
+			// Return full waveform data (same structure as GetWaveform endpoint)
+			waveformData := &types.WaveformData{
+				EpisodeID:  podcastIndexID,
+				Status:     "completed",
+				Peaks:      peaks,
+				Duration:   waveformModel.Duration,
+				Resolution: waveformModel.Resolution,
+				SampleRate: waveformModel.SampleRate,
+				Cached:     true, // Always true since it's from database
+			}
+			c.JSON(http.StatusOK, waveformData)
 		} else {
 			// Check if there's a job in progress (using Podcast Index ID)
 			if deps.JobService != nil {
