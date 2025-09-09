@@ -330,12 +330,12 @@ definitions:
         example: Transcription ready
         type: string
       progress:
-        description: 0-100 for processing/downloading states
+        description: 0-100 for processing states
         example: 75
         type: integer
       status:
-        description: ok|processing|downloading|error
-        example: ok
+        description: completed|processing|pending|failed
+        example: completed
         type: string
     type: object
   episodes.Value:
@@ -384,12 +384,12 @@ definitions:
         example: Waveform ready
         type: string
       progress:
-        description: 0-100 for processing/downloading states
+        description: 0-100 for processing states
         example: 75
         type: integer
       status:
-        description: ok|processing|downloading|error
-        example: ok
+        description: completed|processing|pending|failed
+        example: completed
         type: string
     type: object
   gorm.DeletedAt:
@@ -424,6 +424,102 @@ definitions:
         type: number
       updatedAt:
         type: string
+    type: object
+  models.EnhancedPodcast:
+    properties:
+      artwork:
+        type: string
+      author:
+        type: string
+      categories:
+        additionalProperties:
+          type: string
+        type: object
+      categoryList:
+        description: Array version of categories for client-side filtering
+        items:
+          type: string
+        type: array
+      createdOn:
+        type: string
+      description:
+        type: string
+      episodeCount:
+        type: integer
+      id:
+        type: integer
+      image:
+        type: string
+      imageUrlHash:
+        type: integer
+      itunesId:
+        type: integer
+      language:
+        type: string
+      lastCrawlTime:
+        type: integer
+      lastGoodHttpStatusCode:
+        type: integer
+      lastParseTime:
+        type: integer
+      lastUpdateTime:
+        type: integer
+      link:
+        type: string
+      locked:
+        type: integer
+      originalUrl:
+        type: string
+      ownerName:
+        type: string
+      title:
+        type: string
+      url:
+        type: string
+    type: object
+  models.EnhancedSearchResponse:
+    properties:
+      categorySummary:
+        additionalProperties:
+          type: integer
+        description: Category name -> count
+        type: object
+      description:
+        type: string
+      query:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/models.EnhancedPodcast'
+        type: array
+      status:
+        type: string
+      totalCount:
+        type: integer
+    type: object
+  models.EnhancedTrendingResponse:
+    properties:
+      categorySummary:
+        additionalProperties:
+          type: integer
+        description: Category name -> count
+        type: object
+      description:
+        type: string
+      max:
+        description: Max results parameter used
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/models.EnhancedPodcast'
+        type: array
+      since:
+        description: Hours ago parameter used
+        type: integer
+      status:
+        type: string
+      totalCount:
+        type: integer
     type: object
   models.Episode:
     properties:
@@ -502,6 +598,10 @@ definitions:
     type: object
   models.SearchRequest:
     properties:
+      fullText:
+        description: Return full descriptions instead of truncated
+        example: false
+        type: boolean
       limit:
         example: 10
         maximum: 100
@@ -514,6 +614,37 @@ definitions:
         type: string
     required:
     - query
+    type: object
+  models.TrendingRequest:
+    properties:
+      categories:
+        description: Category names/IDs to filter
+        example:
+        - News
+        - Technology
+        items:
+          type: string
+        type: array
+      fullText:
+        description: Return full descriptions
+        example: false
+        type: boolean
+      lang:
+        description: Language code
+        example: en
+        maxLength: 10
+        type: string
+      max:
+        example: 10
+        maximum: 100
+        minimum: 1
+        type: integer
+      since:
+        description: Hours ago (max 30 days)
+        example: 24
+        maximum: 720
+        minimum: 1
+        type: integer
     type: object
   models.Waveform:
     properties:
@@ -539,6 +670,94 @@ definitions:
         description: Sample rate of original audio
         type: integer
       updatedAt:
+        type: string
+    type: object
+  podcastindex.CategoriesResponse:
+    properties:
+      count:
+        type: integer
+      description:
+        type: string
+      feeds:
+        items:
+          $ref: '#/definitions/podcastindex.Category'
+        type: array
+      status:
+        type: string
+    type: object
+  podcastindex.Category:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  podcastindex.Episode:
+    properties:
+      chaptersUrl:
+        type: string
+      dateCrawled:
+        type: integer
+      datePublished:
+        type: integer
+      datePublishedPretty:
+        type: string
+      description:
+        type: string
+      duration:
+        type: integer
+      enclosureLength:
+        type: integer
+      enclosureType:
+        type: string
+      enclosureUrl:
+        type: string
+      episode:
+        type: integer
+      episodeType:
+        type: string
+      explicit:
+        type: integer
+      feedDead:
+        type: integer
+      feedDuplicateOf:
+        type: integer
+      feedId:
+        type: integer
+      feedImage:
+        type: string
+      feedItunesId:
+        type: integer
+      feedLanguage:
+        type: string
+      guid:
+        type: string
+      id:
+        type: integer
+      image:
+        type: string
+      link:
+        type: string
+      season:
+        type: integer
+      title:
+        type: string
+      transcriptUrl:
+        type: string
+    type: object
+  podcastindex.EpisodesResponse:
+    properties:
+      count:
+        type: integer
+      description:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/podcastindex.Episode'
+        type: array
+      max:
+        type: string
+      status:
         type: string
     type: object
   podcastindex.Podcast:
@@ -601,6 +820,43 @@ definitions:
       query:
         type: string
       status:
+        type: string
+    type: object
+  types.ErrorResponse:
+    properties:
+      details:
+        type: string
+      error:
+        type: string
+    type: object
+  types.JobStatusResponse:
+    properties:
+      episode_id:
+        description: Episode ID
+        type: integer
+      error:
+        description: Error message (only for failed status)
+        type: string
+      job_id:
+        description: Job ID (optional)
+        type: integer
+      max_retries:
+        description: Maximum retry attempts (only for failed jobs)
+        type: integer
+      message:
+        description: Human-readable message
+        type: string
+      progress:
+        description: Progress 0-100
+        type: integer
+      retry_after:
+        description: Seconds until retry (only for failed jobs)
+        type: number
+      retry_count:
+        description: Number of retries attempted (only for failed jobs)
+        type: integer
+      status:
+        description: 'Status: pending, processing, completed, failed, not_found'
         type: string
     type: object
   types.TranscriptionData:
@@ -705,6 +961,33 @@ paths:
       summary: Get API version
       tags:
       - version
+  /api/v1/categories:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all available podcast categories from the Podcast
+        Index API
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Categories response
+          schema:
+            $ref: '#/definitions/podcastindex.CategoriesResponse'
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              details:
+                type: string
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Get all podcast categories
+      tags:
+      - categories
   /api/v1/episodes:
     get:
       consumes:
@@ -746,6 +1029,7 @@ paths:
       parameters:
       - description: Episode Podcast Index ID
         example: 123456789
+        format: int64
         in: path
         minimum: 1
         name: id
@@ -781,6 +1065,7 @@ paths:
         episode, ordered by start time
       parameters:
       - description: Episode ID
+        format: int64
         in: path
         name: id
         required: true
@@ -800,17 +1085,11 @@ paths:
         "400":
           description: Invalid episode ID
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Get annotations for episode
       tags:
       - annotations
@@ -821,6 +1100,7 @@ paths:
         on a specific episode
       parameters:
       - description: Episode ID
+        format: int64
         in: path
         name: id
         required: true
@@ -841,17 +1121,11 @@ paths:
         "400":
           description: Invalid request
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Create annotation for episode
       tags:
       - annotations
@@ -864,6 +1138,7 @@ paths:
         Whisper.
       parameters:
       - description: Episode ID (Podcast Index ID)
+        format: int64
         in: path
         name: id
         required: true
@@ -878,18 +1153,15 @@ paths:
         "400":
           description: Invalid episode ID
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "404":
           description: Transcription not found
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Get transcription data
       tags:
       - transcription
@@ -901,6 +1173,7 @@ paths:
         using Whisper.
       parameters:
       - description: Episode ID (Podcast Index ID)
+        format: int64
         in: path
         name: id
         required: true
@@ -911,23 +1184,19 @@ paths:
         "200":
           description: 'Transcription already exists (source: ''fetched'' or ''generated'')'
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
         "202":
           description: Transcription generation triggered
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
         "400":
           description: Invalid episode ID
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Trigger transcription generation
       tags:
       - transcription
@@ -938,6 +1207,7 @@ paths:
       description: Check the status of transcription generation for an episode
       parameters:
       - description: Episode ID (Podcast Index ID)
+        format: int64
         in: path
         name: id
         required: true
@@ -948,23 +1218,19 @@ paths:
         "200":
           description: Transcription status
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
         "400":
           description: Invalid episode ID
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "404":
           description: Transcription not available
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Get transcription generation status
       tags:
       - transcription
@@ -977,6 +1243,7 @@ paths:
         exponential backoff.
       parameters:
       - description: Episode ID (Podcast Index ID)
+        format: int64
         in: path
         name: id
         required: true
@@ -991,29 +1258,24 @@ paths:
         "202":
           description: Waveform generation in progress
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
         "400":
           description: Invalid episode ID
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "404":
           description: Episode or waveform not found
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "503":
           description: Waveform generation failed, retry pending (includes retry_after
             in seconds)
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
       summary: Get waveform data for an episode
       tags:
       - waveform
@@ -1024,6 +1286,7 @@ paths:
         retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries.
       parameters:
       - description: Episode ID (Podcast Index ID)
+        format: int64
         in: path
         name: id
         required: true
@@ -1034,29 +1297,24 @@ paths:
         "200":
           description: Waveform already exists
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
         "202":
           description: Waveform generation triggered
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
         "400":
           description: Invalid episode ID
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "503":
           description: Previous generation failed, retry pending (includes retry_after,
             retry_count, max_retries)
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
       summary: Trigger waveform generation
       tags:
       - waveform
@@ -1067,6 +1325,7 @@ paths:
       description: Check the status of waveform generation for a specific episode
       parameters:
       - description: Episode ID (Podcast Index ID)
+        format: int64
         in: path
         name: id
         required: true
@@ -1077,23 +1336,19 @@ paths:
         "200":
           description: Status information
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.WaveformData'
         "400":
           description: Invalid episode ID
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "404":
           description: Waveform not found or episode not found
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.JobStatusResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Get waveform generation status
       tags:
       - waveform
@@ -1121,24 +1376,15 @@ paths:
         "400":
           description: Invalid annotation ID
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "404":
           description: Annotation not found
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Delete annotation
       tags:
       - annotations
@@ -1168,24 +1414,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "404":
           description: Annotation not found
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            properties:
-              error:
-                type: string
-            type: object
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Update annotation
       tags:
       - annotations
@@ -1602,11 +1839,47 @@ paths:
       summary: Get podcast by iTunes ID
       tags:
       - podcasts
+  /api/v1/random:
+    get:
+      description: Returns random podcast episodes from Podcast Index
+      parameters:
+      - description: Number of episodes to return (default 10, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Language code (default 'en')
+        in: query
+        name: lang
+        type: string
+      - description: Comma-separated categories to exclude (e.g., 'News,Politics')
+        in: query
+        name: notcat
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/podcastindex.EpisodesResponse'
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              description:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Get random podcast episodes
+      tags:
+      - Random
   /api/v1/search:
     post:
       consumes:
       - application/json
       description: Search for podcasts by query string with optional result limit
+        and full text
       parameters:
       - description: Search parameters
         in: body
@@ -1618,9 +1891,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Podcast Index search response
+          description: Enhanced search response with category summary
           schema:
-            $ref: '#/definitions/podcastindex.SearchResponse'
+            $ref: '#/definitions/models.EnhancedSearchResponse'
         "400":
           description: Bad request - invalid parameters
           schema:
@@ -1685,6 +1958,59 @@ paths:
                 type: string
             type: object
       summary: Get trending podcasts
+      tags:
+      - trending
+    post:
+      consumes:
+      - application/json
+      description: Get trending podcasts with optional category filtering and other
+        parameters
+      parameters:
+      - description: Trending parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.TrendingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Enhanced trending response with category summary
+          schema:
+            $ref: '#/definitions/models.EnhancedTrendingResponse'
+        "400":
+          description: Bad request - invalid parameters
+          schema:
+            properties:
+              details:
+                type: string
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              details:
+                type: string
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "504":
+          description: Gateway timeout - trending request timed out
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Get trending podcasts with filters
       tags:
       - trending
   /health:

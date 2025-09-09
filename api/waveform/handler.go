@@ -14,20 +14,19 @@ import (
 	"github.com/killallgit/player-api/internal/services/waveforms"
 )
 
-
 // GetWaveform returns waveform data for an episode
 // @Summary      Get waveform data for an episode
 // @Description Retrieve generated waveform data for a specific episode. If waveform doesn't exist, it will be queued for generation. Failed jobs are retried with exponential backoff.
 // @Tags         waveform
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode ID (Podcast Index ID)"
+// @Param        id path int64 true "Episode ID (Podcast Index ID)"
 // @Success      200 {object} types.WaveformData "Waveform data retrieved successfully (status='completed')"
-// @Success      202 {object} map[string]interface{} "Waveform generation in progress"
-// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure      404 {object} map[string]interface{} "Episode or waveform not found"
-// @Failure      500 {object} map[string]interface{} "Internal server error"
-// @Failure      503 {object} map[string]interface{} "Waveform generation failed, retry pending (includes retry_after in seconds)"
+// @Success      202 {object} types.JobStatusResponse "Waveform generation in progress"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      404 {object} types.ErrorResponse "Episode or waveform not found"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
+// @Failure      503 {object} types.JobStatusResponse "Waveform generation failed, retry pending (includes retry_after in seconds)"
 // @Router       /api/v1/episodes/{id}/waveform [get]
 func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -180,12 +179,12 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 // @Tags         waveform
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} map[string]interface{} "Waveform already exists"
-// @Success      202 {object} map[string]interface{} "Waveform generation triggered"
-// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure      500 {object} map[string]interface{} "Internal server error"
-// @Failure      503 {object} map[string]interface{} "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)"
+// @Param        id path int64 true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} types.JobStatusResponse "Waveform already exists"
+// @Success      202 {object} types.JobStatusResponse "Waveform generation triggered"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
+// @Failure      503 {object} types.JobStatusResponse "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)"
 // @Router       /api/v1/episodes/{id}/waveform [post]
 func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -323,11 +322,11 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 // @Tags         waveform
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} map[string]interface{} "Status information"
-// @Success      404 {object} map[string]interface{} "Waveform not found or episode not found"
-// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Param        id path int64 true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} types.WaveformData "Status information"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      404 {object} types.JobStatusResponse "Waveform not found or episode not found"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/waveform/status [get]
 func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -1,4 +1,4 @@
-package search
+package trending
 
 import (
 	"context"
@@ -11,27 +11,27 @@ import (
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 )
 
-// PodcastSearcher defines the interface for searching podcasts
-type PodcastSearcher interface {
-	Search(ctx context.Context, query string, limit int, fullText bool) (*podcastindex.SearchResponse, error)
+// PodcastTrending defines the interface for getting trending podcasts
+type PodcastTrending interface {
+	GetTrending(ctx context.Context, max, since int, categories []string, lang string, fullText bool) (*podcastindex.SearchResponse, error)
 }
 
-// Post handles podcast search requests
-// @Summary      Search for podcasts
-// @Description  Search for podcasts by query string with optional result limit and full text
-// @Tags         search
+// Post handles trending podcasts requests with filters
+// @Summary      Get trending podcasts with filters
+// @Description  Get trending podcasts with optional category filtering and other parameters
+// @Tags         trending
 // @Accept       json
 // @Produce      json
-// @Param        request body models.SearchRequest true "Search parameters"
-// @Success      200 {object} models.EnhancedSearchResponse "Enhanced search response with category summary"
+// @Param        request body models.TrendingRequest true "Trending parameters"
+// @Success      200 {object} models.EnhancedTrendingResponse "Enhanced trending response with category summary"
 // @Failure      400 {object} object{status=string,message=string,details=string} "Bad request - invalid parameters"
 // @Failure      500 {object} object{status=string,message=string,details=string} "Internal server error"
-// @Failure      504 {object} object{status=string,message=string} "Gateway timeout - search request timed out"
-// @Router       /api/v1/search [post]
+// @Failure      504 {object} object{status=string,message=string} "Gateway timeout - trending request timed out"
+// @Router       /api/v1/trending [post]
 func Post(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse request body
-		var req models.SearchRequest
+		var req models.TrendingRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"status":  "error",
@@ -41,35 +41,36 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		// Validate query
-		if req.Query == "" {
+		// Set defaults
+		if req.Max == 0 {
+			req.Max = 10
+		}
+		if req.Since == 0 {
+			req.Since = 24 // Default to last 24 hours
+		}
+
+		// Validate limits
+		if req.Max < 1 || req.Max > 100 {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"status":  "error",
-				"message": "Search query is required",
+				"message": "Max must be between 1 and 100",
 			})
 			return
 		}
-
-		// Set default limit if not provided
-		if req.Limit == 0 {
-			req.Limit = 10
-		}
-
-		// Validate limit
-		if req.Limit < 1 || req.Limit > 100 {
+		if req.Since < 1 || req.Since > 720 {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"status":  "error",
-				"message": "Limit must be between 1 and 100",
+				"message": "Since must be between 1 and 720 hours (30 days)",
 			})
 			return
 		}
 
 		// Get podcast client from dependencies
-		podcastClient, ok := deps.PodcastClient.(PodcastSearcher)
+		podcastClient, ok := deps.PodcastClient.(PodcastTrending)
 		if !ok {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"status":  "error",
-				"message": "Search service not available",
+				"message": "Trending service not available",
 			})
 			return
 		}
@@ -78,21 +79,21 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 		defer cancel()
 
-		// Perform search
-		results, err := podcastClient.Search(ctx, req.Query, req.Limit, req.FullText)
+		// Get trending podcasts
+		results, err := podcastClient.GetTrending(ctx, req.Max, req.Since, req.Categories, req.Lang, req.FullText)
 		if err != nil {
 			// Check if it's a context timeout
 			if ctx.Err() == context.DeadlineExceeded {
 				c.JSON(http.StatusGatewayTimeout, gin.H{
 					"status":  "error",
-					"message": "Search request timed out",
+					"message": "Trending request timed out",
 				})
 				return
 			}
 
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"status":  "error",
-				"message": "Failed to search podcasts",
+				"message": "Failed to fetch trending podcasts",
 				"details": err.Error(),
 			})
 			return
@@ -120,12 +121,13 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		// Build enhanced response
-		response := models.EnhancedSearchResponse{
+		response := models.EnhancedTrendingResponse{
 			Status:          results.Status,
-			Query:           req.Query,
 			Results:         enhancedResults,
 			CategorySummary: categorySummary,
 			TotalCount:      results.Count,
+			Since:           req.Since,
+			Max:             req.Max,
 			Description:     results.Description,
 		}
 

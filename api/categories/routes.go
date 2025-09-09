@@ -1,14 +1,12 @@
-package trending
+package categories
 
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
 )
 
-// RegisterRoutes registers trending podcast routes
+// RegisterRoutes registers categories routes
 func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
-	// GET /api/v1/trending
+	// GET /api/v1/categories
 	router.GET("", Get(deps))
-	// POST /api/v1/trending (with filters)
-	router.POST("", Post(deps))
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/killallgit/player-api/internal/models"
+	"github.com/killallgit/player-api/internal/services/audiocache"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/jobs"
 	"github.com/killallgit/player-api/internal/services/transcription"
@@ -23,6 +24,7 @@ type TranscriptionProcessor struct {
 	jobService           jobs.Service
 	transcriptionService transcription.TranscriptionService
 	episodeService       episodes.EpisodeService
+	audioCacheService    audiocache.Service
 	downloader           *download.Downloader
 	transcriptFetcher    *transcript.Fetcher
 	transcriptParser     *transcript.Parser
@@ -37,6 +39,7 @@ func NewTranscriptionProcessor(
 	jobService jobs.Service,
 	transcriptionService transcription.TranscriptionService,
 	episodeService episodes.EpisodeService,
+	audioCacheService audiocache.Service,
 ) *TranscriptionProcessor {
 	// Create downloader with default options
 	downloadOpts := download.DefaultOptions()
@@ -83,6 +86,7 @@ func NewTranscriptionProcessor(
 		jobService:           jobService,
 		transcriptionService: transcriptionService,
 		episodeService:       episodeService,
+		audioCacheService:    audioCacheService,
 		downloader:           download.NewDownloader(downloadOpts),
 		transcriptFetcher:    transcript.NewFetcher(fetchOpts),
 		transcriptParser:     transcript.NewParser(),
@@ -210,38 +214,66 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 		return fmt.Errorf("episode %d has no audio URL for transcription", episodeID)
 	}
 
-	// Update progress: Starting download for Whisper transcription
+	// Update progress: Starting download/cache check for Whisper transcription
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 10); err != nil {
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	log.Printf("[DEBUG] Downloading audio for Whisper transcription of episode %d from URL: %s", episodeID, episode.AudioURL)
+	var audioFilePath string
+	var audioFileSize int64
 
-	// Download audio to temp file
-	downloadResult, err := p.downloader.DownloadToTemp(ctx, episode.AudioURL, episodeID)
-	if err != nil {
-		return fmt.Errorf("failed to download audio: %w", err)
+	// Check if audio is cached (if audio cache service is available)
+	if p.audioCacheService != nil {
+		log.Printf("[DEBUG] Checking audio cache for transcription of episode %d (database ID: %d)", episodeID, episode.ID)
+
+		// Get or download audio through cache (prefer processed audio for ML)
+		audioCache, err := p.audioCacheService.GetOrDownloadAudio(ctx, episode.ID, episode.AudioURL)
+		if err != nil {
+			log.Printf("[WARN] Audio cache failed for transcription, falling back to direct download: %v", err)
+		} else if audioCache != nil && audioCache.ProcessedPath != "" {
+			log.Printf("[DEBUG] Using cached processed audio for transcription of episode %d from %s", episode.ID, audioCache.ProcessedPath)
+			audioFilePath = audioCache.ProcessedPath
+			audioFileSize = audioCache.ProcessedSize
+		} else if audioCache != nil && audioCache.OriginalPath != "" {
+			log.Printf("[DEBUG] Using cached original audio for transcription of episode %d from %s", episode.ID, audioCache.OriginalPath)
+			audioFilePath = audioCache.OriginalPath
+			audioFileSize = audioCache.OriginalSize
+		}
 	}
 
-	// Ensure temp file cleanup
-	defer func() {
-		if err := download.CleanupTempFile(downloadResult.FilePath); err != nil {
-			log.Printf("[ERROR] Failed to cleanup temp file %s: %v", downloadResult.FilePath, err)
+	// If not cached or cache failed, download directly to temp file
+	if audioFilePath == "" {
+		log.Printf("[DEBUG] Downloading audio for Whisper transcription of episode %d from URL: %s", episodeID, episode.AudioURL)
+
+		// Download audio to temp file
+		downloadResult, err := p.downloader.DownloadToTemp(ctx, episode.AudioURL, episodeID)
+		if err != nil {
+			return fmt.Errorf("failed to download audio: %w", err)
 		}
-	}()
 
-	log.Printf("[DEBUG] Downloaded audio to %s (%.2f MB)", downloadResult.FilePath,
-		float64(downloadResult.ContentLength)/(1024*1024))
+		// Ensure temp file cleanup
+		defer func() {
+			if err := download.CleanupTempFile(downloadResult.FilePath); err != nil {
+				log.Printf("[ERROR] Failed to cleanup temp file %s: %v", downloadResult.FilePath, err)
+			}
+		}()
 
-	// Update progress: Download complete, starting transcription
+		audioFilePath = downloadResult.FilePath
+		audioFileSize = downloadResult.ContentLength
+
+		log.Printf("[DEBUG] Downloaded audio to %s (%.2f MB)", downloadResult.FilePath,
+			float64(downloadResult.ContentLength)/(1024*1024))
+	}
+
+	// Update progress: Download/cache complete, starting transcription
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 50); err != nil {
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	log.Printf("[DEBUG] Transcribing audio from temp file: %s", downloadResult.FilePath)
+	log.Printf("[DEBUG] Transcribing audio from file: %s", audioFilePath)
 
 	// Generate transcription
-	transcriptionText, duration, err := p.transcribeAudio(ctx, downloadResult.FilePath)
+	transcriptionText, duration, err := p.transcribeAudio(ctx, audioFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to transcribe audio: %w", err)
 	}
@@ -275,15 +307,14 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 
 	// Create job result
 	result := map[string]interface{}{
-		"episode_id":    episodeID,
-		"source":        "generated",
-		"duration":      duration,
-		"language":      p.language,
-		"model":         filepath.Base(p.modelPath),
-		"text_length":   len(transcriptionText),
-		"file_size":     downloadResult.ContentLength,
-		"content_type":  downloadResult.ContentType,
-		"download_etag": downloadResult.ETag,
+		"episode_id":  episodeID,
+		"source":      "generated",
+		"duration":    duration,
+		"language":    p.language,
+		"model":       filepath.Base(p.modelPath),
+		"text_length": len(transcriptionText),
+		"file_size":   audioFileSize,
+		"cached":      p.audioCacheService != nil && audioFilePath != "",
 	}
 
 	// Complete the job
@@ -293,7 +324,7 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 
 	log.Printf("[DEBUG] Transcription completed for episode %d (%.1fs, %d characters, %.2f MB)",
 		episodeID, duration, len(transcriptionText),
-		float64(downloadResult.ContentLength)/(1024*1024))
+		float64(audioFileSize)/(1024*1024))
 
 	return nil
 }

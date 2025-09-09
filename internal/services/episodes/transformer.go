@@ -44,6 +44,7 @@ func (t *Transformer) ModelToPodcastIndex(episode *models.Episode) PodcastIndexE
 		FeedItunesID:        episode.FeedItunesID,
 		ChaptersURL:         episode.ChaptersURL,
 		TranscriptURL:       episode.TranscriptURL,
+		Annotations:         episode.Annotations,
 	}
 
 	// Add date crawled if available

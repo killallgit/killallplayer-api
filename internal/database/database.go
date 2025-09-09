@@ -129,6 +129,8 @@ func InitializeWithMigrations() (*DB, error) {
 		&models.Transcription{},
 		&models.Job{},
 		&models.Annotation{},
+		&models.AudioCache{},
+		&models.Dataset{},
 	); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)

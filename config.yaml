@@ -3,7 +3,7 @@
 # Server configuration
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: 9000
   read_timeout: 30s
   write_timeout: 30s
   max_header_bytes: 1048576

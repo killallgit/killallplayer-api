@@ -2,6 +2,8 @@ package types
 
 import (
 	"github.com/killallgit/player-api/internal/database"
+	"github.com/killallgit/player-api/internal/services/annotations"
+	"github.com/killallgit/player-api/internal/services/audiocache"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/jobs"
 	"github.com/killallgit/player-api/internal/services/transcription"
@@ -16,6 +18,8 @@ type Dependencies struct {
 	EpisodeTransformer   episodes.EpisodeTransformer
 	WaveformService      waveforms.WaveformService
 	TranscriptionService transcription.TranscriptionService
+	AnnotationService    annotations.Service
+	AudioCacheService    audiocache.Service
 	JobService           jobs.Service
 	WorkerPool           *workers.WorkerPool
 	PodcastClient        PodcastClient

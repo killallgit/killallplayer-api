@@ -8,12 +8,15 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/annotations"
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/internal/database"
 	"github.com/killallgit/player-api/internal/models"
+	annotationsService "github.com/killallgit/player-api/internal/services/annotations"
+	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -42,10 +45,23 @@ func setupAnnotationTestSuite(t *testing.T) *AnnotationTestSuite {
 	err = db.AutoMigrate(&models.Episode{}, &models.Annotation{})
 	require.NoError(t, err, "Failed to migrate test database")
 
-	// Setup dependencies
+	// Setup dependencies with services
 	deps := &types.Dependencies{
 		DB: &database.DB{DB: db},
 	}
+
+	// Initialize episode service (required for fetching by PodcastIndexID)
+	episodeRepo := episodesService.NewRepository(db)
+	episodeCache := episodesService.NewCache(time.Hour)
+	deps.EpisodeService = episodesService.NewService(
+		nil, // No fetcher needed for tests
+		episodeRepo,
+		episodeCache,
+	)
+
+	// Initialize annotation service
+	annotationRepo := annotationsService.NewRepository(db)
+	deps.AnnotationService = annotationsService.NewService(annotationRepo)
 
 	// Setup router
 	router := gin.New()
@@ -90,7 +106,7 @@ func TestCreateAnnotation(t *testing.T) {
 	}{
 		{
 			name:      "successful creation",
-			episodeID: strconv.Itoa(int(episodeID)),
+			episodeID: "12345", // Use PodcastIndexID
 			payload: map[string]interface{}{
 				"label":      "Introduction",
 				"start_time": 0.0,
@@ -109,7 +125,7 @@ func TestCreateAnnotation(t *testing.T) {
 		},
 		{
 			name:      "missing label",
-			episodeID: strconv.Itoa(int(episodeID)),
+			episodeID: "12345", // Use PodcastIndexID
 			payload: map[string]interface{}{
 				"start_time": 0.0,
 				"end_time":   30.5,
@@ -124,7 +140,7 @@ func TestCreateAnnotation(t *testing.T) {
 		},
 		{
 			name:      "invalid time range",
-			episodeID: strconv.Itoa(int(episodeID)),
+			episodeID: "12345", // Use PodcastIndexID
 			payload: map[string]interface{}{
 				"label":      "Invalid Range",
 				"start_time": 30.0,
@@ -193,7 +209,7 @@ func TestGetAnnotations(t *testing.T) {
 	}{
 		{
 			name:           "successful retrieval",
-			episodeID:      strconv.Itoa(int(episodeID)),
+			episodeID:      "12345", // Use PodcastIndexID
 			expectedStatus: http.StatusOK,
 			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]interface{}
@@ -223,14 +239,12 @@ func TestGetAnnotations(t *testing.T) {
 		{
 			name:           "non-existent episode",
 			episodeID:      "99999",
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusNotFound, // Changed to NotFound since episode doesn't exist
 			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-
-				annotationsData := response["annotations"].([]interface{})
-				assert.Len(t, annotationsData, 0)
+				assert.Contains(t, response["error"], "Episode not found")
 			},
 		},
 	}

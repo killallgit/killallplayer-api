@@ -53,9 +53,9 @@ func (e *EpisodeEnricher) getWaveformStatusForSingleEpisode(ctx context.Context,
 		// Waveform exists, return it
 		peaks, _ := waveform.Peaks()
 		return &WaveformStatus{
-			Status:  WaveformStatusOK,
-			Message: WaveformStatusMessages[WaveformStatusOK],
-			Data: &WaveformData{
+			Status:  WaveformStatusCompleted,
+			Message: WaveformStatusMessages[WaveformStatusCompleted],
+			Data: &types.WaveformData{
 				Peaks:      peaks,
 				Duration:   waveform.Duration,
 				Resolution: waveform.Resolution,
@@ -105,9 +105,9 @@ func (e *EpisodeEnricher) getTranscriptionStatusForSingleEpisode(ctx context.Con
 	if err == nil && transcription != nil {
 		// Transcription exists, return it
 		return &TranscriptionStatus{
-			Status:  TranscriptionStatusOK,
-			Message: TranscriptionStatusMessages[TranscriptionStatusOK],
-			Data: &TranscriptionData{
+			Status:  TranscriptionStatusCompleted,
+			Message: TranscriptionStatusMessages[TranscriptionStatusCompleted],
+			Data: &types.TranscriptionData{
 				Text:     transcription.Text,
 				Language: transcription.Language,
 				Duration: transcription.Duration,
@@ -165,14 +165,14 @@ func (e *EpisodeEnricher) mapJobToWaveformStatus(job *models.Job) *WaveformStatu
 		}
 	case models.JobStatusFailed:
 		return &WaveformStatus{
-			Status:  WaveformStatusError,
+			Status:  WaveformStatusFailed,
 			Message: "Waveform generation failed",
 		}
 	case models.JobStatusCompleted:
 		// Job completed but waveform not found - shouldn't happen but handle gracefully
 		log.Printf("[WARNING] Job %d completed but waveform not found", job.ID)
 		return &WaveformStatus{
-			Status:  WaveformStatusError,
+			Status:  WaveformStatusFailed,
 			Message: "Processing completed but waveform not found",
 		}
 	default:
@@ -197,14 +197,14 @@ func (e *EpisodeEnricher) mapJobToTranscriptionStatus(job *models.Job) *Transcri
 		}
 	case models.JobStatusFailed:
 		return &TranscriptionStatus{
-			Status:  TranscriptionStatusError,
+			Status:  TranscriptionStatusFailed,
 			Message: "Transcription generation failed",
 		}
 	case models.JobStatusCompleted:
 		// Job completed but transcription not found - shouldn't happen but handle gracefully
 		log.Printf("[WARNING] Job %d completed but transcription not found", job.ID)
 		return &TranscriptionStatus{
-			Status:  TranscriptionStatusError,
+			Status:  TranscriptionStatusFailed,
 			Message: "Processing completed but transcription not found",
 		}
 	default:

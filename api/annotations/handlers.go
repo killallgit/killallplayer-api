@@ -15,18 +15,25 @@ import (
 // @Tags         annotations
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode ID"
+// @Param        id path int64 true "Episode ID"
 // @Param        annotation body models.Annotation true "Annotation data (label, start_time, end_time)"
 // @Success      201 {object} models.Annotation "Created annotation"
-// @Failure      400 {object} object{error=string} "Invalid request"
-// @Failure      500 {object} object{error=string} "Internal server error"
+// @Failure      400 {object} types.ErrorResponse "Invalid request"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/annotations [post]
 func CreateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Parse episode ID using utility function
-		episodeID, ok := types.ParseUintParam(c, "id")
+		// Parse Podcast Index ID (int64) from URL
+		podcastIndexID, ok := types.ParseInt64Param(c, "id")
 		if !ok {
 			return // Error response already sent by utility
+		}
+
+		// Fetch episode by PodcastIndexID to get database ID
+		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(c.Request.Context(), podcastIndexID)
+		if err != nil {
+			types.SendNotFound(c, "Episode not found")
+			return
 		}
 
 		// Parse request body using utility function
@@ -35,20 +42,19 @@ func CreateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 			return // Error response already sent by utility
 		}
 
-		// Set episode ID and validate required fields
-		annotation.EpisodeID = episodeID
-		if annotation.Label == "" {
-			types.SendBadRequest(c, "Label is required")
-			return
-		}
-		if annotation.StartTime >= annotation.EndTime {
-			types.SendBadRequest(c, "Start time must be before end time")
-			return
-		}
+		// Set episode ID (database ID)
+		annotation.EpisodeID = episode.ID
 
-		// Create annotation in database
-		if err := deps.DB.Create(&annotation).Error; err != nil {
-			types.SendInternalError(c, "Failed to create annotation")
+		// Create annotation using service
+		if err := deps.AnnotationService.CreateAnnotation(c.Request.Context(), &annotation); err != nil {
+			// Check if it's a validation error
+			if err.Error() == "Label is required" ||
+				err.Error() == "Start time must be before end time" ||
+				err.Error() == "Episode ID is required" {
+				types.SendBadRequest(c, err.Error())
+			} else {
+				types.SendInternalError(c, "Failed to create annotation")
+			}
 			return
 		}
 
@@ -62,23 +68,30 @@ func CreateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 // @Tags         annotations
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode ID"
+// @Param        id path int64 true "Episode ID"
 // @Success      200 {object} object{annotations=[]models.Annotation} "List of annotations"
-// @Failure      400 {object} object{error=string} "Invalid episode ID"
-// @Failure      500 {object} object{error=string} "Internal server error"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/annotations [get]
 func GetAnnotations(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Parse episode ID using common utility
-		episodeID, ok := types.ParseUintParam(c, "id")
+		// Parse Podcast Index ID (int64) from URL
+		podcastIndexID, ok := types.ParseInt64Param(c, "id")
 		if !ok {
 			return // Error response already sent by utility
 		}
 
-		// Get annotations from database
-		var annotations []models.Annotation
-		if err := deps.DB.Where("episode_id = ?", uint(episodeID)).Order("start_time ASC").Find(&annotations).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve annotations"})
+		// Fetch episode by PodcastIndexID to get database ID
+		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(c.Request.Context(), podcastIndexID)
+		if err != nil {
+			types.SendNotFound(c, "Episode not found")
+			return
+		}
+
+		// Get annotations using service
+		annotations, err := deps.AnnotationService.GetAnnotationsByEpisodeID(c.Request.Context(), episode.ID)
+		if err != nil {
+			types.SendInternalError(c, "Failed to retrieve annotations")
 			return
 		}
 
@@ -95,9 +108,9 @@ func GetAnnotations(deps *types.Dependencies) gin.HandlerFunc {
 // @Param        id path int true "Annotation ID"
 // @Param        annotation body models.Annotation true "Updated annotation data (label, start_time, end_time)"
 // @Success      200 {object} models.Annotation "Updated annotation"
-// @Failure      400 {object} object{error=string} "Invalid request"
-// @Failure      404 {object} object{error=string} "Annotation not found"
-// @Failure      500 {object} object{error=string} "Internal server error"
+// @Failure      400 {object} types.ErrorResponse "Invalid request"
+// @Failure      404 {object} types.ErrorResponse "Annotation not found"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/annotations/{id} [put]
 func UpdateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -106,48 +119,35 @@ func UpdateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 		// Parse annotation ID
 		annotationID, err := strconv.ParseUint(annotationIDStr, 10, 32)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid annotation ID"})
+			types.SendBadRequest(c, "Invalid annotation ID")
 			return
 		}
 
 		// Parse request body
 		var updateData models.Annotation
-		if err := c.ShouldBindJSON(&updateData); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
-			return
+		if !types.BindJSONOrError(c, &updateData) {
+			return // Error response already sent by utility
 		}
 
-		// Validate required fields
-		if updateData.Label == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Label is required"})
-			return
-		}
-		if updateData.StartTime >= updateData.EndTime {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Start time must be before end time"})
-			return
-		}
+		// Update annotation using service
+		annotation, err := deps.AnnotationService.UpdateAnnotation(
+			c.Request.Context(),
+			uint(annotationID),
+			updateData.Label,
+			updateData.StartTime,
+			updateData.EndTime,
+		)
 
-		// Update annotation in database
-		result := deps.DB.Model(&models.Annotation{}).Where("id = ?", uint(annotationID)).Updates(map[string]interface{}{
-			"label":      updateData.Label,
-			"start_time": updateData.StartTime,
-			"end_time":   updateData.EndTime,
-		})
-
-		if result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update annotation"})
-			return
-		}
-
-		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Annotation not found"})
-			return
-		}
-
-		// Get updated annotation
-		var annotation models.Annotation
-		if err := deps.DB.First(&annotation, uint(annotationID)).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve updated annotation"})
+		if err != nil {
+			// Check if it's a validation error or not found
+			if err.Error() == "Label is required" ||
+				err.Error() == "Start time must be before end time" {
+				types.SendBadRequest(c, err.Error())
+			} else if err.Error() == "annotation not found" {
+				types.SendNotFound(c, "Annotation not found")
+			} else {
+				types.SendInternalError(c, "Failed to update annotation")
+			}
 			return
 		}
 
@@ -163,9 +163,9 @@ func UpdateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 // @Produce      json
 // @Param        id path int true "Annotation ID"
 // @Success      200 {object} object{message=string} "Annotation deleted successfully"
-// @Failure      400 {object} object{error=string} "Invalid annotation ID"
-// @Failure      404 {object} object{error=string} "Annotation not found"
-// @Failure      500 {object} object{error=string} "Internal server error"
+// @Failure      400 {object} types.ErrorResponse "Invalid annotation ID"
+// @Failure      404 {object} types.ErrorResponse "Annotation not found"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/annotations/{id} [delete]
 func DeleteAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -174,19 +174,17 @@ func DeleteAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 		// Parse annotation ID
 		annotationID, err := strconv.ParseUint(annotationIDStr, 10, 32)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid annotation ID"})
+			types.SendBadRequest(c, "Invalid annotation ID")
 			return
 		}
 
-		// Delete annotation from database
-		result := deps.DB.Delete(&models.Annotation{}, uint(annotationID))
-		if result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete annotation"})
-			return
-		}
-
-		if result.RowsAffected == 0 {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Annotation not found"})
+		// Delete annotation using service
+		if err := deps.AnnotationService.DeleteAnnotation(c.Request.Context(), uint(annotationID)); err != nil {
+			if err.Error() == "annotation not found" {
+				types.SendNotFound(c, "Annotation not found")
+			} else {
+				types.SendInternalError(c, "Failed to delete annotation")
+			}
 			return
 		}
 

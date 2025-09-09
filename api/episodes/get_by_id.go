@@ -14,7 +14,7 @@ import (
 // @Tags         episodes
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode Podcast Index ID" minimum(1) example(123456789)
+// @Param        id path int64 true "Episode Podcast Index ID" minimum(1) example(123456789)
 // @Success      200 {object} EpisodeByGUIDEnhancedResponse "Episode details with waveform status"
 // @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - invalid ID"
 // @Failure      404 {object} episodes.PodcastIndexErrorResponse "Episode not found"

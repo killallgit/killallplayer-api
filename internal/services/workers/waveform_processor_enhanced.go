@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/killallgit/player-api/internal/models"
+	"github.com/killallgit/player-api/internal/services/audiocache"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/jobs"
 	"github.com/killallgit/player-api/internal/services/waveforms"
@@ -16,12 +17,13 @@ import (
 
 // EnhancedWaveformProcessor processes waveform generation jobs with temp file download
 type EnhancedWaveformProcessor struct {
-	jobService      jobs.Service
-	waveformService waveforms.WaveformService
-	episodeService  episodes.EpisodeService
-	ffmpeg          *ffmpeg.FFmpeg
-	downloader      *download.Downloader
-	options         ffmpeg.ProcessingOptions
+	jobService        jobs.Service
+	waveformService   waveforms.WaveformService
+	episodeService    episodes.EpisodeService
+	audioCacheService audiocache.Service
+	ffmpeg            *ffmpeg.FFmpeg
+	downloader        *download.Downloader
+	options           ffmpeg.ProcessingOptions
 }
 
 // NewEnhancedWaveformProcessor creates a new enhanced waveform processor
@@ -29,6 +31,7 @@ func NewEnhancedWaveformProcessor(
 	jobService jobs.Service,
 	waveformService waveforms.WaveformService,
 	episodeService episodes.EpisodeService,
+	audioCacheService audiocache.Service,
 	ffmpegInstance *ffmpeg.FFmpeg,
 	options ffmpeg.ProcessingOptions,
 ) *EnhancedWaveformProcessor {
@@ -49,12 +52,13 @@ func NewEnhancedWaveformProcessor(
 	}
 
 	return &EnhancedWaveformProcessor{
-		jobService:      jobService,
-		waveformService: waveformService,
-		episodeService:  episodeService,
-		ffmpeg:          ffmpegInstance,
-		downloader:      download.NewDownloader(downloadOpts),
-		options:         options,
+		jobService:        jobService,
+		waveformService:   waveformService,
+		episodeService:    episodeService,
+		audioCacheService: audioCacheService,
+		ffmpeg:            ffmpegInstance,
+		downloader:        download.NewDownloader(downloadOpts),
+		options:           options,
 	}
 }
 
@@ -118,38 +122,62 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		return fmt.Errorf("episode %d has no audio URL", podcastIndexID)
 	}
 
-	// Update progress: Starting download
+	// Update progress: Starting download/cache check
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 10); err != nil {
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	log.Printf("[DEBUG] Downloading audio for episode %d (database ID: %d) from URL: %s", podcastIndexID, episode.ID, episode.AudioURL)
+	var audioFilePath string
+	var audioFileSize int64
 
-	// Download audio to temp file (use Podcast Index ID for logging)
-	downloadResult, err := p.downloader.DownloadToTemp(ctx, episode.AudioURL, podcastIndexID)
-	if err != nil {
-		return fmt.Errorf("failed to download audio: %w", err)
+	// Check if audio is cached (if audio cache service is available)
+	if p.audioCacheService != nil {
+		log.Printf("[DEBUG] Checking audio cache for episode %d (database ID: %d)", podcastIndexID, episode.ID)
+
+		// Get or download audio through cache
+		audioCache, err := p.audioCacheService.GetOrDownloadAudio(ctx, episode.ID, episode.AudioURL)
+		if err != nil {
+			log.Printf("[WARN] Audio cache failed, falling back to direct download: %v", err)
+		} else if audioCache != nil && audioCache.OriginalPath != "" {
+			log.Printf("[DEBUG] Using cached audio for episode %d from %s", episode.ID, audioCache.OriginalPath)
+			audioFilePath = audioCache.OriginalPath
+			audioFileSize = audioCache.OriginalSize
+		}
 	}
 
-	// Ensure temp file cleanup
-	defer func() {
-		if err := download.CleanupTempFile(downloadResult.FilePath); err != nil {
-			log.Printf("[ERROR] Failed to cleanup temp file %s: %v", downloadResult.FilePath, err)
+	// If not cached or cache failed, download directly to temp file
+	if audioFilePath == "" {
+		log.Printf("[DEBUG] Downloading audio for episode %d (database ID: %d) from URL: %s", podcastIndexID, episode.ID, episode.AudioURL)
+
+		// Download audio to temp file (use Podcast Index ID for logging)
+		downloadResult, err := p.downloader.DownloadToTemp(ctx, episode.AudioURL, podcastIndexID)
+		if err != nil {
+			return fmt.Errorf("failed to download audio: %w", err)
 		}
-	}()
 
-	log.Printf("[DEBUG] Downloaded audio to %s (%.2f MB)", downloadResult.FilePath,
-		float64(downloadResult.ContentLength)/(1024*1024))
+		// Ensure temp file cleanup
+		defer func() {
+			if err := download.CleanupTempFile(downloadResult.FilePath); err != nil {
+				log.Printf("[ERROR] Failed to cleanup temp file %s: %v", downloadResult.FilePath, err)
+			}
+		}()
 
-	// Update progress: Download complete, starting processing
+		audioFilePath = downloadResult.FilePath
+		audioFileSize = downloadResult.ContentLength
+
+		log.Printf("[DEBUG] Downloaded audio to %s (%.2f MB)", downloadResult.FilePath,
+			float64(downloadResult.ContentLength)/(1024*1024))
+	}
+
+	// Update progress: Download/cache complete, starting processing
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 50); err != nil {
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	log.Printf("[DEBUG] Processing waveform from temp file: %s", downloadResult.FilePath)
+	log.Printf("[DEBUG] Processing waveform from file: %s", audioFilePath)
 
-	// Generate waveform from temp file
-	waveformData, err := p.ffmpeg.GenerateWaveform(ctx, downloadResult.FilePath, p.options)
+	// Generate waveform from audio file
+	waveformData, err := p.ffmpeg.GenerateWaveform(ctx, audioFilePath, p.options)
 	if err != nil {
 		return fmt.Errorf("failed to generate waveform: %w", err)
 	}
@@ -182,16 +210,15 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		log.Printf("Failed to update job progress: %v", err)
 	}
 
-	// Create job result with additional download info
+	// Create job result with additional info
 	result := map[string]interface{}{
-		"episode_id":    podcastIndexID,
-		"duration":      waveformData.Duration,
-		"resolution":    waveformData.Resolution,
-		"sample_rate":   waveformData.SampleRate,
-		"peaks_count":   len(waveformData.Peaks),
-		"file_size":     downloadResult.ContentLength,
-		"content_type":  downloadResult.ContentType,
-		"download_etag": downloadResult.ETag,
+		"episode_id":  podcastIndexID,
+		"duration":    waveformData.Duration,
+		"resolution":  waveformData.Resolution,
+		"sample_rate": waveformData.SampleRate,
+		"peaks_count": len(waveformData.Peaks),
+		"file_size":   audioFileSize,
+		"cached":      p.audioCacheService != nil && audioFilePath != "",
 	}
 
 	// Complete the job
@@ -201,7 +228,7 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 
 	log.Printf("[DEBUG] Waveform generation completed for Podcast Index Episode %d (%.1fs, %d peaks, %.2f MB)",
 		podcastIndexID, waveformData.Duration, len(waveformData.Peaks),
-		float64(downloadResult.ContentLength)/(1024*1024))
+		float64(audioFileSize)/(1024*1024))
 
 	return nil
 }

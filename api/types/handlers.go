@@ -7,12 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Common error response structure
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Details string `json:"details,omitempty"`
-}
-
 // Handler utility functions to reduce duplication across handlers
 
 // ParseUintParam extracts and parses a URL parameter as uint

@@ -1,0 +1,76 @@
+package annotations
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/killallgit/player-api/internal/models"
+	"gorm.io/gorm"
+)
+
+// RepositoryImpl implements the Repository interface
+type RepositoryImpl struct {
+	db *gorm.DB
+}
+
+// NewRepository creates a new annotation repository
+func NewRepository(db *gorm.DB) Repository {
+	return &RepositoryImpl{db: db}
+}
+
+// CreateAnnotation creates a new annotation in the database
+func (r *RepositoryImpl) CreateAnnotation(ctx context.Context, annotation *models.Annotation) error {
+	if err := r.db.WithContext(ctx).Create(annotation).Error; err != nil {
+		return fmt.Errorf("creating annotation: %w", err)
+	}
+	return nil
+}
+
+// GetAnnotationByID retrieves an annotation by its ID
+func (r *RepositoryImpl) GetAnnotationByID(ctx context.Context, id uint) (*models.Annotation, error) {
+	var annotation models.Annotation
+	if err := r.db.WithContext(ctx).First(&annotation, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("annotation not found")
+		}
+		return nil, fmt.Errorf("getting annotation: %w", err)
+	}
+	return &annotation, nil
+}
+
+// GetAnnotationsByEpisodeID retrieves all annotations for a specific episode
+func (r *RepositoryImpl) GetAnnotationsByEpisodeID(ctx context.Context, episodeID uint) ([]models.Annotation, error) {
+	var annotations []models.Annotation
+	if err := r.db.WithContext(ctx).
+		Where("episode_id = ?", episodeID).
+		Order("start_time ASC").
+		Find(&annotations).Error; err != nil {
+		return nil, fmt.Errorf("getting annotations for episode: %w", err)
+	}
+	return annotations, nil
+}
+
+// UpdateAnnotation updates an existing annotation
+func (r *RepositoryImpl) UpdateAnnotation(ctx context.Context, annotation *models.Annotation) error {
+	result := r.db.WithContext(ctx).Save(annotation)
+	if result.Error != nil {
+		return fmt.Errorf("updating annotation: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("annotation not found")
+	}
+	return nil
+}
+
+// DeleteAnnotation deletes an annotation by its ID
+func (r *RepositoryImpl) DeleteAnnotation(ctx context.Context, id uint) error {
+	result := r.db.WithContext(ctx).Delete(&models.Annotation{}, id)
+	if result.Error != nil {
+		return fmt.Errorf("deleting annotation: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("annotation not found")
+	}
+	return nil
+}

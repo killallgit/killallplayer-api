@@ -30,8 +30,8 @@ func Get(deps *types.Dependencies) gin.HandlerFunc {
 			limit = 100
 		}
 
-		// Call Podcast Index trending endpoint
-		trending, err := deps.PodcastClient.GetTrending(limit)
+		// Call Podcast Index trending endpoint with defaults
+		trending, err := deps.PodcastClient.GetTrending(c.Request.Context(), limit, 24, nil, "en", false)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"status":      "false",

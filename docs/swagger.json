@@ -58,6 +58,46 @@
                 }
             }
         },
+        "/api/v1/categories": {
+            "get": {
+                "description": "Get a list of all available podcast categories from the Podcast Index API",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "categories"
+                ],
+                "summary": "Get all podcast categories",
+                "responses": {
+                    "200": {
+                        "description": "Categories response",
+                        "schema": {
+                            "$ref": "#/definitions/podcastindex.CategoriesResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "details": {
+                                    "type": "string"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/episodes": {
             "get": {
                 "description": "Get recent episodes across all podcasts with optional limit and podcast_id parameters",
@@ -145,34 +185,19 @@
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Annotation not found",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -213,34 +238,19 @@
                     "400": {
                         "description": "Invalid annotation ID",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Annotation not found",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -560,6 +570,7 @@
                     {
                         "minimum": 1,
                         "type": "integer",
+                        "format": "int64",
                         "example": 123456789,
                         "description": "Episode Podcast Index ID",
                         "name": "id",
@@ -611,6 +622,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Episode ID",
                         "name": "id",
                         "in": "path",
@@ -635,23 +647,13 @@
                     "400": {
                         "description": "Invalid episode ID",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -671,6 +673,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Episode ID",
                         "name": "id",
                         "in": "path",
@@ -696,23 +699,13 @@
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -734,6 +727,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Episode ID (Podcast Index ID)",
                         "name": "id",
                         "in": "path",
@@ -750,22 +744,19 @@
                     "400": {
                         "description": "Invalid episode ID",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Transcription not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -785,6 +776,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Episode ID (Podcast Index ID)",
                         "name": "id",
                         "in": "path",
@@ -795,29 +787,25 @@
                     "200": {
                         "description": "Transcription already exists (source: 'fetched' or 'generated')",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "202": {
                         "description": "Transcription generation triggered",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid episode ID",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -839,6 +827,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Episode ID (Podcast Index ID)",
                         "name": "id",
                         "in": "path",
@@ -849,29 +838,25 @@
                     "200": {
                         "description": "Transcription status",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid episode ID",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Transcription not available",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -893,6 +878,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Episode ID (Podcast Index ID)",
                         "name": "id",
                         "in": "path",
@@ -909,36 +895,31 @@
                     "202": {
                         "description": "Waveform generation in progress",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid episode ID",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Episode or waveform not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Waveform generation failed, retry pending (includes retry_after in seconds)",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     }
                 }
@@ -958,6 +939,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Episode ID (Podcast Index ID)",
                         "name": "id",
                         "in": "path",
@@ -968,36 +950,31 @@
                     "200": {
                         "description": "Waveform already exists",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "202": {
                         "description": "Waveform generation triggered",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid episode ID",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     }
                 }
@@ -1019,6 +996,7 @@
                 "parameters": [
                     {
                         "type": "integer",
+                        "format": "int64",
                         "description": "Episode ID (Podcast Index ID)",
                         "name": "id",
                         "in": "path",
@@ -1029,29 +1007,25 @@
                     "200": {
                         "description": "Status information",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.WaveformData"
                         }
                     },
                     "400": {
                         "description": "Invalid episode ID",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Waveform not found or episode not found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -1365,9 +1339,63 @@
                 }
             }
         },
+        "/api/v1/random": {
+            "get": {
+                "description": "Returns random podcast episodes from Podcast Index",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Random"
+                ],
+                "summary": "Get random podcast episodes",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number of episodes to return (default 10, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Language code (default 'en')",
+                        "name": "lang",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated categories to exclude (e.g., 'News,Politics')",
+                        "name": "notcat",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/podcastindex.EpisodesResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "description": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/search": {
             "post": {
-                "description": "Search for podcasts by query string with optional result limit",
+                "description": "Search for podcasts by query string with optional result limit and full text",
                 "consumes": [
                     "application/json"
                 ],
@@ -1391,9 +1419,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Podcast Index search response",
+                        "description": "Enhanced search response with category summary",
                         "schema": {
-                            "$ref": "#/definitions/podcastindex.SearchResponse"
+                            "$ref": "#/definitions/models.EnhancedSearchResponse"
                         }
                     },
                     "400": {
@@ -1484,6 +1512,86 @@
                             "type": "object",
                             "properties": {
                                 "description": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Get trending podcasts with optional category filtering and other parameters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "trending"
+                ],
+                "summary": "Get trending podcasts with filters",
+                "parameters": [
+                    {
+                        "description": "Trending parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.TrendingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Enhanced trending response with category summary",
+                        "schema": {
+                            "$ref": "#/definitions/models.EnhancedTrendingResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid parameters",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "details": {
+                                    "type": "string"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "details": {
+                                    "type": "string"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway timeout - trending request timed out",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
                                     "type": "string"
                                 },
                                 "status": {
@@ -2001,14 +2109,14 @@
                     "example": "Transcription ready"
                 },
                 "progress": {
-                    "description": "0-100 for processing/downloading states",
+                    "description": "0-100 for processing states",
                     "type": "integer",
                     "example": 75
                 },
                 "status": {
-                    "description": "ok|processing|downloading|error",
+                    "description": "completed|processing|pending|failed",
                     "type": "string",
-                    "example": "ok"
+                    "example": "completed"
                 }
             }
         },
@@ -2083,14 +2191,14 @@
                     "example": "Waveform ready"
                 },
                 "progress": {
-                    "description": "0-100 for processing/downloading states",
+                    "description": "0-100 for processing states",
                     "type": "integer",
                     "example": 75
                 },
                 "status": {
-                    "description": "ok|processing|downloading|error",
+                    "description": "completed|processing|pending|failed",
                     "type": "string",
-                    "example": "ok"
+                    "example": "completed"
                 }
             }
         },
@@ -2142,6 +2250,149 @@
                 },
                 "updatedAt": {
                     "type": "string"
+                }
+            }
+        },
+        "models.EnhancedPodcast": {
+            "type": "object",
+            "properties": {
+                "artwork": {
+                    "type": "string"
+                },
+                "author": {
+                    "type": "string"
+                },
+                "categories": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "categoryList": {
+                    "description": "Array version of categories for client-side filtering",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdOn": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "episodeCount": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "imageUrlHash": {
+                    "type": "integer"
+                },
+                "itunesId": {
+                    "type": "integer"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "lastCrawlTime": {
+                    "type": "integer"
+                },
+                "lastGoodHttpStatusCode": {
+                    "type": "integer"
+                },
+                "lastParseTime": {
+                    "type": "integer"
+                },
+                "lastUpdateTime": {
+                    "type": "integer"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "locked": {
+                    "type": "integer"
+                },
+                "originalUrl": {
+                    "type": "string"
+                },
+                "ownerName": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.EnhancedSearchResponse": {
+            "type": "object",
+            "properties": {
+                "categorySummary": {
+                    "description": "Category name -\u003e count",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnhancedPodcast"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "totalCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.EnhancedTrendingResponse": {
+            "type": "object",
+            "properties": {
+                "categorySummary": {
+                    "description": "Category name -\u003e count",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "max": {
+                    "description": "Max results parameter used",
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnhancedPodcast"
+                    }
+                },
+                "since": {
+                    "description": "Hours ago parameter used",
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "totalCount": {
+                    "type": "integer"
                 }
             }
         },
@@ -2261,6 +2512,11 @@
                 "query"
             ],
             "properties": {
+                "fullText": {
+                    "description": "Return full descriptions instead of truncated",
+                    "type": "boolean",
+                    "example": false
+                },
                 "limit": {
                     "type": "integer",
                     "maximum": 100,
@@ -2272,6 +2528,46 @@
                     "maxLength": 200,
                     "minLength": 1,
                     "example": "technology podcasts"
+                }
+            }
+        },
+        "models.TrendingRequest": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "description": "Category names/IDs to filter",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "News",
+                        "Technology"
+                    ]
+                },
+                "fullText": {
+                    "description": "Return full descriptions",
+                    "type": "boolean",
+                    "example": false
+                },
+                "lang": {
+                    "description": "Language code",
+                    "type": "string",
+                    "maxLength": 10,
+                    "example": "en"
+                },
+                "max": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1,
+                    "example": 10
+                },
+                "since": {
+                    "description": "Hours ago (max 30 days)",
+                    "type": "integer",
+                    "maximum": 720,
+                    "minimum": 1,
+                    "example": 24
                 }
             }
         },
@@ -2311,6 +2607,140 @@
                     "type": "integer"
                 },
                 "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "podcastindex.CategoriesResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "feeds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/podcastindex.Category"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "podcastindex.Category": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "podcastindex.Episode": {
+            "type": "object",
+            "properties": {
+                "chaptersUrl": {
+                    "type": "string"
+                },
+                "dateCrawled": {
+                    "type": "integer"
+                },
+                "datePublished": {
+                    "type": "integer"
+                },
+                "datePublishedPretty": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "enclosureLength": {
+                    "type": "integer"
+                },
+                "enclosureType": {
+                    "type": "string"
+                },
+                "enclosureUrl": {
+                    "type": "string"
+                },
+                "episode": {
+                    "type": "integer"
+                },
+                "episodeType": {
+                    "type": "string"
+                },
+                "explicit": {
+                    "type": "integer"
+                },
+                "feedDead": {
+                    "type": "integer"
+                },
+                "feedDuplicateOf": {
+                    "type": "integer"
+                },
+                "feedId": {
+                    "type": "integer"
+                },
+                "feedImage": {
+                    "type": "string"
+                },
+                "feedItunesId": {
+                    "type": "integer"
+                },
+                "feedLanguage": {
+                    "type": "string"
+                },
+                "guid": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "season": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "transcriptUrl": {
+                    "type": "string"
+                }
+            }
+        },
+        "podcastindex.EpisodesResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/podcastindex.Episode"
+                    }
+                },
+                "max": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -2405,6 +2835,58 @@
                     "type": "string"
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.JobStatusResponse": {
+            "type": "object",
+            "properties": {
+                "episode_id": {
+                    "description": "Episode ID",
+                    "type": "integer"
+                },
+                "error": {
+                    "description": "Error message (only for failed status)",
+                    "type": "string"
+                },
+                "job_id": {
+                    "description": "Job ID (optional)",
+                    "type": "integer"
+                },
+                "max_retries": {
+                    "description": "Maximum retry attempts (only for failed jobs)",
+                    "type": "integer"
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "progress": {
+                    "description": "Progress 0-100",
+                    "type": "integer"
+                },
+                "retry_after": {
+                    "description": "Seconds until retry (only for failed jobs)",
+                    "type": "number"
+                },
+                "retry_count": {
+                    "description": "Number of retries attempted (only for failed jobs)",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "Status: pending, processing, completed, failed, not_found",
                     "type": "string"
                 }
             }

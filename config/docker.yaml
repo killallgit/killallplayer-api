@@ -3,7 +3,7 @@
 # Server configuration
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: 9000
   read_timeout: 30s
   write_timeout: 30s
   max_header_bytes: 1048576
@@ -46,7 +46,7 @@ waveform:
 
 # Transcription configuration - for whisper.cpp in Docker
 transcription:
-  enabled: false  # Disabled by default in Docker unless whisper.cpp is installed
+  enabled: false
   whisper_path: "/app/bin/whisper"
   model_path: "/app/models/ggml-base.en.bin"
   language: "en"
@@ -54,7 +54,7 @@ transcription:
 # Features configuration
 features:
   enable_waveform: true
-  enable_transcription: false  # Disabled by default in Docker
+  enable_transcription: false
   enable_streaming: true
   enable_sync: true
 
@@ -75,7 +75,7 @@ security:
   jwt_secret: "${KILLALL_JWT_SECRET}"
   cors_enabled: true
   cors_origins:
-    - "*"  # Allow all origins in Docker (configure as needed)
+    - "*" 
   api_key_header: "X-API-Key"
 
 # OpenAI configuration (optional, for transcription fallback)

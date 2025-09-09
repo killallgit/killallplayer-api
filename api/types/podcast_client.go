@@ -8,8 +8,9 @@ import (
 
 // PodcastClient defines the interface for podcast index operations
 type PodcastClient interface {
-	Search(ctx context.Context, query string, limit int) (*podcastindex.SearchResponse, error)
-	GetTrending(limit int) (*podcastindex.SearchResponse, error)
+	Search(ctx context.Context, query string, limit int, fullText bool) (*podcastindex.SearchResponse, error)
+	GetTrending(ctx context.Context, max, since int, categories []string, lang string, fullText bool) (*podcastindex.SearchResponse, error)
+	GetCategories() (*podcastindex.CategoriesResponse, error)
 	GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) (*podcastindex.EpisodesResponse, error)
 
 	// Podcast metadata endpoints
@@ -23,5 +24,7 @@ type PodcastClient interface {
 
 	// Recent/discovery endpoints
 	GetRecentEpisodes(ctx context.Context, limit int) (*podcastindex.EpisodesResponse, error)
+
+	GetRandomEpisodes(ctx context.Context, max int, lang string, notCategories []string) (*podcastindex.EpisodesResponse, error)
 	GetRecentFeeds(ctx context.Context, limit int) (*podcastindex.RecentFeedsResponse, error)
 }

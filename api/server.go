@@ -165,6 +165,7 @@ func (s *Server) initializeWorkerPool() error {
 		s.dependencies.JobService,
 		s.dependencies.WaveformService,
 		s.dependencies.EpisodeService,
+		s.dependencies.AudioCacheService, // May be nil if not initialized
 		ffmpegInstance,
 		ffmpeg.DefaultProcessingOptions(),
 	)
@@ -176,6 +177,7 @@ func (s *Server) initializeWorkerPool() error {
 			s.dependencies.JobService,
 			s.dependencies.TranscriptionService,
 			s.dependencies.EpisodeService,
+			s.dependencies.AudioCacheService,
 		)
 	}
 

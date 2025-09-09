@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -51,7 +52,7 @@ func NewClient(cfg Config) *Client {
 }
 
 // Search searches for podcasts by term
-func (c *Client) Search(ctx context.Context, query string, limit int) (*SearchResponse, error) {
+func (c *Client) Search(ctx context.Context, query string, limit int, fullText bool) (*SearchResponse, error) {
 	if query == "" {
 		return nil, fmt.Errorf("search query cannot be empty")
 	}
@@ -65,10 +66,14 @@ func (c *Client) Search(ctx context.Context, query string, limit int) (*SearchRe
 	}
 
 	// Build URL with query parameters
-	endpoint := fmt.Sprintf("%s/search/byterm?q=%s&max=%d",
-		c.baseURL,
-		url.QueryEscape(query),
-		limit)
+	params := url.Values{}
+	params.Set("q", query)
+	params.Set("max", fmt.Sprintf("%d", limit))
+	if fullText {
+		params.Set("fulltext", "true")
+	}
+
+	endpoint := fmt.Sprintf("%s/search/byterm?%s", c.baseURL, params.Encode())
 
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
@@ -108,21 +113,43 @@ func (c *Client) Search(ctx context.Context, query string, limit int) (*SearchRe
 	return &searchResp, nil
 }
 
-// GetTrending fetches trending podcasts from Podcast Index
-func (c *Client) GetTrending(limit int) (*SearchResponse, error) {
+// GetTrending fetches trending podcasts from Podcast Index with optional filters
+func (c *Client) GetTrending(ctx context.Context, max, since int, categories []string, lang string, fullText bool) (*SearchResponse, error) {
 	// Default and max limit
-	if limit <= 0 {
-		limit = 25
+	if max <= 0 {
+		max = 10
 	}
-	if limit > 100 {
-		limit = 100
+	if max > 100 {
+		max = 100
 	}
 
-	// Build URL with query parameters - default to English language
-	endpoint := fmt.Sprintf("%s/podcasts/trending?max=%d&lang=en", c.baseURL, limit)
+	// Build URL with query parameters
+	params := url.Values{}
+	params.Set("max", fmt.Sprintf("%d", max))
+
+	if since > 0 {
+		params.Set("since", fmt.Sprintf("%d", since))
+	}
+
+	if len(categories) > 0 {
+		// Join categories with comma for the API
+		params.Set("cat", strings.Join(categories, ","))
+	}
+
+	if lang != "" {
+		params.Set("lang", lang)
+	} else {
+		params.Set("lang", "en") // Default to English
+	}
+
+	if fullText {
+		params.Set("fulltext", "true")
+	}
+
+	endpoint := fmt.Sprintf("%s/podcasts/trending?%s", c.baseURL, params.Encode())
 
 	// Create request
-	req, err := http.NewRequest("GET", endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -520,6 +547,76 @@ func (c *Client) GetRecentEpisodes(ctx context.Context, limit int) (*EpisodesRes
 	}
 
 	return &episodesResp, nil
+}
+
+// GetRandomEpisodes fetches random podcast episodes from the Podcast Index API
+func (c *Client) GetRandomEpisodes(ctx context.Context, max int, lang string, notCategories []string) (*EpisodesResponse, error) {
+	if max <= 0 {
+		max = 10
+	}
+	if max > 100 {
+		max = 100
+	}
+
+	if lang == "" {
+		lang = "en"
+	}
+
+	params := url.Values{}
+	params.Set("max", fmt.Sprintf("%d", max))
+	params.Set("lang", lang)
+
+	if len(notCategories) > 0 {
+		params.Set("notcat", strings.Join(notCategories, ","))
+	}
+
+	endpoint := fmt.Sprintf("%s/episodes/random?%s", c.baseURL, params.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	// The random endpoint returns "episodes" instead of "items" like other endpoints
+	// We need to handle this inconsistency
+	var randomResp struct {
+		Status      string    `json:"status"`
+		Episodes    []Episode `json:"episodes"` // Note: different field name
+		Count       int       `json:"count"`
+		Max         string    `json:"max"`
+		Description string    `json:"description"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&randomResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	if randomResp.Status != "true" {
+		return nil, fmt.Errorf("API error: %s", randomResp.Description)
+	}
+
+	// Map to our standard response structure
+	episodesResp := &EpisodesResponse{
+		Status:      randomResp.Status,
+		Items:       randomResp.Episodes, // Map episodes to items
+		Count:       randomResp.Count,
+		Max:         randomResp.Max,
+		Description: randomResp.Description,
+	}
+
+	return episodesResp, nil
 }
 
 // GetRecentFeeds fetches the most recently updated feeds

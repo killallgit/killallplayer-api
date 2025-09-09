@@ -12,27 +12,17 @@ import (
 	"github.com/killallgit/player-api/internal/models"
 )
 
-// TranscriptionData represents the transcription for an episode
-type TranscriptionData struct {
-	EpisodeID uint    `json:"episode_id"`
-	Text      string  `json:"text"`
-	Language  string  `json:"language"`
-	Duration  float64 `json:"duration"` // Duration in seconds
-	Model     string  `json:"model"`    // Model used for transcription
-	Cached    bool    `json:"cached"`
-}
-
 // TriggerTranscription manually triggers transcription generation for an episode
 // @Summary      Trigger transcription generation
 // @Description Manually trigger transcription generation for a specific episode. Will first check for existing transcripts at the episode's transcriptURL before using Whisper.
 // @Tags         transcription
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} map[string]interface{} "Transcription already exists (source: 'fetched' or 'generated')"
-// @Success      202 {object} map[string]interface{} "Transcription generation triggered"
-// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Param        id path int64 true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} types.JobStatusResponse "Transcription already exists (source: 'fetched' or 'generated')"
+// @Success      202 {object} types.JobStatusResponse "Transcription generation triggered"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/transcribe [post]
 func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -141,11 +131,11 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 // @Tags         transcription
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} TranscriptionData "Transcription data (includes source: 'fetched' or 'generated')"
-// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure      404 {object} map[string]interface{} "Transcription not found"
-// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Param        id path int64 true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} types.TranscriptionData "Transcription data (includes source: 'fetched' or 'generated')"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      404 {object} types.ErrorResponse "Transcription not found"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/transcribe [get]
 func GetTranscription(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -191,7 +181,7 @@ func GetTranscription(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		// Convert to response format
-		transcriptionData := &TranscriptionData{
+		transcriptionData := &types.TranscriptionData{
 			EpisodeID: uint(episodeID),
 			Text:      transcriptionModel.Text,
 			Language:  transcriptionModel.Language,
@@ -210,11 +200,11 @@ func GetTranscription(deps *types.Dependencies) gin.HandlerFunc {
 // @Tags         transcription
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} map[string]interface{} "Transcription status"
-// @Success      404 {object} map[string]interface{} "Transcription not available"
-// @Failure      400 {object} map[string]interface{} "Invalid episode ID"
-// @Failure      500 {object} map[string]interface{} "Internal server error"
+// @Param        id path int64 true "Episode ID (Podcast Index ID)"
+// @Success      200 {object} types.JobStatusResponse "Transcription status"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      404 {object} types.JobStatusResponse "Transcription not available"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/transcribe/status [get]
 func GetTranscriptionStatus(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

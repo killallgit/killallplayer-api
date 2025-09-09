@@ -10,9 +10,11 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/killallgit/player-api/api/annotations"
+	"github.com/killallgit/player-api/api/categories"
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/podcasts"
+	"github.com/killallgit/player-api/api/random"
 	"github.com/killallgit/player-api/api/search"
 	transcriptionAPI "github.com/killallgit/player-api/api/transcription"
 	"github.com/killallgit/player-api/api/trending"
@@ -20,6 +22,7 @@ import (
 	"github.com/killallgit/player-api/api/version"
 	"github.com/killallgit/player-api/api/waveform"
 	_ "github.com/killallgit/player-api/docs"
+	annotationsService "github.com/killallgit/player-api/internal/services/annotations"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/jobs"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
@@ -112,6 +115,16 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 	trendingGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
 	trending.RegisterRoutes(trendingGroup, deps)
 
+	// Register categories routes with general rate limiting
+	categoriesGroup := v1.Group("/categories")
+	categoriesGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
+	categories.RegisterRoutes(categoriesGroup, deps)
+
+	// Register random routes with general rate limiting
+	randomGroup := v1.Group("/random")
+	randomGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
+	random.RegisterRoutes(randomGroup, deps)
+
 	// Initialize all services if database is available
 	if deps.DB != nil && deps.DB.DB != nil {
 		initializeAllServices(deps, cfg)
@@ -154,6 +167,11 @@ func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
 	// Initialize transcription service if not set
 	if deps.TranscriptionService == nil {
 		initializeTranscriptionService(deps)
+	}
+
+	// Initialize annotation service if not set
+	if deps.AnnotationService == nil {
+		initializeAnnotationService(deps)
 	}
 
 	// Initialize job service if not set
@@ -208,6 +226,15 @@ func initializeTranscriptionService(deps *types.Dependencies) {
 
 	// Create service
 	deps.TranscriptionService = transcription.NewService(transcriptionRepo)
+}
+
+// initializeAnnotationService creates and configures the annotation service
+func initializeAnnotationService(deps *types.Dependencies) {
+	// Create dependencies
+	annotationRepo := annotationsService.NewRepository(deps.DB.DB)
+
+	// Create service
+	deps.AnnotationService = annotationsService.NewService(annotationRepo)
 }
 
 // initializeJobService creates and configures the job service
