@@ -23,7 +23,7 @@ type PodcastSearcher interface {
 // @Accept       json
 // @Produce      json
 // @Param        request body models.SearchRequest true "Search parameters"
-// @Success      200 {object} models.EnhancedSearchResponse "Enhanced search response with category summary"
+// @Success      200 {object} models.PodcastSearchResponse "Podcast search response with category summary"
 // @Failure      400 {object} object{status=string,message=string,details=string} "Bad request - invalid parameters"
 // @Failure      500 {object} object{status=string,message=string,details=string} "Internal server error"
 // @Failure      504 {object} object{status=string,message=string} "Gateway timeout - search request timed out"
@@ -99,7 +99,7 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		// Process results to enhance categories
-		enhancedResults := make([]models.EnhancedPodcast, 0, len(results.Feeds))
+		podcastResults := make([]models.PodcastResponse, 0, len(results.Feeds))
 		categorySummary := make(map[string]int)
 
 		for _, podcast := range results.Feeds {
@@ -112,18 +112,18 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 				}
 			}
 
-			enhancedPodcast := models.EnhancedPodcast{
+			podcastResponse := models.PodcastResponse{
 				Podcast:      &podcast,
 				CategoryList: categoryList,
 			}
-			enhancedResults = append(enhancedResults, enhancedPodcast)
+			podcastResults = append(podcastResults, podcastResponse)
 		}
 
-		// Build enhanced response
-		response := models.EnhancedSearchResponse{
+		// Build search response
+		response := models.PodcastSearchResponse{
 			Status:          results.Status,
 			Query:           req.Query,
-			Results:         enhancedResults,
+			Results:         podcastResults,
 			CategorySummary: categorySummary,
 			TotalCount:      results.Count,
 			Description:     results.Description,

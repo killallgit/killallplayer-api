@@ -349,7 +349,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Episode details with waveform",
                         "schema": {
-                            "$ref": "#/definitions/episodes.EpisodeByGUIDEnhancedResponse"
+                            "$ref": "#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse"
                         }
                     },
                     "400": {
@@ -584,7 +584,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Episode details with waveform status",
                         "schema": {
-                            "$ref": "#/definitions/episodes.EpisodeByGUIDEnhancedResponse"
+                            "$ref": "#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse"
                         }
                     },
                     "400": {
@@ -1375,7 +1375,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/podcastindex.EpisodesResponse"
+                            "$ref": "#/definitions/models.EpisodeResponse"
                         }
                     },
                     "500": {
@@ -1421,9 +1421,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Enhanced search response with category summary",
+                        "description": "Podcast search response with category summary",
                         "schema": {
-                            "$ref": "#/definitions/models.EnhancedSearchResponse"
+                            "$ref": "#/definitions/models.PodcastSearchResponse"
                         }
                     },
                     "400": {
@@ -1503,9 +1503,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Podcast Index trending response",
+                        "description": "Podcast trending response with category summary",
                         "schema": {
-                            "$ref": "#/definitions/podcastindex.SearchResponse"
+                            "$ref": "#/definitions/models.PodcastTrendingResponse"
                         }
                     },
                     "500": {
@@ -1549,9 +1549,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Enhanced trending response with category summary",
+                        "description": "Podcast trending response with category summary",
                         "schema": {
-                            "$ref": "#/definitions/models.EnhancedTrendingResponse"
+                            "$ref": "#/definitions/models.PodcastTrendingResponse"
                         }
                     },
                     "400": {
@@ -1641,7 +1641,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "episodes.EnhancedEpisodeResponse": {
+        "episodes.EpisodeResponse": {
             "type": "object",
             "properties": {
                 "annotations": {
@@ -1806,22 +1806,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/episodes.WaveformStatus"
                         }
                     ]
-                }
-            }
-        },
-        "episodes.EpisodeByGUIDEnhancedResponse": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "example": "Episode found"
-                },
-                "episode": {
-                    "$ref": "#/definitions/episodes.EnhancedEpisodeResponse"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "true"
                 }
             }
         },
@@ -2204,6 +2188,22 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Episode found"
+                },
+                "episode": {
+                    "$ref": "#/definitions/episodes.EpisodeResponse"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "true"
+                }
+            }
+        },
         "gorm.DeletedAt": {
             "type": "object",
             "properties": {
@@ -2252,149 +2252,6 @@ const docTemplate = `{
                 },
                 "updatedAt": {
                     "type": "string"
-                }
-            }
-        },
-        "models.EnhancedPodcast": {
-            "type": "object",
-            "properties": {
-                "artwork": {
-                    "type": "string"
-                },
-                "author": {
-                    "type": "string"
-                },
-                "categories": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "categoryList": {
-                    "description": "Array version of categories for client-side filtering",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "createdOn": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "episodeCount": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "image": {
-                    "type": "string"
-                },
-                "imageUrlHash": {
-                    "type": "integer"
-                },
-                "itunesId": {
-                    "type": "integer"
-                },
-                "language": {
-                    "type": "string"
-                },
-                "lastCrawlTime": {
-                    "type": "integer"
-                },
-                "lastGoodHttpStatusCode": {
-                    "type": "integer"
-                },
-                "lastParseTime": {
-                    "type": "integer"
-                },
-                "lastUpdateTime": {
-                    "type": "integer"
-                },
-                "link": {
-                    "type": "string"
-                },
-                "locked": {
-                    "type": "integer"
-                },
-                "originalUrl": {
-                    "type": "string"
-                },
-                "ownerName": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.EnhancedSearchResponse": {
-            "type": "object",
-            "properties": {
-                "categorySummary": {
-                    "description": "Category name -\u003e count",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                },
-                "description": {
-                    "type": "string"
-                },
-                "query": {
-                    "type": "string"
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.EnhancedPodcast"
-                    }
-                },
-                "status": {
-                    "type": "string"
-                },
-                "totalCount": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.EnhancedTrendingResponse": {
-            "type": "object",
-            "properties": {
-                "categorySummary": {
-                    "description": "Category name -\u003e count",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                },
-                "description": {
-                    "type": "string"
-                },
-                "max": {
-                    "description": "Max results parameter used",
-                    "type": "integer"
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.EnhancedPodcast"
-                    }
-                },
-                "since": {
-                    "description": "Hours ago parameter used",
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "totalCount": {
-                    "type": "integer"
                 }
             }
         },
@@ -2505,6 +2362,184 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.Waveform"
                         }
                     ]
+                }
+            }
+        },
+        "models.EpisodeResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "lang": {
+                    "description": "Language parameter used",
+                    "type": "string"
+                },
+                "max": {
+                    "description": "Max results parameter used (string to match PodcastIndex API)",
+                    "type": "string"
+                },
+                "notcat": {
+                    "description": "Excluded categories",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/podcastindex.Episode"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "totalCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.PodcastResponse": {
+            "type": "object",
+            "properties": {
+                "artwork": {
+                    "type": "string"
+                },
+                "author": {
+                    "type": "string"
+                },
+                "categories": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "categoryList": {
+                    "description": "Array version of categories for client-side filtering",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdOn": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "episodeCount": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "imageUrlHash": {
+                    "type": "integer"
+                },
+                "itunesId": {
+                    "type": "integer"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "lastCrawlTime": {
+                    "type": "integer"
+                },
+                "lastGoodHttpStatusCode": {
+                    "type": "integer"
+                },
+                "lastParseTime": {
+                    "type": "integer"
+                },
+                "lastUpdateTime": {
+                    "type": "integer"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "locked": {
+                    "type": "integer"
+                },
+                "originalUrl": {
+                    "type": "string"
+                },
+                "ownerName": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PodcastSearchResponse": {
+            "type": "object",
+            "properties": {
+                "categorySummary": {
+                    "description": "Category name -\u003e count",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PodcastResponse"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "totalCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.PodcastTrendingResponse": {
+            "type": "object",
+            "properties": {
+                "categorySummary": {
+                    "description": "Category name -\u003e count",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "max": {
+                    "description": "Max results parameter used",
+                    "type": "integer"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PodcastResponse"
+                    }
+                },
+                "since": {
+                    "description": "Hours ago parameter used",
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "totalCount": {
+                    "type": "integer"
                 }
             }
         },
@@ -2720,29 +2755,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "transcriptUrl": {
-                    "type": "string"
-                }
-            }
-        },
-        "podcastindex.EpisodesResponse": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/podcastindex.Episode"
-                    }
-                },
-                "max": {
-                    "type": "string"
-                },
-                "status": {
                     "type": "string"
                 }
             }

@@ -15,7 +15,7 @@ import (
 // @Accept       json
 // @Produce      json
 // @Param        guid query string true "Episode GUID"
-// @Success      200 {object} episodes.EpisodeByGUIDEnhancedResponse "Episode details with waveform"
+// @Success      200 {object} episodes.EpisodeByGUIDResponse "Episode details with waveform"
 // @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - missing GUID"
 // @Failure      404 {object} episodes.PodcastIndexErrorResponse "Episode not found"
 // @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
@@ -45,7 +45,7 @@ func GetByGUID(deps *types.Dependencies) gin.HandlerFunc {
 		enhanced := enricher.EnrichSingleEpisodeWithWaveform(c.Request.Context(), &pieFormat)
 
 		// Wrap in standard response format
-		response := EpisodeByGUIDEnhancedResponse{
+		response := EpisodeByGUIDResponse{
 			Status:      "true",
 			Episode:     enhanced,
 			Description: "Episode found",

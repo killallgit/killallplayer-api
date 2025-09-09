@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
+	"github.com/killallgit/player-api/internal/models"
 )
 
 // Get returns random podcast episodes
@@ -17,7 +18,7 @@ import (
 // @Param limit query int false "Number of episodes to return (default 10, max 100)"
 // @Param lang query string false "Language code (default 'en')"
 // @Param notcat query string false "Comma-separated categories to exclude (e.g., 'News,Politics')"
-// @Success 200 {object} podcastindex.EpisodesResponse
+// @Success 200 {object} models.EpisodeResponse
 // @Failure 500 {object} object{status=string,description=string} "Internal server error"
 // @Router /api/v1/random [get]
 func Get(deps *types.Dependencies) gin.HandlerFunc {
@@ -63,7 +64,18 @@ func Get(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		// Return the full Podcast Index response
-		c.JSON(http.StatusOK, episodes)
+		// Build episode response with consistent format
+		response := models.EpisodeResponse{
+			Status:      episodes.Status,
+			Results:     episodes.Items,
+			TotalCount:  episodes.Count,
+			Max:         strconv.Itoa(limit), // Convert to string to match PodcastIndex API format
+			Lang:        lang,
+			NotCat:      notCategories,
+			Description: episodes.Description,
+		}
+
+		// Return the episode response
+		c.JSON(http.StatusOK, response)
 	}
 }

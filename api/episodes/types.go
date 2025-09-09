@@ -13,10 +13,10 @@ type WaveformStatus struct {
 	Data     *types.WaveformData `json:"data,omitempty"`                   // Only present when status="completed"
 }
 
-// EnhancedEpisodeResponse represents a single episode with embedded waveform and transcription status
-// This is used only for single episode GET requests, not for lists/searches
+// EpisodeResponse represents a single episode with embedded waveform and transcription status
+// This is our API's standardized episode response format for single episode GET requests
 // Note: Annotations are already included in PodcastIndexEpisode
-type EnhancedEpisodeResponse struct {
+type EpisodeResponse struct {
 	episodes.PodcastIndexEpisode
 	Waveform      *WaveformStatus      `json:"waveform,omitempty"`      // Waveform processing status and data
 	Transcription *TranscriptionStatus `json:"transcription,omitempty"` // Transcription processing status and data
@@ -62,9 +62,9 @@ var TranscriptionStatusMessages = map[string]string{
 	TranscriptionStatusFailed:     "Transcription generation failed",
 }
 
-// EpisodeByGUIDEnhancedResponse represents a single episode response with waveform and transcription
-type EpisodeByGUIDEnhancedResponse struct {
-	Status      string                   `json:"status" example:"true"`
-	Episode     *EnhancedEpisodeResponse `json:"episode,omitempty"`
-	Description string                   `json:"description" example:"Episode found"`
+// EpisodeByGUIDResponse represents our API's response wrapper for single episode by GUID
+type EpisodeByGUIDResponse struct {
+	Status      string           `json:"status" example:"true"`
+	Episode     *EpisodeResponse `json:"episode,omitempty"`
+	Description string           `json:"description" example:"Episode found"`
 }

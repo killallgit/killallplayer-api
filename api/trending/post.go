@@ -23,7 +23,7 @@ type PodcastTrending interface {
 // @Accept       json
 // @Produce      json
 // @Param        request body models.TrendingRequest true "Trending parameters"
-// @Success      200 {object} models.EnhancedTrendingResponse "Enhanced trending response with category summary"
+// @Success      200 {object} models.PodcastTrendingResponse "Podcast trending response with category summary"
 // @Failure      400 {object} object{status=string,message=string,details=string} "Bad request - invalid parameters"
 // @Failure      500 {object} object{status=string,message=string,details=string} "Internal server error"
 // @Failure      504 {object} object{status=string,message=string} "Gateway timeout - trending request timed out"
@@ -100,7 +100,7 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		// Process results to enhance categories
-		enhancedResults := make([]models.EnhancedPodcast, 0, len(results.Feeds))
+		podcastResults := make([]models.PodcastResponse, 0, len(results.Feeds))
 		categorySummary := make(map[string]int)
 
 		for _, podcast := range results.Feeds {
@@ -113,17 +113,17 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 				}
 			}
 
-			enhancedPodcast := models.EnhancedPodcast{
+			podcastResponse := models.PodcastResponse{
 				Podcast:      &podcast,
 				CategoryList: categoryList,
 			}
-			enhancedResults = append(enhancedResults, enhancedPodcast)
+			podcastResults = append(podcastResults, podcastResponse)
 		}
 
-		// Build enhanced response
-		response := models.EnhancedTrendingResponse{
+		// Build trending response
+		response := models.PodcastTrendingResponse{
 			Status:          results.Status,
-			Results:         enhancedResults,
+			Results:         podcastResults,
 			CategorySummary: categorySummary,
 			TotalCount:      results.Count,
 			Since:           req.Since,

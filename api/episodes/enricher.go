@@ -21,12 +21,12 @@ func NewEpisodeEnricher(deps *types.Dependencies) *EpisodeEnricher {
 
 // EnrichSingleEpisodeWithWaveform adds waveform and transcription status to a single episode and triggers generation if needed
 // This is only used for single episode GET requests, not for lists
-func (e *EpisodeEnricher) EnrichSingleEpisodeWithWaveform(ctx context.Context, episode *internalEpisodes.PodcastIndexEpisode) *EnhancedEpisodeResponse {
+func (e *EpisodeEnricher) EnrichSingleEpisodeWithWaveform(ctx context.Context, episode *internalEpisodes.PodcastIndexEpisode) *EpisodeResponse {
 	if episode == nil {
 		return nil
 	}
 
-	enhanced := &EnhancedEpisodeResponse{
+	enhanced := &EpisodeResponse{
 		PodcastIndexEpisode: *episode,
 	}
 

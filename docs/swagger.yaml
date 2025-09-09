@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  episodes.EnhancedEpisodeResponse:
+  episodes.EpisodeResponse:
     properties:
       annotations:
         items:
@@ -118,17 +118,6 @@ definitions:
         allOf:
         - $ref: '#/definitions/episodes.WaveformStatus'
         description: Waveform processing status and data
-    type: object
-  episodes.EpisodeByGUIDEnhancedResponse:
-    properties:
-      description:
-        example: Episode found
-        type: string
-      episode:
-        $ref: '#/definitions/episodes.EnhancedEpisodeResponse'
-      status:
-        example: "true"
-        type: string
     type: object
   episodes.Person:
     properties:
@@ -392,6 +381,17 @@ definitions:
         example: completed
         type: string
     type: object
+  github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse:
+    properties:
+      description:
+        example: Episode found
+        type: string
+      episode:
+        $ref: '#/definitions/episodes.EpisodeResponse'
+      status:
+        example: "true"
+        type: string
+    type: object
   gorm.DeletedAt:
     properties:
       time:
@@ -424,102 +424,6 @@ definitions:
         type: number
       updatedAt:
         type: string
-    type: object
-  models.EnhancedPodcast:
-    properties:
-      artwork:
-        type: string
-      author:
-        type: string
-      categories:
-        additionalProperties:
-          type: string
-        type: object
-      categoryList:
-        description: Array version of categories for client-side filtering
-        items:
-          type: string
-        type: array
-      createdOn:
-        type: string
-      description:
-        type: string
-      episodeCount:
-        type: integer
-      id:
-        type: integer
-      image:
-        type: string
-      imageUrlHash:
-        type: integer
-      itunesId:
-        type: integer
-      language:
-        type: string
-      lastCrawlTime:
-        type: integer
-      lastGoodHttpStatusCode:
-        type: integer
-      lastParseTime:
-        type: integer
-      lastUpdateTime:
-        type: integer
-      link:
-        type: string
-      locked:
-        type: integer
-      originalUrl:
-        type: string
-      ownerName:
-        type: string
-      title:
-        type: string
-      url:
-        type: string
-    type: object
-  models.EnhancedSearchResponse:
-    properties:
-      categorySummary:
-        additionalProperties:
-          type: integer
-        description: Category name -> count
-        type: object
-      description:
-        type: string
-      query:
-        type: string
-      results:
-        items:
-          $ref: '#/definitions/models.EnhancedPodcast'
-        type: array
-      status:
-        type: string
-      totalCount:
-        type: integer
-    type: object
-  models.EnhancedTrendingResponse:
-    properties:
-      categorySummary:
-        additionalProperties:
-          type: integer
-        description: Category name -> count
-        type: object
-      description:
-        type: string
-      max:
-        description: Max results parameter used
-        type: integer
-      results:
-        items:
-          $ref: '#/definitions/models.EnhancedPodcast'
-        type: array
-      since:
-        description: Hours ago parameter used
-        type: integer
-      status:
-        type: string
-      totalCount:
-        type: integer
     type: object
   models.Episode:
     properties:
@@ -595,6 +499,126 @@ definitions:
         allOf:
         - $ref: '#/definitions/models.Waveform'
         description: Relationships
+    type: object
+  models.EpisodeResponse:
+    properties:
+      description:
+        type: string
+      lang:
+        description: Language parameter used
+        type: string
+      max:
+        description: Max results parameter used (string to match PodcastIndex API)
+        type: string
+      notcat:
+        description: Excluded categories
+        items:
+          type: string
+        type: array
+      results:
+        items:
+          $ref: '#/definitions/podcastindex.Episode'
+        type: array
+      status:
+        type: string
+      totalCount:
+        type: integer
+    type: object
+  models.PodcastResponse:
+    properties:
+      artwork:
+        type: string
+      author:
+        type: string
+      categories:
+        additionalProperties:
+          type: string
+        type: object
+      categoryList:
+        description: Array version of categories for client-side filtering
+        items:
+          type: string
+        type: array
+      createdOn:
+        type: string
+      description:
+        type: string
+      episodeCount:
+        type: integer
+      id:
+        type: integer
+      image:
+        type: string
+      imageUrlHash:
+        type: integer
+      itunesId:
+        type: integer
+      language:
+        type: string
+      lastCrawlTime:
+        type: integer
+      lastGoodHttpStatusCode:
+        type: integer
+      lastParseTime:
+        type: integer
+      lastUpdateTime:
+        type: integer
+      link:
+        type: string
+      locked:
+        type: integer
+      originalUrl:
+        type: string
+      ownerName:
+        type: string
+      title:
+        type: string
+      url:
+        type: string
+    type: object
+  models.PodcastSearchResponse:
+    properties:
+      categorySummary:
+        additionalProperties:
+          type: integer
+        description: Category name -> count
+        type: object
+      description:
+        type: string
+      query:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/models.PodcastResponse'
+        type: array
+      status:
+        type: string
+      totalCount:
+        type: integer
+    type: object
+  models.PodcastTrendingResponse:
+    properties:
+      categorySummary:
+        additionalProperties:
+          type: integer
+        description: Category name -> count
+        type: object
+      description:
+        type: string
+      max:
+        description: Max results parameter used
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/models.PodcastResponse'
+        type: array
+      since:
+        description: Hours ago parameter used
+        type: integer
+      status:
+        type: string
+      totalCount:
+        type: integer
     type: object
   models.SearchRequest:
     properties:
@@ -743,21 +767,6 @@ definitions:
       title:
         type: string
       transcriptUrl:
-        type: string
-    type: object
-  podcastindex.EpisodesResponse:
-    properties:
-      count:
-        type: integer
-      description:
-        type: string
-      items:
-        items:
-          $ref: '#/definitions/podcastindex.Episode'
-        type: array
-      max:
-        type: string
-      status:
         type: string
     type: object
   podcastindex.Podcast:
@@ -1041,7 +1050,7 @@ paths:
         "200":
           description: Episode details with waveform status
           schema:
-            $ref: '#/definitions/episodes.EpisodeByGUIDEnhancedResponse'
+            $ref: '#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse'
         "400":
           description: Bad request - invalid ID
           schema:
@@ -1487,7 +1496,7 @@ paths:
         "200":
           description: Episode details with waveform
           schema:
-            $ref: '#/definitions/episodes.EpisodeByGUIDEnhancedResponse'
+            $ref: '#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse'
         "400":
           description: Bad request - missing GUID
           schema:
@@ -1861,7 +1870,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/podcastindex.EpisodesResponse'
+            $ref: '#/definitions/models.EpisodeResponse'
         "500":
           description: Internal server error
           schema:
@@ -1891,9 +1900,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Enhanced search response with category summary
+          description: Podcast search response with category summary
           schema:
-            $ref: '#/definitions/models.EnhancedSearchResponse'
+            $ref: '#/definitions/models.PodcastSearchResponse'
         "400":
           description: Bad request - invalid parameters
           schema:
@@ -1945,9 +1954,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Podcast Index trending response
+          description: Podcast trending response with category summary
           schema:
-            $ref: '#/definitions/podcastindex.SearchResponse'
+            $ref: '#/definitions/models.PodcastTrendingResponse'
         "500":
           description: Internal server error
           schema:
@@ -1976,9 +1985,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Enhanced trending response with category summary
+          description: Podcast trending response with category summary
           schema:
-            $ref: '#/definitions/models.EnhancedTrendingResponse'
+            $ref: '#/definitions/models.PodcastTrendingResponse'
         "400":
           description: Bad request - invalid parameters
           schema:
