@@ -8,14 +8,14 @@ import (
 	"github.com/killallgit/player-api/api/types"
 )
 
-// GetByID returns a single episode by Podcast Index ID with waveform status
-// @Summary      Get episode by ID with waveform status
-// @Description  Retrieve a single episode by its Podcast Index ID including waveform processing status
+// GetByID returns a single episode by Podcast Index ID
+// @Summary      Get episode by ID
+// @Description  Retrieve a single episode by its Podcast Index ID
 // @Tags         episodes
 // @Accept       json
 // @Produce      json
 // @Param        id path int64 true "Episode Podcast Index ID" minimum(1) example(123456789)
-// @Success      200 {object} EpisodeByGUIDResponse "Episode details with waveform status"
+// @Success      200 {object} EpisodeByGUIDResponse "Episode details"
 // @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - invalid ID"
 // @Failure      404 {object} episodes.PodcastIndexErrorResponse "Episode not found"
 // @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
@@ -41,15 +41,13 @@ func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		// Convert to Podcast Index format and enrich with waveform
+		// Convert to Podcast Index format
 		pieFormat := deps.EpisodeTransformer.ModelToPodcastIndex(episode)
-		enricher := NewEpisodeEnricher(deps)
-		enhanced := enricher.EnrichSingleEpisodeWithWaveform(c.Request.Context(), &pieFormat)
 
 		// Wrap in standard response format
 		response := EpisodeByGUIDResponse{
 			Status:      "true",
-			Episode:     enhanced,
+			Episode:     &pieFormat,
 			Description: "Episode found",
 		}
 		c.JSON(http.StatusOK, response)

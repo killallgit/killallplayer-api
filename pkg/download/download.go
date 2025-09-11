@@ -31,7 +31,7 @@ func DefaultOptions() DownloadOptions {
 		TempDir:       "/tmp",
 		MaxSize:       500 * 1024 * 1024, // 500MB default max
 		Timeout:       5 * time.Minute,
-		UserAgent:     "PodcastPlayerAPI/1.0",
+		UserAgent:     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/119.0 Mobile/15E148 Safari/605.1.15",
 		ValidateAudio: true,
 	}
 }
@@ -71,6 +71,8 @@ func NewDownloader(options DownloadOptions) *Downloader {
 func (d *Downloader) DownloadToTemp(ctx context.Context, url string, episodeID uint) (*DownloadResult, error) {
 	log.Printf("[DEBUG] Starting download from %s for episode %d", url, episodeID)
 
+	log.Printf("[DEBUG] Using enclosureUrl directly: %s", url)
+
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -80,6 +82,7 @@ func (d *Downloader) DownloadToTemp(ctx context.Context, url string, episodeID u
 	// Set headers
 	req.Header.Set("User-Agent", d.options.UserAgent)
 	req.Header.Set("Accept", "audio/*,*/*")
+	req.Header.Set("Referer", "https://podcastplayer.app/")
 
 	// Execute request
 	resp, err := d.client.Do(req)
@@ -90,6 +93,15 @@ func (d *Downloader) DownloadToTemp(ctx context.Context, url string, episodeID u
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		// Enhanced error logging for 403s
+		if resp.StatusCode == http.StatusForbidden {
+			log.Printf("[ERROR] 403 Forbidden from %s - Headers: %v", url, resp.Header)
+			if strings.Contains(url, "buzzsprout") {
+				log.Printf("[WARN] Buzzsprout detected - known to have strict hotlink protection")
+				return nil, fmt.Errorf("audio download blocked by CDN (403 Forbidden): This podcast uses direct CDN URLs with hotlink protection. The audio may be accessible via web browsers but not server-side downloads")
+			}
+			return nil, fmt.Errorf("audio download blocked by CDN (403 Forbidden): The audio URL is protected and cannot be downloaded by the server. This may be due to IP blocking or hotlink protection")
+		}
 		return nil, fmt.Errorf("server returned status %d", resp.StatusCode)
 	}
 
@@ -262,4 +274,33 @@ func (pr *progressReader) Read(p []byte) (int, error) {
 		}
 	}
 	return n, err
+}
+
+// DownloadWithRetry attempts to download with retry logic for 403 errors
+func (d *Downloader) DownloadWithRetry(ctx context.Context, url string, episodeID uint) (*DownloadResult, error) {
+	var lastErr error
+	maxRetries := 3
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// Wait before retry with exponential backoff
+			waitTime := time.Duration(attempt) * 2 * time.Second
+			log.Printf("[DEBUG] Retry attempt %d after %v for episode %d", attempt, waitTime, episodeID)
+			time.Sleep(waitTime)
+		}
+
+		result, err := d.DownloadToTemp(ctx, url, episodeID)
+		if err == nil {
+			return result, nil
+		}
+
+		lastErr = err
+
+		// Only retry on 403 errors
+		if !strings.Contains(err.Error(), "status 403") {
+			return nil, err
+		}
+	}
+
+	return nil, fmt.Errorf("download failed after %d attempts: %w", maxRetries, lastErr)
 }

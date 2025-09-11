@@ -175,14 +175,16 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 
 // TriggerWaveform manually triggers waveform generation for an episode
 // @Summary      Trigger waveform generation
-// @Description Manually trigger waveform generation for a specific episode. Implements retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries.
+// @Description Manually trigger waveform generation for a specific episode. Implements retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries. Use query parameter retry=true to manually retry failed/permanently failed jobs.
 // @Tags         waveform
 // @Accept       json
 // @Produce      json
 // @Param        id path int64 true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} types.JobStatusResponse "Waveform already exists"
+// @Param        retry query bool false "Force retry of failed or permanently failed job"
+// @Success      200 {object} types.JobStatusResponse "Waveform already exists or retry successful"
 // @Success      202 {object} types.JobStatusResponse "Waveform generation triggered"
-// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID or retry parameter"
+// @Failure      409 {object} types.ErrorResponse "Job cannot be retried (not in failed state)"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Failure      503 {object} types.JobStatusResponse "Previous generation failed, retry pending (includes retry_after, retry_count, max_retries)"
 // @Router       /api/v1/episodes/{id}/waveform [post]
@@ -196,6 +198,10 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
 			return
 		}
+
+		// Check for retry query parameter
+		retryParam := c.Query("retry")
+		forceRetry := retryParam == "true"
 
 		// Check if WaveformService is available
 		if deps.WaveformService == nil {
@@ -246,6 +252,35 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 		// Check if there's already a job for this episode (using Podcast Index ID)
 		existingJob, jobErr := deps.JobService.GetJobForWaveform(ctx, uint(podcastIndexID))
 		if jobErr == nil && existingJob != nil {
+			// Handle force retry for failed/permanently failed jobs
+			if forceRetry && (existingJob.Status == models.JobStatusFailed || existingJob.Status == models.JobStatusPermanentlyFailed) {
+				// Use RetryFailedJob to manually retry the job
+				retriedJob, retryErr := deps.JobService.RetryFailedJob(ctx, existingJob.ID)
+				if retryErr != nil {
+					log.Printf("Failed to retry job %d: %v", existingJob.ID, retryErr)
+					c.JSON(http.StatusConflict, gin.H{
+						"error":      "Cannot retry job",
+						"episode_id": podcastIndexID,
+						"job_id":     existingJob.ID,
+						"details":    retryErr.Error(),
+					})
+					return
+				}
+
+				log.Printf("Manually retried job %d for episode %d (status was %s, now %s)",
+					retriedJob.ID, podcastIndexID, existingJob.Status, retriedJob.Status)
+
+				c.JSON(http.StatusAccepted, gin.H{
+					"message":    "Waveform generation retry triggered",
+					"episode_id": podcastIndexID,
+					"job_id":     retriedJob.ID,
+					"status":     string(retriedJob.Status),
+					"progress":   retriedJob.Progress,
+					"retried":    true,
+				})
+				return
+			}
+
 			// Job already exists, return status based on job state
 			switch existingJob.Status {
 			case models.JobStatusPending, models.JobStatusProcessing:
@@ -281,12 +316,28 @@ func TriggerWaveform(deps *types.Dependencies) gin.HandlerFunc {
 						"max_retries": existingJob.MaxRetries,
 						"retry_after": remainingDelay.Seconds(),
 						"error":       existingJob.Error,
+						"hint":        "Use retry=true parameter to force immediate retry",
 					})
 					return
 				}
 				// Job can be retried, allow creating a new one
 				log.Printf("Retrying failed waveform job %d for episode %d (attempt %d/%d)",
 					existingJob.ID, podcastIndexID, existingJob.RetryCount+1, existingJob.MaxRetries)
+			case models.JobStatusPermanentlyFailed:
+				// Permanently failed jobs can only be retried with force retry parameter
+				c.JSON(http.StatusConflict, gin.H{
+					"message":     "Waveform generation permanently failed",
+					"episode_id":  podcastIndexID,
+					"job_id":      existingJob.ID,
+					"status":      string(existingJob.Status),
+					"retry_count": existingJob.RetryCount,
+					"max_retries": existingJob.MaxRetries,
+					"error":       existingJob.Error,
+					"error_type":  existingJob.ErrorType,
+					"error_code":  existingJob.ErrorCode,
+					"hint":        "Use retry=true parameter to force manual retry",
+				})
+				return
 			}
 		}
 
@@ -382,6 +433,19 @@ func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 					if job.Status == models.JobStatusFailed {
 						status["message"] = "Waveform generation failed"
 						status["error"] = job.Error
+						status["error_type"] = job.ErrorType
+						status["error_code"] = job.ErrorCode
+						status["error_details"] = job.ErrorDetails
+						status["retry_count"] = job.RetryCount
+						status["max_retries"] = job.MaxRetries
+					} else if job.Status == models.JobStatusPermanentlyFailed {
+						status["message"] = "Waveform generation permanently failed"
+						status["error"] = job.Error
+						status["error_type"] = job.ErrorType
+						status["error_code"] = job.ErrorCode
+						status["error_details"] = job.ErrorDetails
+						status["retry_count"] = job.RetryCount
+						status["max_retries"] = job.MaxRetries
 					}
 
 					c.JSON(http.StatusOK, status)
@@ -452,6 +516,19 @@ func GetWaveformStatus(deps *types.Dependencies) gin.HandlerFunc {
 					if job.Status == models.JobStatusFailed {
 						status["message"] = "Waveform generation failed"
 						status["error"] = job.Error
+						status["error_type"] = job.ErrorType
+						status["error_code"] = job.ErrorCode
+						status["error_details"] = job.ErrorDetails
+						status["retry_count"] = job.RetryCount
+						status["max_retries"] = job.MaxRetries
+					} else if job.Status == models.JobStatusPermanentlyFailed {
+						status["message"] = "Waveform generation permanently failed"
+						status["error"] = job.Error
+						status["error_type"] = job.ErrorType
+						status["error_code"] = job.ErrorCode
+						status["error_details"] = job.ErrorDetails
+						status["retry_count"] = job.RetryCount
+						status["max_retries"] = job.MaxRetries
 					}
 
 					c.JSON(http.StatusOK, status)

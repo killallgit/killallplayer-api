@@ -23,7 +23,11 @@ type Service interface {
 	UpdateProgress(ctx context.Context, jobID uint, progress int) error
 	CompleteJob(ctx context.Context, jobID uint, result models.JobResult) error
 	FailJob(ctx context.Context, jobID uint, err error) error
+	FailJobWithDetails(ctx context.Context, jobID uint, errorType models.JobErrorType, errorCode, errorMsg, errorDetails string) error
 	ReleaseJob(ctx context.Context, jobID uint) error
+
+	// Manual retry operations
+	RetryFailedJob(ctx context.Context, jobID uint) (*models.Job, error)
 
 	// Maintenance
 	CleanupOldJobs(ctx context.Context, retentionDays int) (int64, error)

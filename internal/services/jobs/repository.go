@@ -35,6 +35,7 @@ type Repository interface {
 	UpdateJobStatus(ctx context.Context, jobID uint, status models.JobStatus) error
 	CompleteJob(ctx context.Context, jobID uint, result models.JobResult) error
 	FailJob(ctx context.Context, jobID uint, errorMsg string) error
+	FailJobWithDetails(ctx context.Context, jobID uint, errorType models.JobErrorType, errorCode, errorMsg, errorDetails string) error
 	ReleaseJob(ctx context.Context, jobID uint) error
 
 	// Delete operations
@@ -124,8 +125,10 @@ func (r *repository) ClaimNextJob(ctx context.Context, workerID string, jobTypes
 	// Start a transaction for atomic claim
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Find and lock the next available job
+		// Exclude permanently failed jobs from being claimed
 		query := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("status IN ?", []models.JobStatus{models.JobStatusPending, models.JobStatusFailed}).
+			Where("status != ?", models.JobStatusPermanentlyFailed).
 			Where("(status = ? OR (status = ? AND retry_count < max_retries))",
 				models.JobStatusPending, models.JobStatusFailed)
 
@@ -251,9 +254,14 @@ func (r *repository) CompleteJob(ctx context.Context, jobID uint, result models.
 
 // FailJob marks a job as failed with an error message
 func (r *repository) FailJob(ctx context.Context, jobID uint, errorMsg string) error {
+	return r.FailJobWithDetails(ctx, jobID, models.ErrorTypeSystem, "", errorMsg, "")
+}
+
+// FailJobWithDetails marks a job as failed with detailed error information
+func (r *repository) FailJobWithDetails(ctx context.Context, jobID uint, errorType models.JobErrorType, errorCode, errorMsg, errorDetails string) error {
 	now := time.Now()
 
-	// Check if job can be retried
+	// Get current job state
 	var job models.Job
 	if err := r.db.WithContext(ctx).First(&job, jobID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -262,17 +270,31 @@ func (r *repository) FailJob(ctx context.Context, jobID uint, errorMsg string) e
 		return fmt.Errorf("finding job to fail: %w", err)
 	}
 
-	updates := map[string]interface{}{
-		"status":         models.JobStatusFailed,
-		"error":          errorMsg,
-		"completed_at":   &now,
-		"last_failed_at": &now,
-		"retry_count":    job.RetryCount + 1,
+	// Calculate new retry count
+	newRetryCount := job.RetryCount + 1
+
+	// Determine if job should be permanently failed
+	var status models.JobStatus
+	if newRetryCount >= job.MaxRetries {
+		status = models.JobStatusPermanentlyFailed
+	} else {
+		status = models.JobStatusFailed
 	}
 
-	// Reset worker_id so it can be picked up again if retryable
-	if job.IsRetryable() {
-		updates["worker_id"] = ""
+	updates := map[string]interface{}{
+		"status":         status,
+		"error":          errorMsg,
+		"error_type":     string(errorType),
+		"error_code":     errorCode,
+		"error_details":  errorDetails,
+		"last_failed_at": &now,
+		"retry_count":    newRetryCount,
+		"worker_id":      "", // Clear worker ID
+	}
+
+	// Only set completed_at for permanently failed jobs
+	if status == models.JobStatusPermanentlyFailed {
+		updates["completed_at"] = &now
 	}
 
 	if err := r.db.WithContext(ctx).

@@ -245,8 +245,8 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 	if audioFilePath == "" {
 		log.Printf("[DEBUG] Downloading audio for Whisper transcription of episode %d from URL: %s", episodeID, episode.AudioURL)
 
-		// Download audio to temp file
-		downloadResult, err := p.downloader.DownloadToTemp(ctx, episode.AudioURL, episodeID)
+		// Download audio to temp file with retry logic
+		downloadResult, err := p.downloader.DownloadWithRetry(ctx, episode.AudioURL, episodeID)
 		if err != nil {
 			return fmt.Errorf("failed to download audio: %w", err)
 		}

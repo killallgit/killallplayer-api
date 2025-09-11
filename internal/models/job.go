@@ -13,11 +13,12 @@ import (
 type JobStatus string
 
 const (
-	JobStatusPending    JobStatus = "pending"
-	JobStatusProcessing JobStatus = "processing"
-	JobStatusCompleted  JobStatus = "completed"
-	JobStatusFailed     JobStatus = "failed"
-	JobStatusCancelled  JobStatus = "cancelled"
+	JobStatusPending           JobStatus = "pending"
+	JobStatusProcessing        JobStatus = "processing"
+	JobStatusCompleted         JobStatus = "completed"
+	JobStatusFailed            JobStatus = "failed"
+	JobStatusPermanentlyFailed JobStatus = "permanently_failed"
+	JobStatusCancelled         JobStatus = "cancelled"
 )
 
 // JobType represents the type of job to be processed
@@ -29,6 +30,61 @@ const (
 	JobTypeTranscriptionGeneration JobType = "transcription_generation"
 	JobTypePodcastSync             JobType = "podcast_sync"
 )
+
+// JobErrorType represents the category of error that occurred
+type JobErrorType string
+
+const (
+	ErrorTypeDownload   JobErrorType = "download"   // Audio file download failed
+	ErrorTypeProcessing JobErrorType = "processing" // FFmpeg/audio processing failed
+	ErrorTypeSystem     JobErrorType = "system"     // Database, worker, or other system error
+)
+
+// StructuredJobError represents a structured error with classification information
+type StructuredJobError struct {
+	Type     JobErrorType
+	Code     string
+	Message  string
+	Details  string
+	Original error
+}
+
+func (e *StructuredJobError) Error() string {
+	return e.Message
+}
+
+// NewDownloadError creates a download-related structured error
+func NewDownloadError(code, message, details string, originalErr error) *StructuredJobError {
+	return &StructuredJobError{
+		Type:     ErrorTypeDownload,
+		Code:     code,
+		Message:  message,
+		Details:  details,
+		Original: originalErr,
+	}
+}
+
+// NewProcessingError creates a processing-related structured error
+func NewProcessingError(code, message, details string, originalErr error) *StructuredJobError {
+	return &StructuredJobError{
+		Type:     ErrorTypeProcessing,
+		Code:     code,
+		Message:  message,
+		Details:  details,
+		Original: originalErr,
+	}
+}
+
+// NewSystemError creates a system-related structured error
+func NewSystemError(code, message, details string, originalErr error) *StructuredJobError {
+	return &StructuredJobError{
+		Type:     ErrorTypeSystem,
+		Code:     code,
+		Message:  message,
+		Details:  details,
+		Original: originalErr,
+	}
+}
 
 // Job represents a background job in the queue
 type Job struct {
@@ -46,6 +102,11 @@ type Job struct {
 	Error        string     `json:"error,omitempty"`
 	Result       JobResult  `json:"result,omitempty" gorm:"type:json"`
 	WorkerID     string     `json:"worker_id,omitempty"` // ID of the worker processing this job
+
+	// Error classification fields
+	ErrorType    string `json:"error_type,omitempty"`    // "download", "processing", "system"
+	ErrorCode    string `json:"error_code,omitempty"`    // "403", "ffmpeg_timeout", etc.
+	ErrorDetails string `json:"error_details,omitempty"` // Technical details for debugging
 
 	// Metadata
 	CreatedBy string `json:"created_by,omitempty"` // Optional user/system identifier
@@ -136,6 +197,7 @@ func (j *Job) CanProcess() bool {
 func (j *Job) IsTerminal() bool {
 	return j.Status == JobStatusCompleted ||
 		j.Status == JobStatusCancelled ||
+		j.Status == JobStatusPermanentlyFailed ||
 		(j.Status == JobStatusFailed && !j.IsRetryable())
 }
 
@@ -184,6 +246,24 @@ func (j *Job) SetResult(key string, value interface{}) {
 		j.Result = make(JobResult)
 	}
 	j.Result[key] = value
+}
+
+// IsPermanentlyFailed returns true if the job has permanently failed
+func (j *Job) IsPermanentlyFailed() bool {
+	return j.Status == JobStatusPermanentlyFailed
+}
+
+// CanBeRetriedManually returns true if the job can be manually retried
+func (j *Job) CanBeRetriedManually() bool {
+	return j.Status == JobStatusFailed || j.Status == JobStatusPermanentlyFailed
+}
+
+// SetErrorDetails sets error classification information
+func (j *Job) SetErrorDetails(errorType JobErrorType, errorCode, errorMsg, errorDetails string) {
+	j.ErrorType = string(errorType)
+	j.ErrorCode = errorCode
+	j.Error = errorMsg
+	j.ErrorDetails = errorDetails
 }
 
 // TableName specifies the table name for GORM

@@ -325,7 +325,7 @@ const docTemplate = `{
         },
         "/api/v1/episodes/by-guid": {
             "get": {
-                "description": "Retrieve a single episode by its GUID with waveform status",
+                "description": "Retrieve a single episode by its GUID",
                 "consumes": [
                     "application/json"
                 ],
@@ -347,7 +347,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Episode details with waveform",
+                        "description": "Episode details",
                         "schema": {
                             "$ref": "#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse"
                         }
@@ -557,7 +557,7 @@ const docTemplate = `{
         },
         "/api/v1/episodes/{id}": {
             "get": {
-                "description": "Retrieve a single episode by its Podcast Index ID including waveform processing status",
+                "description": "Retrieve a single episode by its Podcast Index ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -567,7 +567,7 @@ const docTemplate = `{
                 "tags": [
                     "episodes"
                 ],
-                "summary": "Get episode by ID with waveform status",
+                "summary": "Get episode by ID",
                 "parameters": [
                     {
                         "minimum": 1,
@@ -582,7 +582,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Episode details with waveform status",
+                        "description": "Episode details",
                         "schema": {
                             "$ref": "#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse"
                         }
@@ -927,7 +927,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Manually trigger waveform generation for a specific episode. Implements retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries.",
+                "description": "Manually trigger waveform generation for a specific episode. Implements retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries. Use query parameter retry=true to manually retry failed/permanently failed jobs.",
                 "consumes": [
                     "application/json"
                 ],
@@ -946,11 +946,17 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Force retry of failed or permanently failed job",
+                        "name": "retry",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Waveform already exists",
+                        "description": "Waveform already exists or retry successful",
                         "schema": {
                             "$ref": "#/definitions/types.JobStatusResponse"
                         }
@@ -962,7 +968,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid episode ID",
+                        "description": "Invalid episode ID or retry parameter",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Job cannot be retried (not in failed state)",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -1641,174 +1653,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "episodes.EpisodeResponse": {
-            "type": "object",
-            "properties": {
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Annotation"
-                    }
-                },
-                "chaptersUrl": {
-                    "type": "string",
-                    "example": "https://example.com/chapters/episode42.json"
-                },
-                "dateCrawled": {
-                    "type": "integer",
-                    "example": 1704067200
-                },
-                "datePublished": {
-                    "type": "integer",
-                    "example": 1704063600
-                },
-                "datePublishedPretty": {
-                    "type": "string",
-                    "example": "2024-01-01 00:00:00"
-                },
-                "description": {
-                    "type": "string",
-                    "example": "In this episode, we explore the meaning of life, the universe, and everything."
-                },
-                "duration": {
-                    "type": "integer",
-                    "example": 3600
-                },
-                "enclosureLength": {
-                    "type": "integer",
-                    "example": 52428800
-                },
-                "enclosureType": {
-                    "type": "string",
-                    "example": "audio/mpeg"
-                },
-                "enclosureUrl": {
-                    "type": "string",
-                    "example": "https://example.com/audio/episode42.mp3"
-                },
-                "episode": {
-                    "type": "integer",
-                    "example": 42
-                },
-                "episodeType": {
-                    "type": "string",
-                    "example": "full"
-                },
-                "explicit": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "feedDead": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "feedDuplicateOf": {
-                    "type": "integer"
-                },
-                "feedId": {
-                    "type": "integer",
-                    "example": 123456
-                },
-                "feedImage": {
-                    "type": "string",
-                    "example": "https://example.com/podcast-cover.jpg"
-                },
-                "feedItunesId": {
-                    "type": "integer",
-                    "example": 987654321
-                },
-                "feedLanguage": {
-                    "type": "string",
-                    "example": "en"
-                },
-                "feedTitle": {
-                    "type": "string",
-                    "example": "The Tech Show"
-                },
-                "feedUrl": {
-                    "type": "string",
-                    "example": "https://example.com/rss.xml"
-                },
-                "guid": {
-                    "type": "string",
-                    "example": "episode-42-guid-string"
-                },
-                "id": {
-                    "type": "integer",
-                    "example": 123456789
-                },
-                "image": {
-                    "type": "string",
-                    "example": "https://example.com/episode42-cover.jpg"
-                },
-                "link": {
-                    "type": "string",
-                    "example": "https://example.com/episode/42"
-                },
-                "persons": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.Person"
-                    }
-                },
-                "podcastGuid": {
-                    "type": "string",
-                    "example": "podcast-guid-string"
-                },
-                "season": {
-                    "type": "integer",
-                    "example": 2
-                },
-                "socialInteract": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.SocialInteraction"
-                    }
-                },
-                "soundbite": {
-                    "$ref": "#/definitions/episodes.Soundbite"
-                },
-                "soundbites": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.Soundbite"
-                    }
-                },
-                "title": {
-                    "type": "string",
-                    "example": "Episode 42: The Answer to Everything"
-                },
-                "transcriptUrl": {
-                    "type": "string",
-                    "example": "https://example.com/transcripts/episode42.txt"
-                },
-                "transcription": {
-                    "description": "Transcription processing status and data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/episodes.TranscriptionStatus"
-                        }
-                    ]
-                },
-                "transcripts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.Transcript"
-                    }
-                },
-                "value": {
-                    "$ref": "#/definitions/episodes.Value"
-                },
-                "waveform": {
-                    "description": "Waveform processing status and data",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/episodes.WaveformStatus"
-                        }
-                    ]
-                }
-            }
-        },
         "episodes.Person": {
             "type": "object",
             "properties": {
@@ -2078,34 +1922,6 @@ const docTemplate = `{
                 }
             }
         },
-        "episodes.TranscriptionStatus": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "description": "Only present when status=\"completed\"",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/types.TranscriptionData"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Human-readable status message",
-                    "type": "string",
-                    "example": "Transcription ready"
-                },
-                "progress": {
-                    "description": "0-100 for processing states",
-                    "type": "integer",
-                    "example": 75
-                },
-                "status": {
-                    "description": "completed|processing|pending|failed",
-                    "type": "string",
-                    "example": "completed"
-                }
-            }
-        },
         "episodes.Value": {
             "type": "object",
             "properties": {
@@ -2160,34 +1976,6 @@ const docTemplate = `{
                 }
             }
         },
-        "episodes.WaveformStatus": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "description": "Only present when status=\"completed\"",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/types.WaveformData"
-                        }
-                    ]
-                },
-                "message": {
-                    "description": "Human-readable status message",
-                    "type": "string",
-                    "example": "Waveform ready"
-                },
-                "progress": {
-                    "description": "0-100 for processing states",
-                    "type": "integer",
-                    "example": 75
-                },
-                "status": {
-                    "description": "completed|processing|pending|failed",
-                    "type": "string",
-                    "example": "completed"
-                }
-            }
-        },
         "github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse": {
             "type": "object",
             "properties": {
@@ -2196,7 +1984,7 @@ const docTemplate = `{
                     "example": "Episode found"
                 },
                 "episode": {
-                    "$ref": "#/definitions/episodes.EpisodeResponse"
+                    "$ref": "#/definitions/episodes.PodcastIndexEpisode"
                 },
                 "status": {
                     "type": "string",
@@ -2875,6 +2663,22 @@ const docTemplate = `{
                     "description": "Error message (only for failed status)",
                     "type": "string"
                 },
+                "error_code": {
+                    "description": "Specific error code like \"403\", \"timeout\", \"corrupt_file\" (only for failed jobs)",
+                    "type": "string"
+                },
+                "error_details": {
+                    "description": "Technical error details for debugging (only for failed jobs)",
+                    "type": "string"
+                },
+                "error_type": {
+                    "description": "Error type: \"download\", \"processing\", \"system\" (only for failed jobs)",
+                    "type": "string"
+                },
+                "hint": {
+                    "description": "Helpful hint for the client (e.g., \"Use retry=true parameter\")",
+                    "type": "string"
+                },
                 "job_id": {
                     "description": "Job ID (optional)",
                     "type": "integer"
@@ -2891,6 +2695,10 @@ const docTemplate = `{
                     "description": "Progress 0-100",
                     "type": "integer"
                 },
+                "retried": {
+                    "description": "True if this was a manual retry (only when applicable)",
+                    "type": "boolean"
+                },
                 "retry_after": {
                     "description": "Seconds until retry (only for failed jobs)",
                     "type": "number"
@@ -2900,7 +2708,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "description": "Status: pending, processing, completed, failed, not_found",
+                    "description": "Status: pending, processing, completed, failed, permanently_failed, not_found",
                     "type": "string"
                 }
             }

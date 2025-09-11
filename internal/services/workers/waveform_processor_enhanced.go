@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/internal/services/audiocache"
@@ -149,10 +150,10 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 	if audioFilePath == "" {
 		log.Printf("[DEBUG] Downloading audio for episode %d (database ID: %d) from URL: %s", podcastIndexID, episode.ID, episode.AudioURL)
 
-		// Download audio to temp file (use Podcast Index ID for logging)
-		downloadResult, err := p.downloader.DownloadToTemp(ctx, episode.AudioURL, podcastIndexID)
+		// Download audio to temp file with retry logic (use Podcast Index ID for logging)
+		downloadResult, err := p.downloader.DownloadWithRetry(ctx, episode.AudioURL, podcastIndexID)
 		if err != nil {
-			return fmt.Errorf("failed to download audio: %w", err)
+			return p.classifyDownloadError(err, episode.AudioURL)
 		}
 
 		// Ensure temp file cleanup
@@ -179,7 +180,7 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 	// Generate waveform from audio file
 	waveformData, err := p.ffmpeg.GenerateWaveform(ctx, audioFilePath, p.options)
 	if err != nil {
-		return fmt.Errorf("failed to generate waveform: %w", err)
+		return p.classifyProcessingError(err, audioFilePath)
 	}
 
 	// Update progress: Processing complete, saving to database
@@ -263,4 +264,103 @@ func (p *EnhancedWaveformProcessor) parseEpisodeID(payload models.JobPayload) (u
 	default:
 		return 0, fmt.Errorf("invalid episode_id type: %T", v)
 	}
+}
+
+// classifyDownloadError classifies download errors into structured categories
+func (p *EnhancedWaveformProcessor) classifyDownloadError(err error, audioURL string) *models.StructuredJobError {
+	errMsg := err.Error()
+	errLower := strings.ToLower(errMsg)
+
+	// HTTP status code errors
+	if strings.Contains(errLower, "403") || strings.Contains(errLower, "forbidden") {
+		return models.NewDownloadError("403",
+			"Access denied: Audio file download blocked",
+			fmt.Sprintf("HTTP 403 error for URL: %s", audioURL),
+			err)
+	}
+
+	if strings.Contains(errLower, "404") || strings.Contains(errLower, "not found") {
+		return models.NewDownloadError("404",
+			"Audio file not found",
+			fmt.Sprintf("HTTP 404 error for URL: %s", audioURL),
+			err)
+	}
+
+	if strings.Contains(errLower, "timeout") {
+		return models.NewDownloadError("timeout",
+			"Download timeout: Audio file took too long to download",
+			fmt.Sprintf("Timeout downloading from: %s", audioURL),
+			err)
+	}
+
+	// Network connectivity errors
+	if strings.Contains(errLower, "no such host") || strings.Contains(errLower, "dns") {
+		return models.NewDownloadError("dns_error",
+			"DNS resolution failed",
+			fmt.Sprintf("Cannot resolve hostname for: %s", audioURL),
+			err)
+	}
+
+	if strings.Contains(errLower, "connection refused") || strings.Contains(errLower, "network unreachable") {
+		return models.NewDownloadError("connection_error",
+			"Network connection failed",
+			fmt.Sprintf("Cannot connect to: %s", audioURL),
+			err)
+	}
+
+	// Generic download error
+	return models.NewDownloadError("download_failed",
+		"Audio file download failed",
+		fmt.Sprintf("Failed to download from: %s", audioURL),
+		err)
+}
+
+// classifyProcessingError classifies FFmpeg/processing errors into structured categories
+func (p *EnhancedWaveformProcessor) classifyProcessingError(err error, audioFilePath string) *models.StructuredJobError {
+	errMsg := err.Error()
+	errLower := strings.ToLower(errMsg)
+
+	// FFmpeg format/codec errors
+	if strings.Contains(errLower, "invalid data found") || strings.Contains(errLower, "moov atom not found") {
+		return models.NewProcessingError("corrupt_file",
+			"Audio file is corrupted or invalid",
+			fmt.Sprintf("File appears to be corrupted: %s", audioFilePath),
+			err)
+	}
+
+	if strings.Contains(errLower, "unknown format") || strings.Contains(errLower, "unsupported") {
+		return models.NewProcessingError("unsupported_format",
+			"Unsupported audio format",
+			fmt.Sprintf("FFmpeg cannot process file format: %s", audioFilePath),
+			err)
+	}
+
+	if strings.Contains(errLower, "no audio") || strings.Contains(errLower, "no stream") {
+		return models.NewProcessingError("no_audio_stream",
+			"No audio stream found in file",
+			fmt.Sprintf("File contains no audio data: %s", audioFilePath),
+			err)
+	}
+
+	// FFmpeg timeout
+	if strings.Contains(errLower, "timeout") || strings.Contains(errLower, "deadline exceeded") {
+		return models.NewProcessingError("ffmpeg_timeout",
+			"Audio processing timeout",
+			fmt.Sprintf("FFmpeg processing took too long: %s", audioFilePath),
+			err)
+	}
+
+	// Memory/resource errors
+	if strings.Contains(errLower, "out of memory") || strings.Contains(errLower, "cannot allocate") {
+		return models.NewProcessingError("memory_error",
+			"Insufficient memory for processing",
+			fmt.Sprintf("Out of memory processing: %s", audioFilePath),
+			err)
+	}
+
+	// Generic processing error
+	return models.NewProcessingError("processing_failed",
+		"Audio processing failed",
+		fmt.Sprintf("FFmpeg failed to process: %s", audioFilePath),
+		err)
 }

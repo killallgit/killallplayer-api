@@ -134,10 +134,19 @@ func (w *Worker) processNextJob(ctx context.Context) error {
 	// Process the job
 	err = processor.ProcessJob(ctx, job)
 	if err != nil {
-		// Job failed
-		failErr := w.jobService.FailJob(ctx, job.ID, err)
-		if failErr != nil {
-			log.Printf("Worker %s: failed to mark job %d as failed: %v", w.id, job.ID, failErr)
+		// Check if error is a structured error from waveform processor
+		if structuredErr, ok := err.(*models.StructuredJobError); ok {
+			// Use enhanced FailJob with error details
+			failErr := w.jobService.FailJobWithDetails(ctx, job.ID, structuredErr.Type, structuredErr.Code, structuredErr.Message, structuredErr.Details)
+			if failErr != nil {
+				log.Printf("Worker %s: failed to mark job %d as failed: %v", w.id, job.ID, failErr)
+			}
+		} else {
+			// Use standard FailJob for unstructured errors
+			failErr := w.jobService.FailJob(ctx, job.ID, err)
+			if failErr != nil {
+				log.Printf("Worker %s: failed to mark job %d as failed: %v", w.id, job.ID, failErr)
+			}
 		}
 		return fmt.Errorf("job processing failed: %w", err)
 	}

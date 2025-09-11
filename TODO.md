@@ -1,3 +1,6 @@
+- make sure waveform GET sends response of "queued" or others for the client
+
+
 # Waveform Generation & WebSocket Implementation TODO
 
 ## PHASE 1: Basic Waveform Endpoint (✅ COMPLETED)

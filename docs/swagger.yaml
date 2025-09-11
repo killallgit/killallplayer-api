@@ -1,124 +1,5 @@
 basePath: /
 definitions:
-  episodes.EpisodeResponse:
-    properties:
-      annotations:
-        items:
-          $ref: '#/definitions/models.Annotation'
-        type: array
-      chaptersUrl:
-        example: https://example.com/chapters/episode42.json
-        type: string
-      dateCrawled:
-        example: 1704067200
-        type: integer
-      datePublished:
-        example: 1704063600
-        type: integer
-      datePublishedPretty:
-        example: "2024-01-01 00:00:00"
-        type: string
-      description:
-        example: In this episode, we explore the meaning of life, the universe, and
-          everything.
-        type: string
-      duration:
-        example: 3600
-        type: integer
-      enclosureLength:
-        example: 52428800
-        type: integer
-      enclosureType:
-        example: audio/mpeg
-        type: string
-      enclosureUrl:
-        example: https://example.com/audio/episode42.mp3
-        type: string
-      episode:
-        example: 42
-        type: integer
-      episodeType:
-        example: full
-        type: string
-      explicit:
-        example: 0
-        type: integer
-      feedDead:
-        example: 0
-        type: integer
-      feedDuplicateOf:
-        type: integer
-      feedId:
-        example: 123456
-        type: integer
-      feedImage:
-        example: https://example.com/podcast-cover.jpg
-        type: string
-      feedItunesId:
-        example: 987654321
-        type: integer
-      feedLanguage:
-        example: en
-        type: string
-      feedTitle:
-        example: The Tech Show
-        type: string
-      feedUrl:
-        example: https://example.com/rss.xml
-        type: string
-      guid:
-        example: episode-42-guid-string
-        type: string
-      id:
-        example: 123456789
-        type: integer
-      image:
-        example: https://example.com/episode42-cover.jpg
-        type: string
-      link:
-        example: https://example.com/episode/42
-        type: string
-      persons:
-        items:
-          $ref: '#/definitions/episodes.Person'
-        type: array
-      podcastGuid:
-        example: podcast-guid-string
-        type: string
-      season:
-        example: 2
-        type: integer
-      socialInteract:
-        items:
-          $ref: '#/definitions/episodes.SocialInteraction'
-        type: array
-      soundbite:
-        $ref: '#/definitions/episodes.Soundbite'
-      soundbites:
-        items:
-          $ref: '#/definitions/episodes.Soundbite'
-        type: array
-      title:
-        example: 'Episode 42: The Answer to Everything'
-        type: string
-      transcriptUrl:
-        example: https://example.com/transcripts/episode42.txt
-        type: string
-      transcription:
-        allOf:
-        - $ref: '#/definitions/episodes.TranscriptionStatus'
-        description: Transcription processing status and data
-      transcripts:
-        items:
-          $ref: '#/definitions/episodes.Transcript'
-        type: array
-      value:
-        $ref: '#/definitions/episodes.Value'
-      waveform:
-        allOf:
-        - $ref: '#/definitions/episodes.WaveformStatus'
-        description: Waveform processing status and data
-    type: object
   episodes.Person:
     properties:
       group:
@@ -308,25 +189,6 @@ definitions:
       url:
         type: string
     type: object
-  episodes.TranscriptionStatus:
-    properties:
-      data:
-        allOf:
-        - $ref: '#/definitions/types.TranscriptionData'
-        description: Only present when status="completed"
-      message:
-        description: Human-readable status message
-        example: Transcription ready
-        type: string
-      progress:
-        description: 0-100 for processing states
-        example: 75
-        type: integer
-      status:
-        description: completed|processing|pending|failed
-        example: completed
-        type: string
-    type: object
   episodes.Value:
     properties:
       destinations:
@@ -362,32 +224,13 @@ definitions:
       type:
         type: string
     type: object
-  episodes.WaveformStatus:
-    properties:
-      data:
-        allOf:
-        - $ref: '#/definitions/types.WaveformData'
-        description: Only present when status="completed"
-      message:
-        description: Human-readable status message
-        example: Waveform ready
-        type: string
-      progress:
-        description: 0-100 for processing states
-        example: 75
-        type: integer
-      status:
-        description: completed|processing|pending|failed
-        example: completed
-        type: string
-    type: object
   github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse:
     properties:
       description:
         example: Episode found
         type: string
       episode:
-        $ref: '#/definitions/episodes.EpisodeResponse'
+        $ref: '#/definitions/episodes.PodcastIndexEpisode'
       status:
         example: "true"
         type: string
@@ -846,6 +689,20 @@ definitions:
       error:
         description: Error message (only for failed status)
         type: string
+      error_code:
+        description: Specific error code like "403", "timeout", "corrupt_file" (only
+          for failed jobs)
+        type: string
+      error_details:
+        description: Technical error details for debugging (only for failed jobs)
+        type: string
+      error_type:
+        description: 'Error type: "download", "processing", "system" (only for failed
+          jobs)'
+        type: string
+      hint:
+        description: Helpful hint for the client (e.g., "Use retry=true parameter")
+        type: string
       job_id:
         description: Job ID (optional)
         type: integer
@@ -858,6 +715,9 @@ definitions:
       progress:
         description: Progress 0-100
         type: integer
+      retried:
+        description: True if this was a manual retry (only when applicable)
+        type: boolean
       retry_after:
         description: Seconds until retry (only for failed jobs)
         type: number
@@ -865,7 +725,8 @@ definitions:
         description: Number of retries attempted (only for failed jobs)
         type: integer
       status:
-        description: 'Status: pending, processing, completed, failed, not_found'
+        description: 'Status: pending, processing, completed, failed, permanently_failed,
+          not_found'
         type: string
     type: object
   types.TranscriptionData:
@@ -1033,8 +894,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve a single episode by its Podcast Index ID including waveform
-        processing status
+      description: Retrieve a single episode by its Podcast Index ID
       parameters:
       - description: Episode Podcast Index ID
         example: 123456789
@@ -1048,7 +908,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Episode details with waveform status
+          description: Episode details
           schema:
             $ref: '#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse'
         "400":
@@ -1063,7 +923,7 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
-      summary: Get episode by ID with waveform status
+      summary: Get episode by ID
       tags:
       - episodes
   /api/v1/episodes/{id}/annotations:
@@ -1292,7 +1152,8 @@ paths:
       consumes:
       - application/json
       description: Manually trigger waveform generation for a specific episode. Implements
-        retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries.
+        retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries. Use
+        query parameter retry=true to manually retry failed/permanently failed jobs.
       parameters:
       - description: Episode ID (Podcast Index ID)
         format: int64
@@ -1300,11 +1161,15 @@ paths:
         name: id
         required: true
         type: integer
+      - description: Force retry of failed or permanently failed job
+        in: query
+        name: retry
+        type: boolean
       produces:
       - application/json
       responses:
         "200":
-          description: Waveform already exists
+          description: Waveform already exists or retry successful
           schema:
             $ref: '#/definitions/types.JobStatusResponse'
         "202":
@@ -1312,7 +1177,11 @@ paths:
           schema:
             $ref: '#/definitions/types.JobStatusResponse'
         "400":
-          description: Invalid episode ID
+          description: Invalid episode ID or retry parameter
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "409":
+          description: Job cannot be retried (not in failed state)
           schema:
             $ref: '#/definitions/types.ErrorResponse'
         "500":
@@ -1483,7 +1352,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve a single episode by its GUID with waveform status
+      description: Retrieve a single episode by its GUID
       parameters:
       - description: Episode GUID
         in: query
@@ -1494,7 +1363,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Episode details with waveform
+          description: Episode details
           schema:
             $ref: '#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse'
         "400":

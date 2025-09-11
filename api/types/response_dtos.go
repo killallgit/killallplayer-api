@@ -26,15 +26,20 @@ type TranscriptionData struct {
 
 // JobStatusResponse represents job status information
 type JobStatusResponse struct {
-	EpisodeID  int64   `json:"episode_id"`            // Episode ID
-	JobID      uint    `json:"job_id,omitempty"`      // Job ID (optional)
-	Status     string  `json:"status"`                // Status: pending, processing, completed, failed, not_found
-	Progress   int     `json:"progress"`              // Progress 0-100
-	Message    string  `json:"message"`               // Human-readable message
-	Error      string  `json:"error,omitempty"`       // Error message (only for failed status)
-	RetryCount int     `json:"retry_count,omitempty"` // Number of retries attempted (only for failed jobs)
-	MaxRetries int     `json:"max_retries,omitempty"` // Maximum retry attempts (only for failed jobs)
-	RetryAfter float64 `json:"retry_after,omitempty"` // Seconds until retry (only for failed jobs)
+	EpisodeID    int64   `json:"episode_id"`              // Episode ID
+	JobID        uint    `json:"job_id,omitempty"`        // Job ID (optional)
+	Status       string  `json:"status"`                  // Status: pending, processing, completed, failed, permanently_failed, not_found
+	Progress     int     `json:"progress"`                // Progress 0-100
+	Message      string  `json:"message"`                 // Human-readable message
+	Error        string  `json:"error,omitempty"`         // Error message (only for failed status)
+	ErrorType    string  `json:"error_type,omitempty"`    // Error type: "download", "processing", "system" (only for failed jobs)
+	ErrorCode    string  `json:"error_code,omitempty"`    // Specific error code like "403", "timeout", "corrupt_file" (only for failed jobs)
+	ErrorDetails string  `json:"error_details,omitempty"` // Technical error details for debugging (only for failed jobs)
+	RetryCount   int     `json:"retry_count,omitempty"`   // Number of retries attempted (only for failed jobs)
+	MaxRetries   int     `json:"max_retries,omitempty"`   // Maximum retry attempts (only for failed jobs)
+	RetryAfter   float64 `json:"retry_after,omitempty"`   // Seconds until retry (only for failed jobs)
+	Retried      bool    `json:"retried,omitempty"`       // True if this was a manual retry (only when applicable)
+	Hint         string  `json:"hint,omitempty"`          // Helpful hint for the client (e.g., "Use retry=true parameter")
 }
 
 // ErrorResponse represents standardized error responses

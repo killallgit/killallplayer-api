@@ -207,6 +207,64 @@ func (s *service) ReleaseJob(ctx context.Context, jobID uint) error {
 	return nil
 }
 
+// FailJobWithDetails marks a job as failed with detailed error information
+func (s *service) FailJobWithDetails(ctx context.Context, jobID uint, errorType models.JobErrorType, errorCode, errorMsg, errorDetails string) error {
+	if err := s.repo.FailJobWithDetails(ctx, jobID, errorType, errorCode, errorMsg, errorDetails); err != nil {
+		if errors.Is(err, ErrJobNotFound) {
+			return err
+		}
+		return fmt.Errorf("failing job with details: %w", err)
+	}
+
+	// Check if job is retryable
+	job, _ := s.repo.GetJob(ctx, jobID)
+	if job != nil && job.IsRetryable() {
+		log.Printf("[ERROR] Job %d failed with %s error '%s' (retry %d/%d): %s",
+			jobID, errorType, errorCode, job.RetryCount, job.MaxRetries, errorMsg)
+	} else {
+		log.Printf("[ERROR] Job %d failed permanently with %s error '%s': %s",
+			jobID, errorType, errorCode, errorMsg)
+	}
+
+	return nil
+}
+
+// RetryFailedJob manually retries a failed job by resetting it to pending status
+func (s *service) RetryFailedJob(ctx context.Context, jobID uint) (*models.Job, error) {
+	// Get the current job to check its state
+	job, err := s.repo.GetJob(ctx, jobID)
+	if err != nil {
+		if errors.Is(err, ErrJobNotFound) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("getting job for retry: %w", err)
+	}
+
+	// Only allow retry for failed or permanently failed jobs
+	if job.Status != models.JobStatusFailed && job.Status != models.JobStatusPermanentlyFailed {
+		return nil, fmt.Errorf("job %d cannot be retried: status is %s (only 'failed' or 'permanently_failed' jobs can be retried)",
+			jobID, job.Status)
+	}
+
+	// Reset the job to pending status for retry
+	if err := s.repo.ReleaseJob(ctx, jobID); err != nil {
+		if errors.Is(err, ErrJobNotFound) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("resetting job for retry: %w", err)
+	}
+
+	// Get the updated job
+	updatedJob, err := s.repo.GetJob(ctx, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("getting updated job after retry: %w", err)
+	}
+
+	log.Printf("[DEBUG] Job %d manually retried (was %s, now %s)", jobID, job.Status, updatedJob.Status)
+
+	return updatedJob, nil
+}
+
 // CleanupOldJobs removes old completed/failed jobs
 func (s *service) CleanupOldJobs(ctx context.Context, retentionDays int) (int64, error) {
 	if retentionDays <= 0 {
