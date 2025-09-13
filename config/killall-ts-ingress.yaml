@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: killall-ts-ingress
+spec:
+  tls:
+    - hosts:
+      - killall
+  ingressClassName: tailscale
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: killallplayer-api
+            port:
+              number: 80
+

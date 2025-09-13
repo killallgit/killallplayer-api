@@ -3,7 +3,7 @@ version: '3'
 dotenv: ['.env']
 
 vars:
-  BINARY_NAME: player-api
+  BINARY_NAME: killallplayer-api
   MAIN_PATH: ./main.go
   BUILD_DIR: ./bin
   TEST_TIMEOUT: 10m

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: killall-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: selfsigned-issuer
+spec:
+  tls:
+    - hosts:
+      - killall.laurel.lan
+      secretName: killall-tls
+  ingressClassName: nginx
+  rules:
+  - host: "killall.laurel.lan"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: killallplayer-api
+            port:
+              number: 80
+

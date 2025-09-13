@@ -167,13 +167,13 @@ task lint
 task build
 
 # Or build manually
-go build -o bin/player-api
+go build -o bin/killallplayer-api
 
 # Build with optimizations
-CGO_ENABLED=1 go build -ldflags="-s -w" -o bin/player-api
+CGO_ENABLED=1 go build -ldflags="-s -w" -o bin/killallplayer-api
 
 # Cross-compile for Linux
-GOOS=linux GOARCH=amd64 go build -o bin/player-api-linux
+GOOS=linux GOARCH=amd64 go build -o bin/killallplayer-api-linux
 ```
 
 ## Architecture

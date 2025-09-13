@@ -1,0 +1,6 @@
+version: '3'
+
+tasks:
+  create:regcred:
+    cmds:
+    - kubectl create secret docker-registry ghcr-regcred --docker-server=ghcr.io --docker-username=_json_key --docker-password=${GH_TOKEN} --docker-email=noreply@pocketcereal.com

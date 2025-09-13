@@ -28,9 +28,9 @@ var serveCmd = &cobra.Command{
 The server will listen for HTTP requests providing podcast discovery and audio streaming.
 
 Example:
-  player-api serve
-  player-api serve --port 9090
-  player-api serve --host 0.0.0.0 --port 8080`,
+  killallplayer-api serve
+  killallplayer-api serve --port 9090
+  killallplayer-api serve --host 0.0.0.0 --port 8080`,
 	RunE: runServer,
 }
 

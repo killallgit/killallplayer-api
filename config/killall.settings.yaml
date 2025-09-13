@@ -4,7 +4,7 @@
 # Server configuration
 server:
   host: "0.0.0.0"                  # Bind address
-  port: 8080                       # HTTP port
+  port: 9000                       # HTTP port
   read_timeout: 30s                # Request read timeout
   write_timeout: 30s               # Response write timeout
   shutdown_timeout: 10s            # Graceful shutdown timeout
@@ -13,7 +13,7 @@ server:
 
 # Database configuration
 database:
-  path: "./data/podcast.db"        # SQLite database path
+  path: "./data/db/podcast.db"        # SQLite database path
   verbose: false                   # Log SQL queries (debug)
   max_connections: 10              # Maximum open connections
   max_idle_connections: 5          # Maximum idle connections
@@ -44,32 +44,30 @@ processing:
 
 # Podcast Index API configuration
 podcast_index:
-  api_key: "${PODCAST_INDEX_API_KEY}"      # API key (from environment)
-  api_secret: "${PODCAST_INDEX_API_SECRET}" # API secret (from environment)
   base_url: "https://api.podcastindex.org/api/1.0"
   timeout: 10s                              # Request timeout
   retry_attempts: 3                         # Retry attempts
   rate_limit: 10                           # Requests per second
   cache_ttl: 1h                            # Cache time-to-live
-  user_agent: "PodcastPlayerAPI/1.0"       # User agent string
+  user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"       # User agent string
 
 # OpenAI Whisper API configuration
-whisper:
-  api_key: "${OPENAI_API_KEY}"             # OpenAI API key (from environment)
-  api_url: "https://api.openai.com/v1/audio/transcriptions"
-  model: "whisper-1"                       # Model to use
-  language: ""                              # Language hint (empty for auto-detect)
-  temperature: 0                            # Sampling temperature (0 for deterministic)
-  timeout: 5m                              # Request timeout
-  max_file_size: 26214400                  # 25MB max file size
-  chunk_duration: 600                       # Chunk duration in seconds (10 minutes)
-  cost_per_minute: 0.006                   # Cost tracking
-  monthly_quota: 100.0                     # Monthly spending limit in dollars
+# whisper:
+#   api_key: "${OPENAI_API_KEY}"             # OpenAI API key (from environment)
+#   api_url: "https://api.openai.com/v1/audio/transcriptions"
+#   model: "whisper-1"                       # Model to use
+#   language: ""                              # Language hint (empty for auto-detect)
+#   temperature: 0                            # Sampling temperature (0 for deterministic)
+#   timeout: 5m                              # Request timeout
+#   max_file_size: 26214400                  # 25MB max file size
+#   chunk_duration: 600                       # Chunk duration in seconds (10 minutes)
+#   cost_per_minute: 0.006                   # Cost tracking
+#   monthly_quota: 100.0                     # Monthly spending limit in dollars
 
 # Storage configuration
 storage:
   temp_dir: "./tmp"                        # Temporary files directory
-  cache_dir: "./cache"                     # Cache files directory
+  cache_dir: "/app/data/cache"                     # Cache files directory
   max_temp_age: 24h                        # Maximum age for temp files
   cleanup_interval: 1h                     # Cleanup job interval
   max_cache_size: 10737418240              # 10GB max cache size
@@ -124,53 +122,30 @@ security:
   enable_recovery: true                    # Recover from panics
 
 # Logging configuration
-logging:
-  level: "info"                            # Log level (debug, info, warn, error)
-  format: "json"                           # Log format (json, console)
-  output: "stdout"                         # Output destination (stdout, file)
-  file_path: "./logs/app.log"              # Log file path (if output=file)
-  max_size: 100                            # Max log file size in MB
-  max_backups: 10                          # Max number of backup files
-  max_age: 30                              # Max age in days
-  compress: true                           # Compress old log files
-  enable_caller: false                     # Include caller information
-  enable_stacktrace: true                  # Include stacktrace for errors
+# logging:
+#   level: "info"                            # Log level (debug, info, warn, error)
+#   format: "json"                           # Log format (json, console)
+#   output: "stdout"                         # Output destination (stdout, file)
+#   file_path: "/app/data/logs/app.log"              # Log file path (if output=file)
+#   max_size: 100                            # Max log file size in MB
+#   max_backups: 10                          # Max number of backup files
+#   max_age: 30                              # Max age in days
+#   compress: true                           # Compress old log files
+#   enable_caller: false                     # Include caller information
+#   enable_stacktrace: true                  # Include stacktrace for errors
 
 # Monitoring configuration
-monitoring:
-  enabled: false                           # Enable monitoring endpoints
-  metrics_path: "/metrics"                 # Prometheus metrics path
-  health_path: "/health"                   # Health check path
-  pprof_enabled: false                     # Enable pprof endpoints
-  pprof_path: "/debug/pprof"               # pprof base path
+# monitoring:
+#   enabled: false                           # Enable monitoring endpoints
+#   metrics_path: "/metrics"                 # Prometheus metrics path
+#   health_path: "/health"                   # Health check path
+#   pprof_enabled: false                     # Enable pprof endpoints
+#   pprof_path: "/debug/pprof"               # pprof base path
 
-# Feature flags
-features:
-  enable_transcription: true               # Enable transcription feature
-  enable_waveform: true                   # Enable waveform generation
-  enable_tagging: true                    # Enable audio tagging
-  enable_caching: true                    # Enable caching
-  maintenance_mode: false                 # Maintenance mode
-
-# Environment-specific overrides
-# These can be overridden by environment variables or separate config files
-env:
-  development:
-    logging:
-      level: "debug"
-    database:
-      verbose: true
-    monitoring:
-      pprof_enabled: true
-  
-  production:
-    server:
-      host: "0.0.0.0"
-    logging:
-      level: "warn"
-      output: "file"
-    security:
-      cors_origins:
-        - "https://yourdomain.com"
-    monitoring:
-      enabled: true
+# # Feature flags
+# features:
+#   enable_transcription: true               # Enable transcription feature
+#   enable_waveform: true                   # Enable waveform generation
+#   enable_tagging: true                    # Enable audio tagging
+#   enable_caching: true                    # Enable caching
+#   maintenance_mode: false                 # Maintenance mode

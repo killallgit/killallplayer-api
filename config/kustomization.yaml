@@ -4,9 +4,10 @@ namespace: killallplayer
 resources:
   - deployment.yaml
   - svc.yaml
-  - cm.yaml
   - pvc.yaml
-  - secret.yaml
+  - sa.yaml
+  - killall-ingress.yaml
+  - killall-ts-ingress.yaml
 
 
 configMapGenerator:
@@ -14,5 +15,5 @@ configMapGenerator:
     options:
       disableNameSuffixHash: true
     files:
-      - config.yaml=settings.yaml
+      - config.yaml=killall.settings.yaml
 

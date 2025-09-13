@@ -5,7 +5,7 @@ metadata:
   labels:
     app: killallplayer-api
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: killallplayer-api
@@ -14,31 +14,17 @@ spec:
       labels:
         app: killallplayer-api
     spec:
+      serviceAccountName: killallplayer-api
       containers:
       - name: killallplayer-api
         image: ghcr.io/killallgit/killallplayer-api:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 8080
+        - containerPort: 9000
           name: http
-        env:
-        # Load secrets separately
-        - name: KILLALL_PODCAST_INDEX_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: killallplayer-secrets
-              key: podcast-index-api-key
-        - name: KILLALL_PODCAST_INDEX_API_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: killallplayer-secrets
-              key: podcast-index-api-secret
-        # Optional OpenAI API key (uncomment if needed)
-        # - name: KILLALL_OPENAI_API_KEY
-        #   valueFrom:
-        #     secretKeyRef:
-        #       name: killallplayer-secrets
-        #       key: openai-api-key
+        envFrom:
+        - secretRef:
+            name: killall-env
         resources:
           requests:
             memory: "512Mi"
@@ -66,10 +52,6 @@ spec:
           subPath: config.yaml
         - name: data
           mountPath: /app/data
-        - name: cache
-          mountPath: /app/cache
-        - name: models
-          mountPath: /app/models
       volumes:
       - name: config
         configMap:
@@ -77,9 +59,3 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: killallplayer-data
-      - name: cache
-        emptyDir:
-          sizeLimit: 5Gi
-      - name: models
-        emptyDir:
-          sizeLimit: 2Gi

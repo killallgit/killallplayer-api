@@ -12,7 +12,7 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "player-api",
+	Use:   "killallplayer-api",
 	Short: "Podcast Player API server",
 	Long: `Podcast Player API - A comprehensive podcast streaming and processing API
 

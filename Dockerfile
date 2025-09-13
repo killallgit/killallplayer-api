@@ -21,7 +21,7 @@ COPY . .
 # Build the application with optimized flags
 RUN CGO_ENABLED=1 GOOS=linux go build \
     -ldflags="-s -w" \
-    -o player-api .
+    -o killallplayer-api .
 
 # Runtime stage
 FROM alpine:latest
@@ -33,16 +33,16 @@ RUN apk --no-cache add ca-certificates tzdata ffmpeg wget bash libstdc++ libgomp
 RUN adduser -D -g '' appuser
 
 # Create directories
-RUN mkdir -p /app/data /app/models /app/bin
+RUN mkdir -p /app/data /app/bin
 
 # Copy binary from builder stage
-COPY --from=builder /build/player-api /app/
+COPY --from=builder /build/killallplayer-api /app/
 
 # Copy any static files if needed
 COPY --from=builder /build/data /app/data
 
 # Copy Docker-specific config file
-COPY --from=builder /build/config/docker.yaml /app/config.yaml
+COPY --from=builder /build/config/killall.settings.yaml /app/config.yaml
 
 # Set proper ownership
 RUN chown -R appuser:appuser /app
@@ -55,16 +55,16 @@ WORKDIR /app
 
 # Set whisper configuration environment variables
 ENV KILLALL_TRANSCRIPTION_WHISPER_PATH=/app/bin/whisper \
-    KILLALL_TRANSCRIPTION_MODEL_PATH=/app/models/ggml-base.en.bin \
+    KILLALL_TRANSCRIPTION_MODEL_PATH=/app/data/models/ggml-base.en.bin \
     KILLALL_TRANSCRIPTION_LANGUAGE=en \
     KILLALL_TRANSCRIPTION_ENABLED=true
 
 # Expose port
-EXPOSE 8080
+EXPOSE 9000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:9000/health || exit 1
 
 # Run the binary
-CMD ["./player-api", "serve"]
+CMD ["./killallplayer-api", "serve"]
