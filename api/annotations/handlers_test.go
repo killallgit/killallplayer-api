@@ -439,3 +439,153 @@ func TestDeleteAnnotation(t *testing.T) {
 		})
 	}
 }
+
+// TestAnnotationUUID tests UUID generation and stability for annotations
+func TestAnnotationUUID(t *testing.T) {
+	suite := setupAnnotationTestSuite(t)
+	episodeID := suite.createTestEpisode()
+
+	t.Run("UUID is generated on creation", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"label":      "Test Annotation",
+			"start_time": 10.0,
+			"end_time":   20.0,
+		}
+
+		body, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/episodes/12345/annotations", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		suite.router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+
+		var annotation models.Annotation
+		err := json.Unmarshal(w.Body.Bytes(), &annotation)
+		require.NoError(t, err)
+
+		// Verify UUID was generated
+		assert.NotEmpty(t, annotation.UUID)
+		assert.Len(t, annotation.UUID, 36) // Standard UUID format with hyphens
+
+		// Verify UUID follows UUID v4 format (xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx)
+		assert.Regexp(t, `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, annotation.UUID)
+	})
+
+	t.Run("UUID remains stable after update", func(t *testing.T) {
+		// First create an annotation
+		annotation := models.Annotation{
+			EpisodeID: episodeID,
+			Label:     "Original",
+			StartTime: 0.0,
+			EndTime:   10.0,
+		}
+		result := suite.db.Create(&annotation)
+		require.NoError(t, result.Error)
+		originalUUID := annotation.UUID
+
+		// Update the annotation
+		updatePayload := map[string]interface{}{
+			"label":      "Updated",
+			"start_time": 5.0,
+			"end_time":   15.0,
+		}
+
+		body, _ := json.Marshal(updatePayload)
+		req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/annotations/%d", annotation.ID), bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		suite.router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var updatedAnnotation models.Annotation
+		err := json.Unmarshal(w.Body.Bytes(), &updatedAnnotation)
+		require.NoError(t, err)
+
+		// UUID should remain the same
+		assert.Equal(t, originalUUID, updatedAnnotation.UUID)
+		// But other fields should be updated
+		assert.Equal(t, "Updated", updatedAnnotation.Label)
+		assert.Equal(t, 5.0, updatedAnnotation.StartTime)
+		assert.Equal(t, 15.0, updatedAnnotation.EndTime)
+	})
+
+	t.Run("Each annotation gets unique UUID", func(t *testing.T) {
+		uuids := make(map[string]bool)
+
+		// Create multiple annotations
+		for i := 0; i < 5; i++ {
+			payload := map[string]interface{}{
+				"label":      fmt.Sprintf("Annotation %d", i),
+				"start_time": float64(i * 10),
+				"end_time":   float64((i + 1) * 10),
+			}
+
+			body, _ := json.Marshal(payload)
+			req := httptest.NewRequest(http.MethodPost, "/episodes/12345/annotations", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+			suite.router.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusCreated, w.Code)
+
+			var annotation models.Annotation
+			err := json.Unmarshal(w.Body.Bytes(), &annotation)
+			require.NoError(t, err)
+
+			// Check UUID is unique
+			assert.NotEmpty(t, annotation.UUID)
+			_, exists := uuids[annotation.UUID]
+			assert.False(t, exists, "UUID should be unique")
+			uuids[annotation.UUID] = true
+		}
+
+		// Verify we created 5 unique UUIDs
+		assert.Len(t, uuids, 5)
+	})
+
+	t.Run("UUID is included in GET response", func(t *testing.T) {
+		// Create an annotation
+		annotation := models.Annotation{
+			EpisodeID: episodeID,
+			Label:     "Test",
+			StartTime: 0.0,
+			EndTime:   10.0,
+		}
+		result := suite.db.Create(&annotation)
+		require.NoError(t, result.Error)
+		require.NotEmpty(t, annotation.UUID)
+
+		// Get annotations for the episode
+		req := httptest.NewRequest(http.MethodGet, "/episodes/12345/annotations", nil)
+		w := httptest.NewRecorder()
+		suite.router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		require.NoError(t, err)
+
+		annotationsData := response["annotations"].([]interface{})
+		require.Greater(t, len(annotationsData), 0)
+
+		// Find our annotation in the response by comparing labels
+		var foundAnnotation map[string]interface{}
+		for _, ann := range annotationsData {
+			annMap := ann.(map[string]interface{})
+			if annMap["label"] == "Test" {
+				foundAnnotation = annMap
+				break
+			}
+		}
+
+		require.NotNil(t, foundAnnotation, "Should find our test annotation")
+		// Check that UUID is present and matches
+		assert.Equal(t, annotation.UUID, foundAnnotation["uuid"])
+	})
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/killallgit/player-api/internal/models"
 )
 
@@ -30,6 +31,11 @@ func (s *ServiceImpl) CreateAnnotation(ctx context.Context, annotation *models.A
 	}
 	if annotation.EpisodeID == 0 {
 		return fmt.Errorf("Episode ID is required")
+	}
+
+	// Generate UUID if not provided
+	if annotation.UUID == "" {
+		annotation.UUID = uuid.New().String()
 	}
 
 	return s.repository.CreateAnnotation(ctx, annotation)

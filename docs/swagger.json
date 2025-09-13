@@ -2038,6 +2038,9 @@
                 },
                 "updatedAt": {
                     "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
                 }
             }
         },
