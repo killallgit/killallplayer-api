@@ -260,7 +260,7 @@ region_response=$(curl -s -X POST "$API_URL/api/v1/regions" \
 
 if echo "$region_response" | jq -e '.region' > /dev/null 2>&1; then
     log_info "Region created successfully"
-    
+
     # Fetch regions for verification
     regions_list=$(curl -s "$API_URL/api/v1/regions?episode_id=$episode_id")
     if echo "$regions_list" | jq -e '.regions' > /dev/null 2>&1; then
@@ -269,6 +269,63 @@ if echo "$region_response" | jq -e '.region' > /dev/null 2>&1; then
     fi
 else
     log_warn "Region creation may have failed"
+fi
+
+# Step 12: Test Apple data enrichment (if iTunes ID is available)
+log_info "Step 12: Testing Apple data enrichment..."
+
+# Extract iTunes ID if available
+feed_itunes_id=$(echo "$episode_response" | jq -r '.episode.feedItunesId // .episode.feed_itunes_id // empty')
+
+if [ ! -z "$feed_itunes_id" ] && [ "$feed_itunes_id" != "null" ]; then
+    log_info "iTunes ID found: $feed_itunes_id"
+
+    # Test Apple reviews endpoint
+    log_info "Testing Apple reviews endpoint..."
+    reviews_response=$(curl -s "$API_URL/api/v1/episodes/$episode_id/apple-reviews")
+
+    if echo "$reviews_response" | jq -e '.reviews' > /dev/null 2>&1; then
+        review_count=$(echo "$reviews_response" | jq '.reviews.totalCount // 0')
+        avg_rating=$(echo "$reviews_response" | jq '.reviews.averageRating // 0')
+
+        if [ "$review_count" -gt 0 ]; then
+            log_info "Apple reviews retrieved: $review_count reviews, ${avg_rating} average rating"
+
+            # Check for recent reviews
+            recent_reviews=$(echo "$reviews_response" | jq '.reviews.recentReviews | length')
+            log_info "Found $recent_reviews recent reviews"
+        else
+            log_info "No Apple reviews available for this podcast"
+        fi
+    else
+        log_warn "Apple reviews endpoint returned no data"
+    fi
+
+    # Test Apple metadata endpoint
+    log_info "Testing Apple metadata endpoint..."
+    metadata_response=$(curl -s "$API_URL/api/v1/episodes/$episode_id/apple-metadata")
+
+    if echo "$metadata_response" | jq -e '.metadata' > /dev/null 2>&1; then
+        track_count=$(echo "$metadata_response" | jq '.metadata.trackCount // 0')
+        content_rating=$(echo "$metadata_response" | jq -r '.metadata.contentRating // "Unknown"')
+        genres=$(echo "$metadata_response" | jq -r '.metadata.genres // [] | join(", ")')
+
+        log_info "Apple metadata retrieved:"
+        log_info "  - Track count: $track_count"
+        log_info "  - Content rating: $content_rating"
+        if [ ! -z "$genres" ]; then
+            log_info "  - Genres: $genres"
+        fi
+
+        # Check for artwork URLs
+        if echo "$metadata_response" | jq -e '.metadata.artworkUrls' > /dev/null 2>&1; then
+            log_info "  - Multiple resolution artwork URLs available"
+        fi
+    else
+        log_warn "Apple metadata endpoint returned no data"
+    fi
+else
+    log_info "No iTunes ID available for this podcast, skipping Apple data tests"
 fi
 
 # Summary
@@ -296,6 +353,21 @@ fi
 
 log_info "✓ Playback position tested"
 log_info "✓ Regions/bookmarks tested"
+
+if [ ! -z "$feed_itunes_id" ] && [ "$feed_itunes_id" != "null" ]; then
+    if [ ! -z "$review_count" ] && [ "$review_count" -gt 0 ]; then
+        log_info "✓ Apple reviews fetched ($review_count reviews)"
+    else
+        log_warn "⚠ Apple reviews not available"
+    fi
+    if [ ! -z "$track_count" ] && [ "$track_count" -gt 0 ]; then
+        log_info "✓ Apple metadata fetched"
+    else
+        log_warn "⚠ Apple metadata not available"
+    fi
+else
+    log_info "⚠ Apple data tests skipped (no iTunes ID)"
+fi
 
 echo ""
 log_info "Integration test completed successfully!"

@@ -28,4 +28,11 @@ func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
 	// GET /api/v1/episodes/:id - Note: This must come after other specific routes
 	router.GET("/:id", GetByID(deps))
 
+	// Apple-specific endpoints
+	// GET /api/v1/episodes/:id/apple-reviews - Get Apple Podcasts reviews
+	router.GET("/:id/apple-reviews", GetAppleReviews(deps))
+
+	// GET /api/v1/episodes/:id/apple-metadata - Get Apple-specific metadata
+	router.GET("/:id/apple-metadata", GetAppleMetadata(deps))
+
 }

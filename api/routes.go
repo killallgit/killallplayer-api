@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	_ "github.com/killallgit/player-api/docs"
 	annotationsService "github.com/killallgit/player-api/internal/services/annotations"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
+	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/jobs"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/killallgit/player-api/internal/services/transcription"
@@ -178,6 +180,11 @@ func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
 	if deps.JobService == nil {
 		initializeJobService(deps)
 	}
+
+	// Initialize iTunes client if not set
+	if deps.ITunesClient == nil {
+		initializeITunesClient(deps)
+	}
 }
 
 // initializeEpisodeService creates and configures the episode service
@@ -244,6 +251,21 @@ func initializeJobService(deps *types.Dependencies) {
 
 	// Create service
 	deps.JobService = jobs.NewService(jobRepo)
+}
+
+// initializeITunesClient creates and configures the iTunes client
+func initializeITunesClient(deps *types.Dependencies) {
+	// Create iTunes client with configuration
+	itunesConfig := itunes.Config{
+		RequestsPerMinute: 250, // Conservative rate limit
+		BurstSize:        5,
+		Timeout:          10 * time.Second,
+		MaxRetries:       3,
+		RetryBackoff:     time.Second,
+	}
+
+	deps.ITunesClient = itunes.NewClient(itunesConfig)
+	log.Printf("[INFO] iTunes client initialized with rate limit: %d req/min", itunesConfig.RequestsPerMinute)
 }
 
 // NotFoundHandler handles 404 errors
