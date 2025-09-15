@@ -17,9 +17,9 @@ import (
 // @Produce      json
 // @Param        id path int true "Podcast ID from trending or search results" minimum(1) example(6780065)
 // @Param        max query int false "Maximum number of episodes to return (1-1000)" minimum(1) maximum(1000) default(20)
-// @Success      200 {object} episodes.PodcastIndexResponse "List of episodes for the podcast"
-// @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - invalid podcast ID"
-// @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
+// @Success      200 {object} types.EpisodesResponse "List of episodes for the podcast"
+// @Failure      400 {object} types.ErrorResponse "Bad request - invalid podcast ID"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/podcasts/{id}/episodes [get]
 func GetEpisodesForPodcast(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -38,7 +38,16 @@ func GetEpisodesForPodcast(deps *types.Dependencies) gin.HandlerFunc {
 		// Try to fetch fresh data from API and sync
 		apiResponse, err := deps.EpisodeService.FetchAndSyncEpisodes(c.Request.Context(), podcastID, max)
 		if err == nil && apiResponse != nil {
-			c.JSON(http.StatusOK, apiResponse)
+			// Transform to unified response type
+			episodes := types.FromServiceEpisodeList(apiResponse.Items)
+			c.JSON(http.StatusOK, types.EpisodesResponse{
+				BaseResponse: types.BaseResponse{
+					Status:  types.StatusOK,
+					Message: "Fetched episodes for podcast",
+				},
+				Episodes: episodes,
+				Count:    len(episodes),
+			})
 			return
 		}
 
@@ -47,7 +56,11 @@ func GetEpisodesForPodcast(deps *types.Dependencies) gin.HandlerFunc {
 		episodes, total, dbErr := deps.EpisodeService.GetEpisodesByPodcastID(c.Request.Context(), uint(podcastID), page, max)
 		if dbErr != nil {
 			log.Printf("[ERROR] Failed to fetch episodes from database for podcast %d: %v", podcastID, dbErr)
-			types.SendInternalError(c, "Failed to fetch episodes")
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Failed to fetch episodes",
+				Details: dbErr.Error(),
+			})
 			return
 		}
 

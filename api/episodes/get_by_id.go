@@ -15,10 +15,10 @@ import (
 // @Accept       json
 // @Produce      json
 // @Param        id path int64 true "Episode Podcast Index ID" minimum(1) example(123456789)
-// @Success      200 {object} EpisodeByGUIDResponse "Episode details"
-// @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - invalid ID"
-// @Failure      404 {object} episodes.PodcastIndexErrorResponse "Episode not found"
-// @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
+// @Success      200 {object} types.SingleEpisodeResponse "Episode details"
+// @Failure      400 {object} types.ErrorResponse "Bad request - invalid ID"
+// @Failure      404 {object} types.ErrorResponse "Episode not found"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id} [get]
 func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -33,24 +33,33 @@ func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 		if err != nil {
 			if IsNotFound(err) {
 				log.Printf("[WARN] Episode not found - Podcast Index ID: %d, Error: %v", podcastIndexID, err)
-				types.SendNotFound(c, "Episode not found")
+				c.JSON(http.StatusNotFound, types.ErrorResponse{
+					Status:  types.StatusError,
+					Message: "Episode not found",
+				})
 			} else {
 				log.Printf("[ERROR] Failed to fetch episode with Podcast Index ID %d: %v", podcastIndexID, err)
-				types.SendInternalError(c, "Failed to fetch episode")
+				c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+					Status:  types.StatusError,
+					Message: "Failed to fetch episode",
+					Details: err.Error(),
+				})
 			}
 			return
 		}
 
-		// Convert to Podcast Index format
+		// Convert to unified Episode format
 		pieFormat := deps.EpisodeTransformer.ModelToPodcastIndex(episode)
+		unifiedEpisode := types.FromServiceEpisode(&pieFormat)
 
-		// Wrap in standard response format
-		response := EpisodeByGUIDResponse{
-			Status:      "true",
-			Episode:     &pieFormat,
-			Description: "Episode found",
-		}
-		c.JSON(http.StatusOK, response)
+		// Return unified response
+		c.JSON(http.StatusOK, types.SingleEpisodeResponse{
+			BaseResponse: types.BaseResponse{
+				Status:  types.StatusOK,
+				Message: "Episode found",
+			},
+			Episode: unifiedEpisode,
+		})
 	}
 }
 

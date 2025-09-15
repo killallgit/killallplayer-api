@@ -1,159 +1,5 @@
 basePath: /
 definitions:
-  episodes.Person:
-    properties:
-      group:
-        type: string
-      href:
-        type: string
-      img:
-        type: string
-      name:
-        type: string
-      role:
-        type: string
-    type: object
-  episodes.PodcastIndexEpisode:
-    properties:
-      annotations:
-        items:
-          $ref: '#/definitions/models.Annotation'
-        type: array
-      chaptersUrl:
-        example: https://example.com/chapters/episode42.json
-        type: string
-      dateCrawled:
-        example: 1704067200
-        type: integer
-      datePublished:
-        example: 1704063600
-        type: integer
-      datePublishedPretty:
-        example: "2024-01-01 00:00:00"
-        type: string
-      description:
-        example: In this episode, we explore the meaning of life, the universe, and
-          everything.
-        type: string
-      duration:
-        example: 3600
-        type: integer
-      enclosureLength:
-        example: 52428800
-        type: integer
-      enclosureType:
-        example: audio/mpeg
-        type: string
-      enclosureUrl:
-        example: https://example.com/audio/episode42.mp3
-        type: string
-      episode:
-        example: 42
-        type: integer
-      episodeType:
-        example: full
-        type: string
-      explicit:
-        example: 0
-        type: integer
-      feedDead:
-        example: 0
-        type: integer
-      feedDuplicateOf:
-        type: integer
-      feedId:
-        example: 123456
-        type: integer
-      feedImage:
-        example: https://example.com/podcast-cover.jpg
-        type: string
-      feedItunesId:
-        example: 987654321
-        type: integer
-      feedLanguage:
-        example: en
-        type: string
-      feedTitle:
-        example: The Tech Show
-        type: string
-      feedUrl:
-        example: https://example.com/rss.xml
-        type: string
-      guid:
-        example: episode-42-guid-string
-        type: string
-      id:
-        example: 123456789
-        type: integer
-      image:
-        example: https://example.com/episode42-cover.jpg
-        type: string
-      link:
-        example: https://example.com/episode/42
-        type: string
-      persons:
-        items:
-          $ref: '#/definitions/episodes.Person'
-        type: array
-      podcastGuid:
-        example: podcast-guid-string
-        type: string
-      season:
-        example: 2
-        type: integer
-      socialInteract:
-        items:
-          $ref: '#/definitions/episodes.SocialInteraction'
-        type: array
-      soundbite:
-        $ref: '#/definitions/episodes.Soundbite'
-      soundbites:
-        items:
-          $ref: '#/definitions/episodes.Soundbite'
-        type: array
-      title:
-        example: 'Episode 42: The Answer to Everything'
-        type: string
-      transcriptUrl:
-        example: https://example.com/transcripts/episode42.txt
-        type: string
-      transcripts:
-        items:
-          $ref: '#/definitions/episodes.Transcript'
-        type: array
-      value:
-        $ref: '#/definitions/episodes.Value'
-    type: object
-  episodes.PodcastIndexErrorResponse:
-    properties:
-      description:
-        type: string
-      status:
-        description: '"false"'
-        type: string
-    type: object
-  episodes.PodcastIndexResponse:
-    properties:
-      count:
-        example: 10
-        type: integer
-      description:
-        example: Found 10 episodes
-        type: string
-      items:
-        items:
-          $ref: '#/definitions/episodes.PodcastIndexEpisode'
-        type: array
-      liveItems:
-        items:
-          $ref: '#/definitions/episodes.PodcastIndexEpisode'
-        type: array
-      query: {}
-      status:
-        description: '"true" or "false"'
-        example: "true"
-        type: string
-    type: object
   episodes.Review:
     properties:
       author:
@@ -216,87 +62,6 @@ definitions:
         $ref: '#/definitions/episodes.ReviewData'
       status:
         example: success
-        type: string
-    type: object
-  episodes.SocialInteraction:
-    properties:
-      accountId:
-        type: string
-      accountUrl:
-        type: string
-      platform:
-        type: string
-      priority:
-        type: integer
-      protocol:
-        type: string
-      url:
-        type: string
-    type: object
-  episodes.Soundbite:
-    properties:
-      duration:
-        type: number
-      startTime:
-        type: number
-      title:
-        type: string
-    type: object
-  episodes.Transcript:
-    properties:
-      language:
-        type: string
-      rel:
-        type: string
-      type:
-        type: string
-      url:
-        type: string
-    type: object
-  episodes.Value:
-    properties:
-      destinations:
-        items:
-          $ref: '#/definitions/episodes.ValueDestination'
-        type: array
-      model:
-        $ref: '#/definitions/episodes.ValueModel'
-    type: object
-  episodes.ValueDestination:
-    properties:
-      address:
-        type: string
-      customKey:
-        type: string
-      customValue:
-        type: string
-      fee:
-        type: boolean
-      name:
-        type: string
-      split:
-        type: integer
-      type:
-        type: string
-    type: object
-  episodes.ValueModel:
-    properties:
-      method:
-        type: string
-      suggested:
-        type: string
-      type:
-        type: string
-    type: object
-  github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse:
-    properties:
-      description:
-        example: Episode found
-        type: string
-      episode:
-        $ref: '#/definitions/episodes.PodcastIndexEpisode'
-      status:
-        example: "true"
         type: string
     type: object
   gorm.DeletedAt:
@@ -532,6 +297,54 @@ definitions:
       transcriptUrl:
         type: string
     type: object
+  types.Episode:
+    properties:
+      audioUrl:
+        type: string
+      chaptersUrl:
+        type: string
+      description:
+        type: string
+      duration:
+        description: Seconds
+        type: integer
+      id:
+        description: Podcast Index Episode ID
+        type: integer
+      image:
+        type: string
+      podcastId:
+        description: Podcast Index Podcast ID
+        type: integer
+      publishedAt:
+        description: Unix timestamp
+        type: integer
+      title:
+        type: string
+      transcriptUrl:
+        type: string
+    type: object
+  types.EpisodesResponse:
+    properties:
+      count:
+        description: Number of results in this response
+        type: integer
+      episodes:
+        items:
+          $ref: '#/definitions/types.Episode'
+        type: array
+      message:
+        description: Human-readable message
+        type: string
+      offset:
+        type: integer
+      status:
+        description: One of the Status constants above
+        type: string
+      total:
+        description: Total available (if known)
+        type: integer
+    type: object
   types.ErrorResponse:
     properties:
       details:
@@ -669,6 +482,17 @@ definitions:
         type: string
     required:
     - query
+    type: object
+  types.SingleEpisodeResponse:
+    properties:
+      episode:
+        $ref: '#/definitions/types.Episode'
+      message:
+        description: Human-readable message
+        type: string
+      status:
+        description: One of the Status constants above
+        type: string
     type: object
   types.TranscriptionData:
     properties:
@@ -873,11 +697,15 @@ paths:
         "200":
           description: List of episodes
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexResponse'
+            $ref: '#/definitions/types.EpisodesResponse'
+        "400":
+          description: Bad request - invalid parameters
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Get all episodes
       tags:
       - episodes
@@ -901,19 +729,19 @@ paths:
         "200":
           description: Episode details
           schema:
-            $ref: '#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse'
+            $ref: '#/definitions/types.SingleEpisodeResponse'
         "400":
           description: Bad request - invalid ID
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+            $ref: '#/definitions/types.ErrorResponse'
         "404":
           description: Episode not found
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Get episode by ID
       tags:
       - episodes
@@ -1354,19 +1182,19 @@ paths:
         "200":
           description: Episode details
           schema:
-            $ref: '#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse'
+            $ref: '#/definitions/types.SingleEpisodeResponse'
         "400":
           description: Bad request - missing GUID
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+            $ref: '#/definitions/types.ErrorResponse'
         "404":
           description: Episode not found
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Get episode by GUID
       tags:
       - episodes
@@ -1397,15 +1225,15 @@ paths:
         "200":
           description: List of episodes for the podcast
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexResponse'
+            $ref: '#/definitions/types.EpisodesResponse'
         "400":
           description: Bad request - invalid podcast ID
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+            $ref: '#/definitions/types.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/episodes.PodcastIndexErrorResponse'
+            $ref: '#/definitions/types.ErrorResponse'
       summary: Get episodes for a podcast
       tags:
       - podcasts

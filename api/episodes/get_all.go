@@ -18,8 +18,9 @@ import (
 // @Produce      json
 // @Param        limit query int false "Number of episodes to return (1-1000)" minimum(1) maximum(1000) default(50)
 // @Param        podcast_id query int false "Filter episodes by podcast ID"
-// @Success      200 {object} episodes.PodcastIndexResponse "List of episodes"
-// @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
+// @Success      200 {object} types.EpisodesResponse "List of episodes"
+// @Failure      400 {object} types.ErrorResponse "Bad request - invalid parameters"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes [get]
 func GetAll(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -36,7 +37,10 @@ func GetAll(deps *types.Dependencies) gin.HandlerFunc {
 			podcastID, err := strconv.ParseUint(podcastIDStr, 10, 32)
 			if err != nil {
 				log.Printf("[ERROR] Invalid podcast_id parameter '%s': %v", podcastIDStr, err)
-				c.JSON(http.StatusBadRequest, deps.EpisodeTransformer.CreateErrorResponse("Invalid podcast_id parameter"))
+				c.JSON(http.StatusBadRequest, types.ErrorResponse{
+					Status:  types.StatusError,
+					Message: "Invalid podcast_id parameter",
+				})
 				return
 			}
 
@@ -45,19 +49,32 @@ func GetAll(deps *types.Dependencies) gin.HandlerFunc {
 			episodes, total, err := deps.EpisodeService.GetEpisodesByPodcastID(c.Request.Context(), uint(podcastID), page, limit)
 			if err != nil {
 				log.Printf("[ERROR] Failed to fetch episodes for podcast %d (limit %d): %v", podcastID, limit, err)
-				c.JSON(http.StatusInternalServerError, deps.EpisodeTransformer.CreateErrorResponse("Failed to fetch episodes"))
+				c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+					Status:  types.StatusError,
+					Message: "Failed to fetch episodes",
+					Details: err.Error(),
+				})
 				return
 			}
 
-			// Transform and return
-			response := deps.EpisodeTransformer.CreateSuccessResponse(episodes, "Episodes for podcast")
-			response.Query = int64(podcastID)
+			// Transform to unified response type
+			internalResponse := deps.EpisodeTransformer.CreateSuccessResponse(episodes, "")
+			unifiedEpisodes := types.FromServiceEpisodeList(internalResponse.Items)
 
+			message := fmt.Sprintf("Fetched %d episodes for podcast", len(episodes))
 			if total > int64(len(episodes)) {
-				response.Description = fmt.Sprintf("Episodes for podcast (showing %d of %d total)", len(episodes), total)
+				message = fmt.Sprintf("Fetched %d of %d total episodes for podcast", len(episodes), total)
 			}
 
-			c.JSON(http.StatusOK, response)
+			c.JSON(http.StatusOK, types.EpisodesResponse{
+				BaseResponse: types.BaseResponse{
+					Status:  types.StatusOK,
+					Message: message,
+				},
+				Episodes: unifiedEpisodes,
+				Count:    len(unifiedEpisodes),
+				Total:    int(total),
+			})
 			return
 		}
 
@@ -65,12 +82,25 @@ func GetAll(deps *types.Dependencies) gin.HandlerFunc {
 		episodes, err := deps.EpisodeService.GetRecentEpisodes(c.Request.Context(), limit)
 		if err != nil {
 			log.Printf("[ERROR] Failed to fetch episodes (limit %d): %v", limit, err)
-			c.JSON(http.StatusInternalServerError, deps.EpisodeTransformer.CreateErrorResponse("Failed to fetch episodes"))
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Failed to fetch episodes",
+				Details: err.Error(),
+			})
 			return
 		}
 
-		// Transform and return
-		response := deps.EpisodeTransformer.CreateSuccessResponse(episodes, "All recent episodes")
-		c.JSON(http.StatusOK, response)
+		// Transform to unified response type
+		internalResponse := deps.EpisodeTransformer.CreateSuccessResponse(episodes, "")
+		unifiedEpisodes := types.FromServiceEpisodeList(internalResponse.Items)
+
+		c.JSON(http.StatusOK, types.EpisodesResponse{
+			BaseResponse: types.BaseResponse{
+				Status:  types.StatusOK,
+				Message: fmt.Sprintf("Fetched %d recent episodes", len(episodes)),
+			},
+			Episodes: unifiedEpisodes,
+			Count:    len(unifiedEpisodes),
+		})
 	}
 }

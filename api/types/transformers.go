@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 )
@@ -103,6 +104,42 @@ func FromPodcastIndexEpisodeList(episodes []podcastindex.Episode) []Episode {
 	result := make([]Episode, 0, len(episodes))
 	for _, e := range episodes {
 		if transformed := FromPodcastIndexEpisode(&e); transformed != nil {
+			result = append(result, *transformed)
+		}
+	}
+	return result
+}
+
+// FromServiceEpisode transforms an internal service episode to our simplified Episode type
+func FromServiceEpisode(e *episodes.PodcastIndexEpisode) *Episode {
+	if e == nil {
+		return nil
+	}
+
+	duration := 0
+	if e.Duration != nil {
+		duration = *e.Duration
+	}
+
+	return &Episode{
+		ID:            e.ID,
+		PodcastID:     e.FeedID,
+		Title:         e.Title,
+		Description:   e.Description,
+		AudioURL:      e.EnclosureURL,
+		Duration:      duration,
+		PublishedAt:   e.DatePublished,
+		Image:         e.Image,
+		TranscriptURL: e.TranscriptURL,
+		ChaptersURL:   e.ChaptersURL,
+	}
+}
+
+// FromServiceEpisodeList transforms a list of internal service episodes
+func FromServiceEpisodeList(episodes []episodes.PodcastIndexEpisode) []Episode {
+	result := make([]Episode, 0, len(episodes))
+	for _, e := range episodes {
+		if transformed := FromServiceEpisode(&e); transformed != nil {
 			result = append(result, *transformed)
 		}
 	}

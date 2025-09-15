@@ -134,13 +134,19 @@ const docTemplate = `{
                     "200": {
                         "description": "List of episodes",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexResponse"
+                            "$ref": "#/definitions/types.EpisodesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -284,25 +290,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Episode details",
                         "schema": {
-                            "$ref": "#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse"
+                            "$ref": "#/definitions/types.SingleEpisodeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - missing GUID",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Episode not found",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -337,25 +343,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Episode details",
                         "schema": {
-                            "$ref": "#/definitions/github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse"
+                            "$ref": "#/definitions/types.SingleEpisodeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - invalid ID",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Episode not found",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -895,19 +901,19 @@ const docTemplate = `{
                     "200": {
                         "description": "List of episodes for the podcast",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexResponse"
+                            "$ref": "#/definitions/types.EpisodesResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - invalid podcast ID",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -1107,221 +1113,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "episodes.Person": {
-            "type": "object",
-            "properties": {
-                "group": {
-                    "type": "string"
-                },
-                "href": {
-                    "type": "string"
-                },
-                "img": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "episodes.PodcastIndexEpisode": {
-            "type": "object",
-            "properties": {
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Annotation"
-                    }
-                },
-                "chaptersUrl": {
-                    "type": "string",
-                    "example": "https://example.com/chapters/episode42.json"
-                },
-                "dateCrawled": {
-                    "type": "integer",
-                    "example": 1704067200
-                },
-                "datePublished": {
-                    "type": "integer",
-                    "example": 1704063600
-                },
-                "datePublishedPretty": {
-                    "type": "string",
-                    "example": "2024-01-01 00:00:00"
-                },
-                "description": {
-                    "type": "string",
-                    "example": "In this episode, we explore the meaning of life, the universe, and everything."
-                },
-                "duration": {
-                    "type": "integer",
-                    "example": 3600
-                },
-                "enclosureLength": {
-                    "type": "integer",
-                    "example": 52428800
-                },
-                "enclosureType": {
-                    "type": "string",
-                    "example": "audio/mpeg"
-                },
-                "enclosureUrl": {
-                    "type": "string",
-                    "example": "https://example.com/audio/episode42.mp3"
-                },
-                "episode": {
-                    "type": "integer",
-                    "example": 42
-                },
-                "episodeType": {
-                    "type": "string",
-                    "example": "full"
-                },
-                "explicit": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "feedDead": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "feedDuplicateOf": {
-                    "type": "integer"
-                },
-                "feedId": {
-                    "type": "integer",
-                    "example": 123456
-                },
-                "feedImage": {
-                    "type": "string",
-                    "example": "https://example.com/podcast-cover.jpg"
-                },
-                "feedItunesId": {
-                    "type": "integer",
-                    "example": 987654321
-                },
-                "feedLanguage": {
-                    "type": "string",
-                    "example": "en"
-                },
-                "feedTitle": {
-                    "type": "string",
-                    "example": "The Tech Show"
-                },
-                "feedUrl": {
-                    "type": "string",
-                    "example": "https://example.com/rss.xml"
-                },
-                "guid": {
-                    "type": "string",
-                    "example": "episode-42-guid-string"
-                },
-                "id": {
-                    "type": "integer",
-                    "example": 123456789
-                },
-                "image": {
-                    "type": "string",
-                    "example": "https://example.com/episode42-cover.jpg"
-                },
-                "link": {
-                    "type": "string",
-                    "example": "https://example.com/episode/42"
-                },
-                "persons": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.Person"
-                    }
-                },
-                "podcastGuid": {
-                    "type": "string",
-                    "example": "podcast-guid-string"
-                },
-                "season": {
-                    "type": "integer",
-                    "example": 2
-                },
-                "socialInteract": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.SocialInteraction"
-                    }
-                },
-                "soundbite": {
-                    "$ref": "#/definitions/episodes.Soundbite"
-                },
-                "soundbites": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.Soundbite"
-                    }
-                },
-                "title": {
-                    "type": "string",
-                    "example": "Episode 42: The Answer to Everything"
-                },
-                "transcriptUrl": {
-                    "type": "string",
-                    "example": "https://example.com/transcripts/episode42.txt"
-                },
-                "transcripts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.Transcript"
-                    }
-                },
-                "value": {
-                    "$ref": "#/definitions/episodes.Value"
-                }
-            }
-        },
-        "episodes.PodcastIndexErrorResponse": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "status": {
-                    "description": "\"false\"",
-                    "type": "string"
-                }
-            }
-        },
-        "episodes.PodcastIndexResponse": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer",
-                    "example": 10
-                },
-                "description": {
-                    "type": "string",
-                    "example": "Found 10 episodes"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.PodcastIndexEpisode"
-                    }
-                },
-                "liveItems": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.PodcastIndexEpisode"
-                    }
-                },
-                "query": {},
-                "status": {
-                    "description": "\"true\" or \"false\"",
-                    "type": "string",
-                    "example": "true"
-                }
-            }
-        },
         "episodes.Review": {
             "type": "object",
             "properties": {
@@ -1411,130 +1202,6 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "success"
-                }
-            }
-        },
-        "episodes.SocialInteraction": {
-            "type": "object",
-            "properties": {
-                "accountId": {
-                    "type": "string"
-                },
-                "accountUrl": {
-                    "type": "string"
-                },
-                "platform": {
-                    "type": "string"
-                },
-                "priority": {
-                    "type": "integer"
-                },
-                "protocol": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "episodes.Soundbite": {
-            "type": "object",
-            "properties": {
-                "duration": {
-                    "type": "number"
-                },
-                "startTime": {
-                    "type": "number"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "episodes.Transcript": {
-            "type": "object",
-            "properties": {
-                "language": {
-                    "type": "string"
-                },
-                "rel": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "episodes.Value": {
-            "type": "object",
-            "properties": {
-                "destinations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.ValueDestination"
-                    }
-                },
-                "model": {
-                    "$ref": "#/definitions/episodes.ValueModel"
-                }
-            }
-        },
-        "episodes.ValueDestination": {
-            "type": "object",
-            "properties": {
-                "address": {
-                    "type": "string"
-                },
-                "customKey": {
-                    "type": "string"
-                },
-                "customValue": {
-                    "type": "string"
-                },
-                "fee": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "split": {
-                    "type": "integer"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "episodes.ValueModel": {
-            "type": "object",
-            "properties": {
-                "method": {
-                    "type": "string"
-                },
-                "suggested": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_killallgit_player-api_api_episodes.EpisodeByGUIDResponse": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "example": "Episode found"
-                },
-                "episode": {
-                    "$ref": "#/definitions/episodes.PodcastIndexEpisode"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "true"
                 }
             }
         },
@@ -1888,6 +1555,75 @@ const docTemplate = `{
                 }
             }
         },
+        "types.Episode": {
+            "type": "object",
+            "properties": {
+                "audioUrl": {
+                    "type": "string"
+                },
+                "chaptersUrl": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "description": "Seconds",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "Podcast Index Episode ID",
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "podcastId": {
+                    "description": "Podcast Index Podcast ID",
+                    "type": "integer"
+                },
+                "publishedAt": {
+                    "description": "Unix timestamp",
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "transcriptUrl": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.EpisodesResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "description": "Number of results in this response",
+                    "type": "integer"
+                },
+                "episodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Episode"
+                    }
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "One of the Status constants above",
+                    "type": "string"
+                },
+                "total": {
+                    "description": "Total available (if known)",
+                    "type": "integer"
+                }
+            }
+        },
         "types.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -2075,6 +1811,22 @@ const docTemplate = `{
                     "description": "Filter by value block type (e.g., \"any\", \"lightning\")",
                     "type": "string",
                     "example": "any"
+                }
+            }
+        },
+        "types.SingleEpisodeResponse": {
+            "type": "object",
+            "properties": {
+                "episode": {
+                    "$ref": "#/definitions/types.Episode"
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "One of the Status constants above",
+                    "type": "string"
                 }
             }
         },

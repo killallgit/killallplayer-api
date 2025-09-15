@@ -110,8 +110,15 @@ func (c *Client) Search(ctx context.Context, query string, limit int, fullText b
 
 	// Decode response
 	var searchResp SearchResponse
-	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
+	decoder := json.NewDecoder(resp.Body)
+	if err := decoder.Decode(&searchResp); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	// Debug: log first podcast to see actual fields
+	if len(searchResp.Feeds) > 0 {
+		debugJSON, _ := json.MarshalIndent(searchResp.Feeds[0], "", "  ")
+		fmt.Printf("DEBUG: First podcast from search:\n%s\n", string(debugJSON))
 	}
 
 	// Check API status
@@ -268,6 +275,12 @@ func (c *Client) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, li
 	var episodesResp EpisodesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&episodesResp); err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	// Debug: log first episode to see actual fields
+	if len(episodesResp.Items) > 0 {
+		debugJSON, _ := json.MarshalIndent(episodesResp.Items[0], "", "  ")
+		fmt.Printf("DEBUG: First episode from episodes:\n%s\n", string(debugJSON))
 	}
 
 	// Check API status
