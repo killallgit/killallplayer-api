@@ -180,6 +180,15 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 	// Generate waveform from audio file
 	waveformData, err := p.ffmpeg.GenerateWaveform(ctx, audioFilePath, p.options)
 	if err != nil {
+		// Log the detailed error for debugging
+		log.Printf("[ERROR] FFmpeg waveform generation failed for episode %d: %v", podcastIndexID, err)
+
+		// Check if it's a ProcessingError with stderr details
+		if procErr, ok := err.(*ffmpeg.ProcessingError); ok {
+			log.Printf("[ERROR] FFmpeg stderr output: %s", procErr.Stderr)
+			log.Printf("[ERROR] FFmpeg operation: %s, file: %s", procErr.Operation, procErr.File)
+		}
+
 		return p.classifyProcessingError(err, audioFilePath)
 	}
 
@@ -320,25 +329,49 @@ func (p *EnhancedWaveformProcessor) classifyProcessingError(err error, audioFile
 	errMsg := err.Error()
 	errLower := strings.ToLower(errMsg)
 
+	// Extract detailed error information if available
+	var stderrOutput string
+	var operation string
+	if procErr, ok := err.(*ffmpeg.ProcessingError); ok {
+		stderrOutput = procErr.Stderr
+		operation = procErr.Operation
+	}
+
+	// Create detailed error context
+	var errorDetails string
+	if stderrOutput != "" {
+		errorDetails = fmt.Sprintf("File: %s\nOperation: %s\nFFmpeg stderr: %s", audioFilePath, operation, stderrOutput)
+	} else {
+		errorDetails = fmt.Sprintf("File: %s\nError: %s", audioFilePath, errMsg)
+	}
+
+	// Duration limit errors
+	if strings.Contains(errLower, "exceeds maximum duration") || strings.Contains(errLower, "exceeds limit") {
+		return models.NewProcessingError("duration_exceeded",
+			"Audio file exceeds maximum duration limit",
+			errorDetails,
+			err)
+	}
+
 	// FFmpeg format/codec errors
 	if strings.Contains(errLower, "invalid data found") || strings.Contains(errLower, "moov atom not found") {
 		return models.NewProcessingError("corrupt_file",
 			"Audio file is corrupted or invalid",
-			fmt.Sprintf("File appears to be corrupted: %s", audioFilePath),
+			errorDetails,
 			err)
 	}
 
 	if strings.Contains(errLower, "unknown format") || strings.Contains(errLower, "unsupported") {
 		return models.NewProcessingError("unsupported_format",
 			"Unsupported audio format",
-			fmt.Sprintf("FFmpeg cannot process file format: %s", audioFilePath),
+			errorDetails,
 			err)
 	}
 
 	if strings.Contains(errLower, "no audio") || strings.Contains(errLower, "no stream") {
 		return models.NewProcessingError("no_audio_stream",
 			"No audio stream found in file",
-			fmt.Sprintf("File contains no audio data: %s", audioFilePath),
+			errorDetails,
 			err)
 	}
 
@@ -346,7 +379,7 @@ func (p *EnhancedWaveformProcessor) classifyProcessingError(err error, audioFile
 	if strings.Contains(errLower, "timeout") || strings.Contains(errLower, "deadline exceeded") {
 		return models.NewProcessingError("ffmpeg_timeout",
 			"Audio processing timeout",
-			fmt.Sprintf("FFmpeg processing took too long: %s", audioFilePath),
+			errorDetails,
 			err)
 	}
 
@@ -354,13 +387,13 @@ func (p *EnhancedWaveformProcessor) classifyProcessingError(err error, audioFile
 	if strings.Contains(errLower, "out of memory") || strings.Contains(errLower, "cannot allocate") {
 		return models.NewProcessingError("memory_error",
 			"Insufficient memory for processing",
-			fmt.Sprintf("Out of memory processing: %s", audioFilePath),
+			errorDetails,
 			err)
 	}
 
 	// Generic processing error
 	return models.NewProcessingError("processing_failed",
 		"Audio processing failed",
-		fmt.Sprintf("FFmpeg failed to process: %s", audioFilePath),
+		errorDetails,
 		err)
 }

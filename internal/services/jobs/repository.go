@@ -40,6 +40,7 @@ type Repository interface {
 
 	// Delete operations
 	DeleteOldJobs(ctx context.Context, olderThan time.Time) (int64, error)
+	DeletePermanentlyFailedJob(ctx context.Context, jobID uint) error
 }
 
 // repository implements Repository interface
@@ -73,13 +74,36 @@ func (r *repository) GetJob(ctx context.Context, id uint) (*models.Job, error) {
 }
 
 // GetJobByTypeAndPayload finds a job by type and a specific payload value
+// Returns the most recent non-cancelled job (by ID) to ensure we check the latest state
+// Prioritizes active jobs (pending, processing, failed) over completed/permanently failed
 func (r *repository) GetJobByTypeAndPayload(ctx context.Context, jobType models.JobType, key, value string) (*models.Job, error) {
 	var job models.Job
 
-	// Use JSON extract for SQLite
+	// First try to find an active job (pending, processing, or failed but retryable)
 	query := r.db.WithContext(ctx).
 		Where("type = ?", jobType).
 		Where("json_extract(payload, ?) = ?", "$."+key, value).
+		Where("status IN ?", []models.JobStatus{
+			models.JobStatusPending,
+			models.JobStatusProcessing,
+			models.JobStatusFailed,
+		}).
+		Order("id DESC").
+		First(&job)
+
+	if err := query.Error; err == nil {
+		// Found an active job
+		return &job, nil
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// Unexpected error
+		return nil, fmt.Errorf("getting active job by type and payload: %w", err)
+	}
+
+	// No active job found, look for any job (including completed/permanently failed)
+	query = r.db.WithContext(ctx).
+		Where("type = ?", jobType).
+		Where("json_extract(payload, ?) = ?", "$."+key, value).
+		Order("id DESC").
 		First(&job)
 
 	if err := query.Error; err != nil {
@@ -348,4 +372,21 @@ func (r *repository) DeleteOldJobs(ctx context.Context, olderThan time.Time) (in
 	}
 
 	return result.RowsAffected, nil
+}
+
+// DeletePermanentlyFailedJob deletes a permanently failed job by ID
+func (r *repository) DeletePermanentlyFailedJob(ctx context.Context, jobID uint) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND status = ?", jobID, models.JobStatusPermanentlyFailed).
+		Delete(&models.Job{})
+
+	if result.Error != nil {
+		return fmt.Errorf("deleting permanently failed job: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return ErrJobNotFound
+	}
+
+	return nil
 }
