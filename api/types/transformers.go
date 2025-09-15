@@ -25,6 +25,7 @@ func FromPodcastIndex(p *podcastindex.Podcast) *Podcast {
 		Title:        p.Title,
 		Author:       p.Author,
 		Description:  p.Description,
+		Link:         p.Link,
 		Image:        p.Image,
 		FeedURL:      p.URL,
 		ITunesID:     int64(p.ITunesID),
@@ -63,6 +64,7 @@ func FromITunes(p *itunes.Podcast) *Podcast {
 		Title:        p.Title,
 		Author:       p.Author,
 		Description:  p.Description,
+		Link:         p.ITunesURL, // iTunes store URL for the podcast
 		Image:        p.ArtworkURL,
 		FeedURL:      p.FeedURL,
 		ITunesID:     p.ID,
@@ -90,6 +92,7 @@ func FromPodcastIndexEpisode(e *podcastindex.Episode) *Episode {
 		PodcastID:     int64(e.FeedId),
 		Title:         e.Title,
 		Description:   e.Description,
+		Link:          e.Link,
 		AudioURL:      e.EnclosureURL,
 		Duration:      e.Duration,
 		PublishedAt:   e.DatePublished,
@@ -121,17 +124,30 @@ func FromServiceEpisode(e *episodes.PodcastIndexEpisode) *Episode {
 		duration = *e.Duration
 	}
 
+	episode := 0
+	if e.Episode != nil {
+		episode = *e.Episode
+	}
+
+	season := 0
+	if e.Season != nil {
+		season = *e.Season
+	}
+
 	return &Episode{
 		ID:            e.ID,
 		PodcastID:     e.FeedID,
 		Title:         e.Title,
 		Description:   e.Description,
+		Link:          e.Link,
 		AudioURL:      e.EnclosureURL,
 		Duration:      duration,
 		PublishedAt:   e.DatePublished,
 		Image:         e.Image,
 		TranscriptURL: e.TranscriptURL,
 		ChaptersURL:   e.ChaptersURL,
+		Episode:       episode,
+		Season:        season,
 	}
 }
 

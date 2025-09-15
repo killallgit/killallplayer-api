@@ -308,16 +308,25 @@ definitions:
       duration:
         description: Seconds
         type: integer
+      episode:
+        description: Episode number
+        type: integer
       id:
         description: Podcast Index Episode ID
         type: integer
       image:
+        type: string
+      link:
+        description: Episode webpage URL
         type: string
       podcastId:
         description: Podcast Index Podcast ID
         type: integer
       publishedAt:
         description: Unix timestamp
+        type: integer
+      season:
+        description: Season number
         type: integer
       title:
         type: string
@@ -431,6 +440,9 @@ definitions:
       lastUpdated:
         description: Unix timestamp
         type: integer
+      link:
+        description: Podcast website URL
+        type: string
       title:
         type: string
     type: object
@@ -572,39 +584,34 @@ definitions:
         minimum: 1
         type: integer
     type: object
-  types.WaveformData:
+  types.Waveform:
     properties:
-      cached:
-        description: Whether data is cached - optional for some responses
-        type: boolean
-      duration:
-        description: Duration in seconds
-        example: 300.5
-        type: number
-      episode_id:
-        description: Episode ID (optional for some responses)
-        type: integer
-      peaks:
-        description: Waveform peak values
-        example:
-        - 0.1
-        - 0.2
-        - 0.3
+      data:
         items:
           type: number
         type: array
-      resolution:
-        description: Number of peaks
-        example: 1000
+      duration:
+        description: Total duration in seconds
+        type: number
+      episodeId:
         type: integer
-      sample_rate:
-        description: Sample rate in Hz - optional
-        example: 44100
+      id:
+        type: string
+      sampleRate:
         type: integer
       status:
-        description: Status of the waveform (completed, processing, etc.) - optional
-          for simple responses
         type: string
+    type: object
+  types.WaveformResponse:
+    properties:
+      message:
+        description: Human-readable message
+        type: string
+      status:
+        description: One of the Status constants above
+        type: string
+      waveform:
+        $ref: '#/definitions/types.Waveform'
     type: object
 host: localhost:8080
 info:
@@ -673,42 +680,6 @@ paths:
       summary: Get all podcast categories
       tags:
       - categories
-  /api/v1/episodes:
-    get:
-      consumes:
-      - application/json
-      description: Get recent episodes across all podcasts with optional limit and
-        podcast_id parameters
-      parameters:
-      - default: 50
-        description: Number of episodes to return (1-1000)
-        in: query
-        maximum: 1000
-        minimum: 1
-        name: limit
-        type: integer
-      - description: Filter episodes by podcast ID
-        in: query
-        name: podcast_id
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: List of episodes
-          schema:
-            $ref: '#/definitions/types.EpisodesResponse'
-        "400":
-          description: Bad request - invalid parameters
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-      summary: Get all episodes
-      tags:
-      - episodes
   /api/v1/episodes/{id}:
     get:
       consumes:
@@ -968,9 +939,9 @@ paths:
     get:
       consumes:
       - application/json
-      description: Retrieve generated waveform data for a specific episode. If waveform
-        doesn't exist, it will be queued for generation. Failed jobs are retried with
-        exponential backoff.
+      description: Retrieve generated waveform data and status for a specific episode.
+        If waveform doesn't exist, it will be queued for generation. Failed jobs are
+        retried with exponential backoff.
       parameters:
       - description: Episode ID (Podcast Index ID)
         format: int64
@@ -982,19 +953,15 @@ paths:
       - application/json
       responses:
         "200":
-          description: Waveform data retrieved successfully (status='completed')
+          description: Waveform data retrieved successfully
           schema:
-            $ref: '#/definitions/types.WaveformData'
+            $ref: '#/definitions/types.WaveformResponse'
         "202":
-          description: Waveform generation in progress
+          description: Waveform generation in progress or queued
           schema:
-            $ref: '#/definitions/types.JobStatusResponse'
+            $ref: '#/definitions/types.WaveformResponse'
         "400":
           description: Invalid episode ID
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "404":
-          description: Episode or waveform not found
           schema:
             $ref: '#/definitions/types.ErrorResponse'
         "500":
@@ -1002,93 +969,10 @@ paths:
           schema:
             $ref: '#/definitions/types.ErrorResponse'
         "503":
-          description: Waveform generation failed, retry pending (includes retry_after
-            in seconds)
+          description: Waveform generation failed, retry pending
           schema:
-            $ref: '#/definitions/types.JobStatusResponse'
-      summary: Get waveform data for an episode
-      tags:
-      - waveform
-    post:
-      consumes:
-      - application/json
-      description: Manually trigger waveform generation for a specific episode. Implements
-        retry logic with exponential backoff (30s, 60s, 120s) and max 3 retries. Use
-        query parameter retry=true to manually retry failed/permanently failed jobs.
-      parameters:
-      - description: Episode ID (Podcast Index ID)
-        format: int64
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Force retry of failed or permanently failed job
-        in: query
-        name: retry
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Waveform already exists or retry successful
-          schema:
-            $ref: '#/definitions/types.JobStatusResponse'
-        "202":
-          description: Waveform generation triggered
-          schema:
-            $ref: '#/definitions/types.JobStatusResponse'
-        "400":
-          description: Invalid episode ID or retry parameter
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "409":
-          description: Job cannot be retried (not in failed state)
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "503":
-          description: Previous generation failed, retry pending (includes retry_after,
-            retry_count, max_retries)
-          schema:
-            $ref: '#/definitions/types.JobStatusResponse'
-      summary: Trigger waveform generation
-      tags:
-      - waveform
-  /api/v1/episodes/{id}/waveform/status:
-    get:
-      consumes:
-      - application/json
-      description: Check the status of waveform generation for a specific episode
-      parameters:
-      - description: Episode ID (Podcast Index ID)
-        format: int64
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Status information
-          schema:
-            $ref: '#/definitions/types.WaveformData'
-        "400":
-          description: Invalid episode ID
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "404":
-          description: Waveform not found or episode not found
-          schema:
-            $ref: '#/definitions/types.JobStatusResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-      summary: Get waveform generation status
+            $ref: '#/definitions/types.WaveformResponse'
+      summary: Get waveform data and status for an episode
       tags:
       - waveform
   /api/v1/episodes/annotations/{id}:
@@ -1165,39 +1049,6 @@ paths:
       summary: Update annotation
       tags:
       - annotations
-  /api/v1/episodes/by-guid:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve a single episode by its GUID
-      parameters:
-      - description: Episode GUID
-        in: query
-        name: guid
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Episode details
-          schema:
-            $ref: '#/definitions/types.SingleEpisodeResponse'
-        "400":
-          description: Bad request - missing GUID
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "404":
-          description: Episode not found
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-      summary: Get episode by GUID
-      tags:
-      - episodes
   /api/v1/podcasts/{id}/episodes:
     get:
       consumes:

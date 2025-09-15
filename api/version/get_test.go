@@ -25,7 +25,7 @@ func TestGet(t *testing.T) {
 			expectedBody: map[string]interface{}{
 				"name":        "Podcast Player API",
 				"version":     "1.0.0",
-				"description": "API for managing and streaming podcasts",
+				"description": "API for managing podcasts and episodes",
 				"status":      "running",
 			},
 		},

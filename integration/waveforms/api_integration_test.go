@@ -215,9 +215,9 @@ func TestWaveformAPI_GetWaveform_NotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	suite.router.ServeHTTP(w, req)
 
-	// Verify response
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, w.Code)
+	// Verify response - waveform not found returns 202 Accepted with queued status
+	if w.Code != http.StatusAccepted {
+		t.Errorf("Expected status code %d, got %d", http.StatusAccepted, w.Code)
 	}
 
 	var response map[string]interface{}
@@ -226,12 +226,27 @@ func TestWaveformAPI_GetWaveform_NotFound(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if response["error"] != "Waveform not found for episode" {
-		t.Errorf("Expected error message 'Waveform not found for episode', got %v", response["error"])
+	// Check the base response fields
+	if response["status"] != "queued" {
+		t.Errorf("Expected status 'queued', got %v", response["status"])
 	}
 
-	if response["episode_id"] != float64(episode.PodcastIndexID) {
-		t.Errorf("Expected episode_id %d, got %v", episode.PodcastIndexID, response["episode_id"])
+	if response["message"] != "Waveform generation has been queued" {
+		t.Errorf("Expected message 'Waveform generation has been queued', got %v", response["message"])
+	}
+
+	// Check the waveform object
+	waveform, ok := response["waveform"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected waveform to be an object, got %T", response["waveform"])
+	}
+
+	if waveform["episodeId"] != float64(episode.PodcastIndexID) {
+		t.Errorf("Expected episodeId %d, got %v", episode.PodcastIndexID, waveform["episodeId"])
+	}
+
+	if waveform["status"] != "queued" {
+		t.Errorf("Expected waveform status 'queued', got %v", waveform["status"])
 	}
 }
 
@@ -264,31 +279,42 @@ func TestWaveformAPI_GetWaveform_Success(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	// Verify response fields
-	if response["episode_id"] != float64(episode.PodcastIndexID) {
-		t.Errorf("Expected episode_id %d, got %v", episode.PodcastIndexID, response["episode_id"])
+	// Check the base response fields
+	if response["status"] != "ok" {
+		t.Errorf("Expected status 'ok', got %v", response["status"])
 	}
 
-	if response["duration"] != 300.0 {
-		t.Errorf("Expected duration 300.0, got %v", response["duration"])
+	if response["message"] != "Waveform retrieved successfully" {
+		t.Errorf("Expected message 'Waveform retrieved successfully', got %v", response["message"])
 	}
 
-	if response["resolution"] != float64(len(expectedPeaks)) {
-		t.Errorf("Expected resolution %d, got %v", len(expectedPeaks), response["resolution"])
+	// Check the waveform object
+	waveform, ok := response["waveform"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected waveform to be an object, got %T", response["waveform"])
 	}
 
-	if response["sample_rate"] != 44100.0 {
-		t.Errorf("Expected sample_rate 44100, got %v", response["sample_rate"])
+	// Verify waveform fields
+	if waveform["episodeId"] != float64(episode.PodcastIndexID) {
+		t.Errorf("Expected episodeId %d, got %v", episode.PodcastIndexID, waveform["episodeId"])
 	}
 
-	if response["cached"] != true {
-		t.Errorf("Expected cached true, got %v", response["cached"])
+	if waveform["duration"] != 300.0 {
+		t.Errorf("Expected duration 300.0, got %v", waveform["duration"])
+	}
+
+	if waveform["sampleRate"] != 44100.0 {
+		t.Errorf("Expected sampleRate 44100, got %v", waveform["sampleRate"])
+	}
+
+	if waveform["status"] != "ok" {
+		t.Errorf("Expected waveform status 'ok', got %v", waveform["status"])
 	}
 
 	// Verify peaks data
-	peaksInterface, ok := response["peaks"].([]interface{})
+	peaksInterface, ok := waveform["data"].([]interface{})
 	if !ok {
-		t.Fatalf("Expected peaks to be array, got %T", response["peaks"])
+		t.Fatalf("Expected data to be array, got %T", waveform["data"])
 	}
 
 	if len(peaksInterface) != len(expectedPeaks) {
@@ -305,128 +331,13 @@ func TestWaveformAPI_GetWaveform_Success(t *testing.T) {
 		expectedPeak := float64(expectedPeaks[i])
 		// Use approximate comparison for float values due to JSON marshaling precision
 		if abs(peak-expectedPeak) > 0.0001 {
-			t.Errorf("Expected peaks[%d] = %v, got %v (diff: %v)", i, expectedPeak, peak, abs(peak-expectedPeak))
+			t.Errorf("Expected data[%d] = %v, got %v (diff: %v)", i, expectedPeak, peak, abs(peak-expectedPeak))
 		}
 	}
 }
 
-func TestWaveformAPI_GetWaveformStatus_NotFound(t *testing.T) {
-	suite := setupAPITestSuite(t)
-
-	// Create test episode but no waveform
-	episode := suite.createTestEpisode(123)
-
-	// Make request
-	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.PodcastIndexID), nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	w := httptest.NewRecorder()
-	suite.router.ServeHTTP(w, req)
-
-	// Verify response
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, w.Code)
-	}
-
-	var response map[string]interface{}
-	err = json.Unmarshal(w.Body.Bytes(), &response)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	if response["status"] != "not_found" {
-		t.Errorf("Expected status 'not_found', got %v", response["status"])
-	}
-
-	if response["progress"] != float64(0) {
-		t.Errorf("Expected progress 0, got %v", response["progress"])
-	}
-
-	if response["message"] != "Waveform not available" {
-		t.Errorf("Expected message 'Waveform not available', got %v", response["message"])
-	}
-}
-
-func TestWaveformAPI_GetWaveformStatus_Success(t *testing.T) {
-	suite := setupAPITestSuite(t)
-
-	// Create test episode and waveform
-	episode := suite.createTestEpisode(123)
-	expectedPeaks := []float32{0.1, 0.5, 0.8}
-	suite.createTestWaveform(uint(episode.PodcastIndexID), expectedPeaks)
-
-	// Make request
-	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.PodcastIndexID), nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	w := httptest.NewRecorder()
-	suite.router.ServeHTTP(w, req)
-
-	// Verify response
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status code %d, got %d", http.StatusOK, w.Code)
-		t.Logf("Response body: %s", w.Body.String())
-	}
-
-	var response map[string]interface{}
-	err = json.Unmarshal(w.Body.Bytes(), &response)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-
-	if response["status"] != "completed" {
-		t.Errorf("Expected status 'completed', got %v", response["status"])
-	}
-
-	if response["episode_id"] != float64(episode.PodcastIndexID) {
-		t.Errorf("Expected episode_id %d, got %v", episode.PodcastIndexID, response["episode_id"])
-	}
-
-	// Now expect full waveform data since status endpoint returns complete data when available
-	if response["duration"] != 300.0 {
-		t.Errorf("Expected duration 300.0, got %v", response["duration"])
-	}
-
-	if response["resolution"] != float64(len(expectedPeaks)) {
-		t.Errorf("Expected resolution %d, got %v", len(expectedPeaks), response["resolution"])
-	}
-
-	if response["sample_rate"] != 44100.0 {
-		t.Errorf("Expected sample_rate 44100, got %v", response["sample_rate"])
-	}
-
-	if response["cached"] != true {
-		t.Errorf("Expected cached true, got %v", response["cached"])
-	}
-
-	// Verify peaks data is present and matches expected values
-	peaksInterface, ok := response["peaks"].([]interface{})
-	if !ok {
-		t.Fatalf("Expected peaks to be array, got %T", response["peaks"])
-	}
-
-	if len(peaksInterface) != len(expectedPeaks) {
-		t.Errorf("Expected %d peaks, got %d", len(expectedPeaks), len(peaksInterface))
-	}
-
-	for i, peakInterface := range peaksInterface {
-		peak, ok := peakInterface.(float64)
-		if !ok {
-			t.Errorf("Expected peak to be float64, got %T", peakInterface)
-			continue
-		}
-
-		expectedPeak := float64(expectedPeaks[i])
-		// Use approximate comparison for float values due to JSON marshaling precision
-		if abs(peak-expectedPeak) > 0.0001 {
-			t.Errorf("Expected peaks[%d] = %v, got %v (diff: %v)", i, expectedPeak, peak, abs(peak-expectedPeak))
-		}
-	}
-}
+// Tests for the deprecated /waveform/status endpoint have been removed
+// The single /waveform endpoint now returns both data and status
 
 func TestWaveformAPI_InvalidEpisodeID(t *testing.T) {
 	suite := setupAPITestSuite(t)
@@ -437,9 +348,7 @@ func TestWaveformAPI_InvalidEpisodeID(t *testing.T) {
 		episodeID string
 	}{
 		{"GetWaveform with invalid ID", "/api/v1/episodes/invalid/waveform", "invalid"},
-		{"GetWaveformStatus with invalid ID", "/api/v1/episodes/invalid/waveform/status", "invalid"},
 		{"GetWaveform with negative ID", "/api/v1/episodes/-1/waveform", "-1"},
-		{"GetWaveformStatus with negative ID", "/api/v1/episodes/-1/waveform/status", "-1"},
 	}
 
 	for _, tt := range tests {
@@ -462,8 +371,8 @@ func TestWaveformAPI_InvalidEpisodeID(t *testing.T) {
 				t.Fatalf("Failed to unmarshal response: %v", err)
 			}
 
-			if response["error"] != "Invalid episode ID" {
-				t.Errorf("Expected error message 'Invalid episode ID', got %v", response["error"])
+			if response["message"] != "Invalid episode ID" {
+				t.Errorf("Expected message 'Invalid episode ID', got %v", response["message"])
 			}
 		})
 	}
@@ -504,12 +413,18 @@ func TestWaveformAPI_DatabaseIntegration(t *testing.T) {
 			t.Fatalf("Failed to unmarshal response for episode %d: %v", episode.ID, err)
 		}
 
-		if response["episode_id"] != float64(episode.PodcastIndexID) {
-			t.Errorf("Expected episode_id %d, got %v", episode.PodcastIndexID, response["episode_id"])
+		// Get the waveform object
+		waveformResp, ok := response["waveform"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected waveform to be an object, got %T", response["waveform"])
+		}
+
+		if waveformResp["episodeId"] != float64(episode.PodcastIndexID) {
+			t.Errorf("Expected episodeId %d, got %v", episode.PodcastIndexID, waveformResp["episodeId"])
 		}
 
 		// Verify that each waveform is different
-		peaksInterface := response["peaks"].([]interface{})
+		peaksInterface := waveformResp["data"].([]interface{})
 		firstPeak := peaksInterface[0].(float64)
 		expectedFirstPeak := float64(i+1) * 0.1 * 1.0
 
@@ -598,21 +513,32 @@ func TestWaveformAPI_WithRealAudioFile(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	// Verify the response matches our realistic data
-	if response["duration"] != 10.0 {
-		t.Errorf("Expected duration 10.0, got %v", response["duration"])
+	// Check the base response fields
+	if response["status"] != "ok" {
+		t.Errorf("Expected status 'ok', got %v", response["status"])
 	}
 
-	if response["resolution"] != float64(len(realPeaks)) {
-		t.Errorf("Expected resolution %d, got %v", len(realPeaks), response["resolution"])
+	// Get the waveform object
+	waveformResp, ok := response["waveform"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected waveform to be an object, got %T", response["waveform"])
 	}
 
-	if response["sample_rate"] != 44100.0 {
-		t.Errorf("Expected sample_rate 44100, got %v", response["sample_rate"])
+	// Verify the waveform data matches our realistic data
+	if waveformResp["episodeId"] != float64(episode.PodcastIndexID) {
+		t.Errorf("Expected episodeId %d, got %v", episode.PodcastIndexID, waveformResp["episodeId"])
+	}
+
+	if waveformResp["duration"] != 10.0 {
+		t.Errorf("Expected duration 10.0, got %v", waveformResp["duration"])
+	}
+
+	if waveformResp["sampleRate"] != 44100.0 {
+		t.Errorf("Expected sampleRate 44100, got %v", waveformResp["sampleRate"])
 	}
 
 	// Verify we get realistic looking peaks (not all zeros, has variation)
-	peaksInterface := response["peaks"].([]interface{})
+	peaksInterface := waveformResp["data"].([]interface{})
 	if len(peaksInterface) != len(realPeaks) {
 		t.Errorf("Expected %d peaks, got %d", len(realPeaks), len(peaksInterface))
 	}
@@ -634,7 +560,7 @@ func TestWaveformAPI_WithRealAudioFile(t *testing.T) {
 	}
 
 	t.Logf("Successfully tested with sample audio file: %d peaks, duration=%.1fs, range=%.1f-%.1f",
-		len(peaksInterface), response["duration"], minPeak, maxPeak)
+		len(peaksInterface), waveformResp["duration"], minPeak, maxPeak)
 }
 
 // TestEndToEndWaveformWorkflow tests the complete waveform generation workflow:
@@ -682,23 +608,12 @@ func TestEndToEndWaveformWorkflow(t *testing.T) {
 	w := httptest.NewRecorder()
 	suite.router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected initial status code %d for non-existent waveform, got %d", http.StatusNotFound, w.Code)
+	if w.Code != http.StatusAccepted {
+		t.Errorf("Expected initial status code %d for non-existent waveform (queued), got %d", http.StatusAccepted, w.Code)
 		t.Logf("Response body: %s", w.Body.String())
 	}
 
-	// Step 3: Check status endpoint - should also indicate no waveform exists
-	statusReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.PodcastIndexID), nil)
-	if err != nil {
-		t.Fatalf("Failed to create status request: %v", err)
-	}
-
-	statusW := httptest.NewRecorder()
-	suite.router.ServeHTTP(statusW, statusReq)
-
-	if statusW.Code != http.StatusNotFound {
-		t.Errorf("Expected status endpoint to return %d for non-existent waveform, got %d", http.StatusNotFound, statusW.Code)
-	}
+	// Step 3: No separate status endpoint anymore - status is included in the waveform response
 
 	// Step 4: Simulate the background waveform generation process
 	// In the real system, this would be done by the worker system after the API request
@@ -757,55 +672,34 @@ func TestEndToEndWaveformWorkflow(t *testing.T) {
 		t.Fatalf("Failed to unmarshal final response: %v", err)
 	}
 
+	// Get the waveform object from the response
+	waveformResp, ok := finalResponse["waveform"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected waveform to be an object, got %T", finalResponse["waveform"])
+	}
+
 	// Verify the response contains expected data from our generated waveform
-	if finalResponse["duration"] != generatedWaveform.Duration {
-		t.Errorf("Expected duration %.2f, got %v", generatedWaveform.Duration, finalResponse["duration"])
+	if waveformResp["duration"] != generatedWaveform.Duration {
+		t.Errorf("Expected duration %.2f, got %v", generatedWaveform.Duration, waveformResp["duration"])
 	}
 
-	if finalResponse["resolution"] != float64(generatedWaveform.Resolution) {
-		t.Errorf("Expected resolution %d, got %v", generatedWaveform.Resolution, finalResponse["resolution"])
-	}
-
-	if finalResponse["sample_rate"] != float64(generatedWaveform.SampleRate) {
-		t.Errorf("Expected sample_rate %d, got %v", generatedWaveform.SampleRate, finalResponse["sample_rate"])
+	if waveformResp["sampleRate"] != float64(generatedWaveform.SampleRate) {
+		t.Errorf("Expected sampleRate %d, got %v", generatedWaveform.SampleRate, waveformResp["sampleRate"])
 	}
 
 	// Verify peaks data is present and matches expected count
-	peaksInterface := finalResponse["peaks"].([]interface{})
+	peaksInterface := waveformResp["data"].([]interface{})
 	if len(peaksInterface) != generatedWaveform.Resolution {
 		t.Errorf("Expected %d peaks in response, got %d", generatedWaveform.Resolution, len(peaksInterface))
 	}
 
-	// Step 7: Verify status endpoint now shows waveform exists
-	finalStatusReq, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform/status", episode.PodcastIndexID), nil)
-	if err != nil {
-		t.Fatalf("Failed to create final status request: %v", err)
-	}
-
-	finalStatusW := httptest.NewRecorder()
-	suite.router.ServeHTTP(finalStatusW, finalStatusReq)
-
-	if finalStatusW.Code != http.StatusOK {
-		t.Errorf("Expected final status endpoint to return %d after waveform exists, got %d", http.StatusOK, finalStatusW.Code)
-	}
-
-	var statusResponse map[string]interface{}
-	if err := json.Unmarshal(finalStatusW.Body.Bytes(), &statusResponse); err != nil {
-		t.Fatalf("Failed to unmarshal status response: %v", err)
-	}
-
-	// The status endpoint might return different structure - let's check what we actually got
-	t.Logf("Status response: %+v", statusResponse)
-
-	// The status endpoint returning 200 is sufficient - it means waveform exists
-	// Some APIs might not include an explicit "exists" field
+	// Step 7: No separate status endpoint - the waveform endpoint includes status
 
 	t.Logf("✅ End-to-end workflow completed successfully:")
 	t.Logf("   📋 Episode created with audio file: %s", testFile)
-	t.Logf("   🚫 Initial waveform request returned 404 as expected")
+	t.Logf("   🚫 Initial waveform request returned 202 (queued) as expected")
 	t.Logf("   ⚙️  Generated waveform: %.2fs duration, %d peaks, %dHz sample rate",
 		generatedWaveform.Duration, generatedWaveform.Resolution, generatedWaveform.SampleRate)
 	t.Logf("   💾 Waveform saved to database successfully")
-	t.Logf("   ✅ Final waveform request returned complete data")
-	t.Logf("   📊 Status endpoint correctly reports waveform exists")
+	t.Logf("   ✅ Final waveform request returned complete data with status 'ok'")
 }

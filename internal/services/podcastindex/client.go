@@ -277,12 +277,6 @@ func (c *Client) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, li
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 
-	// Debug: log first episode to see actual fields
-	if len(episodesResp.Items) > 0 {
-		debugJSON, _ := json.MarshalIndent(episodesResp.Items[0], "", "  ")
-		fmt.Printf("DEBUG: First episode from episodes:\n%s\n", string(debugJSON))
-	}
-
 	// Check API status
 	if episodesResp.Status != "true" {
 		return nil, fmt.Errorf("API error: %s", episodesResp.Description)

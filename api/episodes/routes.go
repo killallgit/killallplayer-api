@@ -7,17 +7,9 @@ import (
 
 // RegisterRoutes registers episode routes
 func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
-	// GET /api/v1/episodes - Get all episodes with pagination
-	router.GET("", GetAll(deps))
-
-	// GET /api/v1/episodes/by-guid
-	router.GET("/by-guid", GetByGUID(deps))
-
-	// GET /api/v1/episodes/:id - Note: This must come after other specific routes
+	// GET /api/v1/episodes/:id - Get episode details
 	router.GET("/:id", GetByID(deps))
 
-	// Reviews endpoint
-	// GET /api/v1/episodes/:id/reviews - Get podcast reviews
+	// GET /api/v1/episodes/:id/reviews - Get iTunes reviews for the podcast
 	router.GET("/:id/reviews", GetReviews(deps))
-
 }

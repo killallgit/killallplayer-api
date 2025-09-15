@@ -19,7 +19,7 @@ func Get() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"name":        "Podcast Player API",
 			"version":     "1.0.0",
-			"description": "API for managing and streaming podcasts",
+			"description": "API for managing podcasts and episodes",
 			"status":      "running",
 		})
 	}

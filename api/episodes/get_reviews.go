@@ -22,7 +22,7 @@ import (
 // @Param        id path int true "Episode ID (Podcast Index ID)"
 // @Param        sort query string false "Sort order: mostrecent or mosthelpful" default(mostrecent)
 // @Param        page query int false "Page number (1-10)" minimum(1) maximum(10) default(1)
-// @Success      200 {object} ReviewsResponse "Reviews data"
+// @Success      200 {object} episodes.ReviewsResponse "Reviews data"
 // @Failure      404 {object} types.ErrorResponse "Episode not found or no iTunes ID available"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/reviews [get]

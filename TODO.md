@@ -257,5 +257,10 @@ With Phases 1-3 complete, we have:
 **Next step**: Create FFmpeg unit tests with real audio files to validate the complete pipeline.
 
 
-- Match the Podcast index endpoints! there's something off about trending and i think maybe we've got wrong shared types
-- unified responses. there should be a podcast object, an episode object, a waveform object. every endpoint needs to make sure to return its proper type
+## ✅ COMPLETED (September 15, 2025)
+- ✅ Cleaned up unnecessary API endpoints (removed GetByGUID, GetAll)
+- ✅ Combined waveform and waveform/status into single endpoint
+- ✅ Added Link fields to both Podcast and Episode types
+- ✅ Fixed Swagger annotations for proper type references
+- ✅ Updated transformers to include Link fields from Podcast Index API
+- ✅ Maintained iTunes reviews endpoint for episode reviews

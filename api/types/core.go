@@ -10,6 +10,7 @@ type Podcast struct {
 	Title        string   `json:"title"`
 	Author       string   `json:"author"`
 	Description  string   `json:"description"`
+	Link         string   `json:"link,omitempty"` // Podcast website URL
 	Image        string   `json:"image"`
 	FeedURL      string   `json:"feedUrl"`
 	ITunesID     int64    `json:"itunesId,omitempty"`
@@ -25,12 +26,15 @@ type Episode struct {
 	PodcastID     int64  `json:"podcastId"` // Podcast Index Podcast ID
 	Title         string `json:"title"`
 	Description   string `json:"description"`
+	Link          string `json:"link,omitempty"` // Episode webpage URL
 	AudioURL      string `json:"audioUrl"`
 	Duration      int    `json:"duration,omitempty"` // Seconds
 	PublishedAt   int64  `json:"publishedAt"`        // Unix timestamp
 	Image         string `json:"image,omitempty"`
 	TranscriptURL string `json:"transcriptUrl,omitempty"`
 	ChaptersURL   string `json:"chaptersUrl,omitempty"`
+	Episode       int    `json:"episode,omitempty"` // Episode number
+	Season        int    `json:"season,omitempty"`  // Season number
 }
 
 // Waveform represents audio waveform data

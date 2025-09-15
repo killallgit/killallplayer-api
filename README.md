@@ -56,15 +56,18 @@ The API will be available at `http://localhost:8080`
 
 ## API Documentation
 
-Complete API documentation is available in [docs/API_SPECIFICATION.md](docs/API_SPECIFICATION.md).
+Interactive API documentation is available via Swagger UI at `http://localhost:8080/docs` when the server is running.
+The OpenAPI specification is generated automatically from code annotations and available in `docs/swagger.json` and `docs/swagger.yaml`.
 
 ### Key Endpoints
 
 - `GET /health` - Health check
 - `POST /api/v1/search` - Search podcasts
-- `GET /api/v1/trending` - Get trending podcasts
+- `POST /api/v1/trending` - Get trending podcasts
 - `GET /api/v1/podcasts/:id/episodes` - Get episodes for a podcast (using Podcast Index feedId)
 - `GET /api/v1/episodes/:id` - Get episode details (using Podcast Index ID)
+- `GET /api/v1/episodes/:id/reviews` - Get iTunes reviews for the podcast
+- `GET /api/v1/episodes/:id/waveform` - Generate/retrieve waveform data with status
 - `GET /api/v1/stream/:id` - Stream audio with range support (using Podcast Index ID) **[Legacy - Direct URLs recommended]**
 - `GET /api/v1/stream/direct?url=` - Stream audio from any URL
 - `POST /api/v1/regions` - Save playback regions/bookmarks
@@ -79,7 +82,9 @@ curl -X POST http://localhost:8080/api/v1/search \
   -d '{"query": "technology", "limit": 5}'
 
 # Get trending podcasts
-curl http://localhost:8080/api/v1/trending?limit=3
+curl -X POST http://localhost:8080/api/v1/trending \
+  -H "Content-Type: application/json" \
+  -d '{"max": 3}'
 
 # Get episodes for a podcast (using Podcast Index feedId)
 curl http://localhost:8080/api/v1/podcasts/41506/episodes
@@ -141,8 +146,6 @@ KILLALL_DATABASE_PATH=./data/podcast.db
 ```
 
 ## Development
-
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed development instructions.
 
 ### Running Tests
 

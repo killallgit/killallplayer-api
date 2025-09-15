@@ -183,7 +183,7 @@ func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
 }
 
 // initializeEpisodeService creates and configures the episode service
-func initializeEpisodeService(deps *types.Dependencies, cfg *config.Config) {
+func initializeEpisodeService(deps *types.Dependencies, _ *config.Config) {
 	// Create dependencies
 	podcastClient := deps.PodcastClient.(*podcastindex.Client)
 	episodeFetcher := episodesService.NewPodcastIndexAdapter(podcastClient)
