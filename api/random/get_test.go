@@ -32,7 +32,7 @@ func (m *mockRandomClient) GetRandomEpisodes(ctx context.Context, max int, lang 
 }
 
 // Implement other required methods for PodcastClient interface
-func (m *mockRandomClient) Search(ctx context.Context, query string, limit int, fullText bool) (*podcastindex.SearchResponse, error) {
+func (m *mockRandomClient) Search(ctx context.Context, query string, limit int, fullText bool, val string, apOnly bool, clean bool) (*podcastindex.SearchResponse, error) {
 	return &podcastindex.SearchResponse{}, nil
 }
 
@@ -46,18 +46,6 @@ func (m *mockRandomClient) GetCategories() (*podcastindex.CategoriesResponse, er
 
 func (m *mockRandomClient) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) (*podcastindex.EpisodesResponse, error) {
 	return &podcastindex.EpisodesResponse{}, nil
-}
-
-func (m *mockRandomClient) GetPodcastByFeedURL(ctx context.Context, feedURL string) (*podcastindex.PodcastResponse, error) {
-	return &podcastindex.PodcastResponse{}, nil
-}
-
-func (m *mockRandomClient) GetPodcastByFeedID(ctx context.Context, feedID int64) (*podcastindex.PodcastResponse, error) {
-	return &podcastindex.PodcastResponse{}, nil
-}
-
-func (m *mockRandomClient) GetPodcastByiTunesID(ctx context.Context, itunesID int64) (*podcastindex.PodcastResponse, error) {
-	return &podcastindex.PodcastResponse{}, nil
 }
 
 func (m *mockRandomClient) GetEpisodesByFeedURL(ctx context.Context, feedURL string, limit int) (*podcastindex.EpisodesResponse, error) {

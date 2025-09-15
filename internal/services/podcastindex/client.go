@@ -52,7 +52,7 @@ func NewClient(cfg Config) *Client {
 }
 
 // Search searches for podcasts by term
-func (c *Client) Search(ctx context.Context, query string, limit int, fullText bool) (*SearchResponse, error) {
+func (c *Client) Search(ctx context.Context, query string, limit int, fullText bool, val string, apOnly bool, clean bool) (*SearchResponse, error) {
 	if query == "" {
 		return nil, fmt.Errorf("search query cannot be empty")
 	}
@@ -71,6 +71,15 @@ func (c *Client) Search(ctx context.Context, query string, limit int, fullText b
 	params.Set("max", fmt.Sprintf("%d", limit))
 	if fullText {
 		params.Set("fulltext", "true")
+	}
+	if val != "" {
+		params.Set("val", val)
+	}
+	if apOnly {
+		params.Set("aponly", "true")
+	}
+	if clean {
+		params.Set("clean", "true")
 	}
 
 	endpoint := fmt.Sprintf("%s/search/byterm?%s", c.baseURL, params.Encode())
@@ -310,118 +319,6 @@ func (c *Client) GetEpisodeByGUID(ctx context.Context, guid string) (*EpisodeByG
 	}
 
 	return &episodeResp, nil
-}
-
-// GetPodcastByFeedURL fetches podcast information by feed URL
-func (c *Client) GetPodcastByFeedURL(ctx context.Context, feedURL string) (*PodcastResponse, error) {
-	if feedURL == "" {
-		return nil, fmt.Errorf("feed URL cannot be empty")
-	}
-
-	params := url.Values{}
-	params.Set("url", feedURL)
-
-	endpoint := fmt.Sprintf("%s/podcasts/byfeedurl?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
-
-	var podcastResp PodcastResponse
-	if err := json.NewDecoder(resp.Body).Decode(&podcastResp); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
-	}
-
-	if podcastResp.Status != "true" {
-		return nil, fmt.Errorf("API error: %s", podcastResp.Description)
-	}
-
-	return &podcastResp, nil
-}
-
-// GetPodcastByFeedID fetches podcast information by feed ID
-func (c *Client) GetPodcastByFeedID(ctx context.Context, feedID int64) (*PodcastResponse, error) {
-	params := url.Values{}
-	params.Set("id", fmt.Sprintf("%d", feedID))
-
-	endpoint := fmt.Sprintf("%s/podcasts/byfeedid?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
-
-	var podcastResp PodcastResponse
-	if err := json.NewDecoder(resp.Body).Decode(&podcastResp); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
-	}
-
-	if podcastResp.Status != "true" {
-		return nil, fmt.Errorf("API error: %s", podcastResp.Description)
-	}
-
-	return &podcastResp, nil
-}
-
-// GetPodcastByiTunesID fetches podcast information by iTunes ID
-func (c *Client) GetPodcastByiTunesID(ctx context.Context, itunesID int64) (*PodcastResponse, error) {
-	params := url.Values{}
-	params.Set("id", fmt.Sprintf("%d", itunesID))
-
-	endpoint := fmt.Sprintf("%s/podcasts/byitunesid?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
-
-	var podcastResp PodcastResponse
-	if err := json.NewDecoder(resp.Body).Decode(&podcastResp); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
-	}
-
-	if podcastResp.Status != "true" {
-		return nil, fmt.Errorf("API error: %s", podcastResp.Description)
-	}
-
-	return &podcastResp, nil
 }
 
 // GetEpisodesByFeedURL fetches episodes for a podcast by feed URL

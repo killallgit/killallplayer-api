@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
-	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 )
 
@@ -22,21 +21,21 @@ type PodcastTrending interface {
 // @Tags         trending
 // @Accept       json
 // @Produce      json
-// @Param        request body models.TrendingRequest true "Trending parameters"
-// @Success      200 {object} models.PodcastTrendingResponse "Podcast trending response with category summary"
-// @Failure      400 {object} object{status=string,message=string,details=string} "Bad request - invalid parameters"
-// @Failure      500 {object} object{status=string,message=string,details=string} "Internal server error"
-// @Failure      504 {object} object{status=string,message=string} "Gateway timeout - trending request timed out"
+// @Param        request body types.TrendingRequest true "Trending parameters"
+// @Success      200 {object} types.TrendingPodcastsResponse "Trending podcasts"
+// @Failure      400 {object} types.ErrorResponse "Bad request - invalid parameters"
+// @Failure      500 {object} types.ErrorResponse "Internal server error"
+// @Failure      504 {object} types.ErrorResponse "Gateway timeout - trending request timed out"
 // @Router       /api/v1/trending [post]
 func Post(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse request body
-		var req models.TrendingRequest
+		var req types.TrendingRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"status":  "error",
-				"message": "Invalid request format",
-				"details": err.Error(),
+			c.JSON(http.StatusBadRequest, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Invalid request format",
+				Details: err.Error(),
 			})
 			return
 		}
@@ -51,16 +50,16 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 
 		// Validate limits
 		if req.Max < 1 || req.Max > 100 {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"status":  "error",
-				"message": "Max must be between 1 and 100",
+			c.JSON(http.StatusBadRequest, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Max must be between 1 and 100",
 			})
 			return
 		}
 		if req.Since < 1 || req.Since > 720 {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"status":  "error",
-				"message": "Since must be between 1 and 720 hours (30 days)",
+			c.JSON(http.StatusBadRequest, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Since must be between 1 and 720 hours (30 days)",
 			})
 			return
 		}
@@ -68,9 +67,9 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 		// Get podcast client from dependencies
 		podcastClient, ok := deps.PodcastClient.(PodcastTrending)
 		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "Trending service not available",
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Trending service not available",
 			})
 			return
 		}
@@ -84,54 +83,33 @@ func Post(deps *types.Dependencies) gin.HandlerFunc {
 		if err != nil {
 			// Check if it's a context timeout
 			if ctx.Err() == context.DeadlineExceeded {
-				c.JSON(http.StatusGatewayTimeout, gin.H{
-					"status":  "error",
-					"message": "Trending request timed out",
+				c.JSON(http.StatusGatewayTimeout, types.ErrorResponse{
+					Status:  types.StatusError,
+					Message: "Trending request timed out",
 				})
 				return
 			}
 
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "Failed to fetch trending podcasts",
-				"details": err.Error(),
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Failed to fetch trending podcasts",
+				Details: err.Error(),
 			})
 			return
 		}
 
-		// Process results to enhance categories
-		podcastResults := make([]models.PodcastResponse, 0, len(results.Feeds))
-		categorySummary := make(map[string]int)
+		// Transform Podcast Index results to our simplified format
+		podcasts := types.FromPodcastIndexList(results.Feeds)
 
-		for _, podcast := range results.Feeds {
-			// Convert categories map to list
-			categoryList := make([]string, 0, len(podcast.Categories))
-			for _, catName := range podcast.Categories {
-				if catName != "" {
-					categoryList = append(categoryList, catName)
-					categorySummary[catName]++
-				}
-			}
-
-			podcastResponse := models.PodcastResponse{
-				Podcast:      &podcast,
-				CategoryList: categoryList,
-			}
-			podcastResults = append(podcastResults, podcastResponse)
-		}
-
-		// Build trending response
-		response := models.PodcastTrendingResponse{
-			Status:          results.Status,
-			Results:         podcastResults,
-			CategorySummary: categorySummary,
-			TotalCount:      results.Count,
-			Since:           req.Since,
-			Max:             req.Max,
-			Description:     results.Description,
-		}
-
-		// Return the enhanced response
-		c.JSON(http.StatusOK, response)
+		// Return the TrendingPodcastsResponse
+		c.JSON(http.StatusOK, types.TrendingPodcastsResponse{
+			BaseResponse: types.BaseResponse{
+				Status:  types.StatusOK,
+				Message: "Fetched trending podcasts",
+			},
+			Podcasts: podcasts,
+			Since:    req.Since,
+			Count:    len(podcasts),
+		})
 	}
 }

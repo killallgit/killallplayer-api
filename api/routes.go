@@ -43,10 +43,6 @@ const (
 	// General API endpoints have moderate limits
 	GeneralRateLimit      = 10
 	GeneralRateLimitBurst = 20
-
-	// Sync operations have very strict limits due to resource intensity
-	SyncRateLimit      = 1
-	SyncRateLimitBurst = 2
 )
 
 // RegisterRoutes registers all API routes
@@ -142,12 +138,11 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		transcriptionAPI.RegisterRoutes(episodeGroup, deps) // Transcription generation may be CPU intensive
 		annotations.RegisterRoutes(episodeGroup, deps)
 
-		// Register podcast routes with mixed rate limiting
+		// Register podcast routes with rate limiting
 		podcastGroup := v1.Group("/podcasts")
-		// Create middleware for different rate limits
+		// Create middleware for rate limiting
 		episodesMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst)
-		syncMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, SyncRateLimit, SyncRateLimitBurst)
-		podcasts.RegisterRoutes(podcastGroup, deps, episodesMiddleware, syncMiddleware)
+		podcasts.RegisterRoutes(podcastGroup, deps, episodesMiddleware)
 
 	}
 
@@ -258,10 +253,10 @@ func initializeITunesClient(deps *types.Dependencies) {
 	// Create iTunes client with configuration
 	itunesConfig := itunes.Config{
 		RequestsPerMinute: 250, // Conservative rate limit
-		BurstSize:        5,
-		Timeout:          10 * time.Second,
-		MaxRetries:       3,
-		RetryBackoff:     time.Second,
+		BurstSize:         5,
+		Timeout:           10 * time.Second,
+		MaxRetries:        3,
+		RetryBackoff:      time.Second,
 	}
 
 	deps.ITunesClient = itunes.NewClient(itunesConfig)

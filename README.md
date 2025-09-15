@@ -61,12 +61,12 @@ Complete API documentation is available in [docs/API_SPECIFICATION.md](docs/API_
 ### Key Endpoints
 
 - `GET /health` - Health check
-- `POST /api/v1/search` - Search podcasts  
+- `POST /api/v1/search` - Search podcasts
 - `GET /api/v1/trending` - Get trending podcasts
+- `GET /api/v1/podcasts/:id/episodes` - Get episodes for a podcast (using Podcast Index feedId)
 - `GET /api/v1/episodes/:id` - Get episode details (using Podcast Index ID)
 - `GET /api/v1/stream/:id` - Stream audio with range support (using Podcast Index ID) **[Legacy - Direct URLs recommended]**
 - `GET /api/v1/stream/direct?url=` - Stream audio from any URL
-- `POST /api/v1/podcasts/:id/episodes/sync` - Sync episodes from Podcast Index
 - `POST /api/v1/regions` - Save playback regions/bookmarks
 - `GET /api/v1/regions?episodeId=` - Get regions for an episode
 
@@ -81,8 +81,8 @@ curl -X POST http://localhost:8080/api/v1/search \
 # Get trending podcasts
 curl http://localhost:8080/api/v1/trending?limit=3
 
-# Sync episodes for a podcast (using Podcast Index podcast ID)
-curl -X POST http://localhost:8080/api/v1/podcasts/41506/episodes/sync
+# Get episodes for a podcast (using Podcast Index feedId)
+curl http://localhost:8080/api/v1/podcasts/41506/episodes
 
 # Stream audio using Podcast Index episode ID (supports seeking)
 curl http://localhost:8080/api/v1/stream/41928435424

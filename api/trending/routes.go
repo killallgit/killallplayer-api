@@ -7,8 +7,6 @@ import (
 
 // RegisterRoutes registers trending podcast routes
 func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
-	// GET /api/v1/trending
-	router.GET("", Get(deps))
-	// POST /api/v1/trending (with filters)
+	// POST /api/v1/trending - Get trending podcasts with optional filters
 	router.POST("", Post(deps))
 }

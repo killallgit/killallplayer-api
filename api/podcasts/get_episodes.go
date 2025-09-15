@@ -9,7 +9,7 @@ import (
 	"github.com/killallgit/player-api/api/types"
 )
 
-// GetEpisodes returns episodes for a specific podcast
+// GetEpisodesForPodcast returns episodes for a specific podcast
 // @Summary      Get episodes for a podcast
 // @Description  Retrieve all episodes for a specific podcast by its Podcast Index ID. This is the correct endpoint to use after getting podcast IDs from /trending.
 // @Tags         podcasts
@@ -21,7 +21,7 @@ import (
 // @Failure      400 {object} episodes.PodcastIndexErrorResponse "Bad request - invalid podcast ID"
 // @Failure      500 {object} episodes.PodcastIndexErrorResponse "Internal server error"
 // @Router       /api/v1/podcasts/{id}/episodes [get]
-func GetEpisodes(deps *types.Dependencies) gin.HandlerFunc {
+func GetEpisodesForPodcast(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse and validate podcast ID
 		podcastID, ok := types.ParseInt64Param(c, "id")

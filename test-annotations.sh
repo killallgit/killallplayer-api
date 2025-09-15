@@ -96,19 +96,8 @@ main() {
     log_success "Selected podcast: $podcast_title (ID: $podcast_id)"
     echo ""
     
-    # Step 3: Sync episodes for the podcast
-    log_info "Step 3: Syncing episodes for podcast..."
-    sync_response=$(curl -s -X POST "$API_URL/api/v1/podcasts/$podcast_id/episodes/sync" -H "Content-Type: application/json")
-    
-    if [ "$VERBOSE" = "true" ]; then
-        echo "Sync response: $sync_response" >&2
-    fi
-    
-    # Wait a moment for sync to complete
-    sleep 2
-    
-    # Step 4: Get podcast episodes
-    log_info "Step 4: Getting podcast episodes..."
+    # Step 3: Get podcast episodes
+    log_info "Step 3: Getting podcast episodes..."
     podcast_response=$(curl -s -X GET "$API_URL/api/v1/podcasts/$podcast_id/episodes" -H "Content-Type: application/json")
     
     if [ "$VERBOSE" = "true" ]; then
@@ -135,8 +124,8 @@ main() {
     log_info "Episode ID: $episode_id, Duration: ${episode_duration}s"
     echo ""
     
-    # Step 5: Create first annotation
-    log_info "Step 5: Creating first annotation (intro segment)..."
+    # Step 4: Create first annotation
+    log_info "Step 4: Creating first annotation (intro segment)..."
     
     annotation1_data='{
         "label": "intro",
@@ -166,8 +155,8 @@ main() {
     echo "  Label: intro, Time: 0-30s"
     echo ""
     
-    # Step 6: Create second annotation
-    log_info "Step 6: Creating second annotation (main content)..."
+    # Step 5: Create second annotation
+    log_info "Step 5: Creating second annotation (main content)..."
     
     annotation2_data='{
         "label": "main_content",
@@ -196,8 +185,8 @@ main() {
     echo "  Label: main_content, Time: 30-180s"
     echo ""
     
-    # Step 7: Create third annotation (outro)
-    log_info "Step 7: Creating third annotation (outro segment)..."
+    # Step 6: Create third annotation (outro)
+    log_info "Step 6: Creating third annotation (outro segment)..."
     
     # Calculate outro times based on episode duration
     outro_start=$(echo "$episode_duration - 60" | bc 2>/dev/null || echo "240")
@@ -230,8 +219,8 @@ main() {
     echo "  Label: outro, Time: ${outro_start}-${outro_end}s"
     echo ""
     
-    # Step 8: Get all annotations for the episode
-    log_info "Step 8: Retrieving all annotations for episode..."
+    # Step 7: Get all annotations for the episode
+    log_info "Step 7: Retrieving all annotations for episode..."
     
     get_response=$(curl -s -X GET "$API_URL/api/v1/episodes/$episode_id/annotations" \
         -H "Content-Type: application/json")
@@ -256,8 +245,8 @@ main() {
     echo "$get_response" | jq -r '.annotations[] | "  - \(.label): \(.start_time)s - \(.end_time)s (ID: \(.ID))"'
     echo ""
     
-    # Step 9: Update an annotation
-    log_info "Step 9: Updating annotation #2..."
+    # Step 8: Update an annotation
+    log_info "Step 8: Updating annotation #2..."
     
     update_data='{
         "label": "main_discussion",
@@ -287,8 +276,8 @@ main() {
     echo "  New values - Label: $updated_label, Time: ${updated_start}s - ${updated_end}s"
     echo ""
     
-    # Step 10: Test validation - overlapping annotations (should be allowed)
-    log_info "Step 10: Testing overlapping annotations (should be allowed)..."
+    # Step 9: Test validation - overlapping annotations (should be allowed)
+    log_info "Step 9: Testing overlapping annotations (should be allowed)..."
     
     overlap_data='{
         "label": "advertisement",
@@ -313,8 +302,8 @@ main() {
     fi
     echo ""
     
-    # Step 11: Test validation - invalid time range
-    log_info "Step 11: Testing invalid time range (end < start)..."
+    # Step 10: Test validation - invalid time range
+    log_info "Step 10: Testing invalid time range (end < start)..."
     
     invalid_data='{
         "label": "invalid",
@@ -337,8 +326,8 @@ main() {
     fi
     echo ""
     
-    # Step 12: Delete an annotation
-    log_info "Step 12: Deleting annotation #1..."
+    # Step 11: Delete an annotation
+    log_info "Step 11: Deleting annotation #1..."
     
     delete_response=$(curl -s -X DELETE "$API_URL/api/v1/episodes/annotations/$annotation1_id" \
         -H "Content-Type: application/json")
@@ -355,8 +344,8 @@ main() {
     fi
     echo ""
     
-    # Step 13: Verify deletion by getting all annotations again
-    log_info "Step 13: Verifying deletion..."
+    # Step 12: Verify deletion by getting all annotations again
+    log_info "Step 12: Verifying deletion..."
     
     final_response=$(curl -s -X GET "$API_URL/api/v1/episodes/$episode_id/annotations" \
         -H "Content-Type: application/json")

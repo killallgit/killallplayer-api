@@ -8,47 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestSearchRequest(t *testing.T) {
-	tests := []struct {
-		name    string
-		request SearchRequest
-		valid   bool
-	}{
-		{
-			name: "valid request",
-			request: SearchRequest{
-				Query: "technology",
-				Limit: 10,
-			},
-			valid: true,
-		},
-		{
-			name: "valid request with limit zero",
-			request: SearchRequest{
-				Query: "technology",
-				Limit: 0,
-			},
-			valid: true,
-		},
-		{
-			name: "empty query should be invalid",
-			request: SearchRequest{
-				Query: "",
-				Limit: 10,
-			},
-			valid: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Test that the struct can be created
-			assert.Equal(t, tt.request.Query, tt.request.Query)
-			assert.Equal(t, tt.request.Limit, tt.request.Limit)
-		})
-	}
-}
-
 func TestUserModel(t *testing.T) {
 	user := User{
 		Model:        gorm.Model{},

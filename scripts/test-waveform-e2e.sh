@@ -158,18 +158,8 @@ main() {
     success "Found trending podcast: '$podcast_title' (ID: $podcast_id)"
     echo ""
 
-    # Step 3: Sync episodes for the podcast
-    log "🔄 Step 3: Syncing episodes for podcast $podcast_id..."
-    sync_response=$(api_call "POST" "/api/v1/podcasts/$podcast_id/episodes/sync" "{}")
-    if [ $? -ne 0 ]; then
-        warning "Failed to sync episodes, but continuing with existing episodes..."
-    else
-        success "Episodes synced successfully"
-    fi
-    echo ""
-
-    # Step 4: Get episodes from this podcast
-    log "🔍 Step 4: Getting episodes for podcast '$podcast_title'..."
+    # Step 3: Get episodes from this podcast
+    log "🔍 Step 3: Getting episodes for podcast '$podcast_title'..."
     episodes_response=$(api_call "GET" "/api/v1/podcasts/$podcast_id/episodes")
     if [ $? -ne 0 ]; then
         error "Failed to get episodes for podcast $podcast_id"
@@ -186,8 +176,8 @@ main() {
     success "Found episode: '$episode_title' (ID: $episode_id)"
     echo ""
 
-    # Step 5: Get detailed episode information
-    log "📋 Step 5: Getting detailed episode information..."
+    # Step 4: Get detailed episode information
+    log "📋 Step 4: Getting detailed episode information..."
     episode_response=$(api_call "GET" "/api/v1/episodes/$episode_id")
     if [ $? -ne 0 ]; then
         error "Failed to get episode details for episode $episode_id"
@@ -202,8 +192,8 @@ main() {
     echo ""
     fi  # Close the if statement for TEST_EPISODE_ID
 
-    # Step 6: Check current waveform status in detail  
-    log "🔍 Step 6: Checking current waveform status..."
+    # Step 5: Check current waveform status in detail
+    log "🔍 Step 5: Checking current waveform status..."
     
     if [ "$initial_status" = "completed" ]; then
         warning "Waveform already exists for this episode"
@@ -224,8 +214,8 @@ main() {
     success "Current status: $initial_status"
     echo ""
 
-    # Step 7: Trigger waveform generation
-    log "⚙️  Step 7: Triggering waveform generation..."
+    # Step 6: Trigger waveform generation
+    log "⚙️  Step 6: Triggering waveform generation..."
     trigger_response=$(api_call "GET" "/api/v1/episodes/$episode_id/waveform")
     trigger_status=$(echo "$trigger_response" | jq -r '.error // "success"')
     
@@ -241,8 +231,8 @@ main() {
     fi
     echo ""
 
-    # Step 8: Poll for completion
-    log "⏳ Step 8: Polling for waveform completion (max ${TIMEOUT}s)..."
+    # Step 7: Poll for completion
+    log "⏳ Step 7: Polling for waveform completion (max ${TIMEOUT}s)..."
     start_time=$(date +%s)
     
     while true; do
@@ -283,8 +273,8 @@ main() {
     done
     echo ""
 
-    # Step 9: Fetch and verify waveform data
-    log "📊 Step 9: Fetching final waveform data..."
+    # Step 8: Fetch and verify waveform data
+    log "📊 Step 8: Fetching final waveform data..."
     final_response=$(api_call "GET" "/api/v1/episodes/$episode_id/waveform")
     
     # Verify response contains expected fields

@@ -41,9 +41,3 @@ type JobStatusResponse struct {
 	Retried      bool    `json:"retried,omitempty"`       // True if this was a manual retry (only when applicable)
 	Hint         string  `json:"hint,omitempty"`          // Helpful hint for the client (e.g., "Use retry=true parameter")
 }
-
-// ErrorResponse represents standardized error responses
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Details string `json:"details,omitempty"`
-}

@@ -13,8 +13,8 @@ import (
 	"github.com/killallgit/player-api/api/types"
 )
 
-// GetAppleReviews fetches Apple Podcasts reviews for the podcast containing this episode
-// @Summary      Get Apple Podcasts reviews
+// GetReviews fetches podcast reviews for the podcast containing this episode
+// @Summary      Get podcast reviews
 // @Description  Fetch customer reviews from Apple Podcasts for the podcast that contains this episode
 // @Tags         episodes
 // @Accept       json
@@ -22,11 +22,11 @@ import (
 // @Param        id path int true "Episode ID (Podcast Index ID)"
 // @Param        sort query string false "Sort order: mostrecent or mosthelpful" default(mostrecent)
 // @Param        page query int false "Page number (1-10)" minimum(1) maximum(10) default(1)
-// @Success      200 {object} AppleReviewsResponse "Apple reviews data"
+// @Success      200 {object} ReviewsResponse "Reviews data"
 // @Failure      404 {object} types.ErrorResponse "Episode not found or no iTunes ID available"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
-// @Router       /api/v1/episodes/{id}/apple-reviews [get]
-func GetAppleReviews(deps *types.Dependencies) gin.HandlerFunc {
+// @Router       /api/v1/episodes/{id}/reviews [get]
+func GetReviews(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Parse episode ID
 		episodeID, ok := types.ParseInt64Param(c, "id")
@@ -48,7 +48,7 @@ func GetAppleReviews(deps *types.Dependencies) gin.HandlerFunc {
 
 		// Check if we have an iTunes ID
 		if episode.FeedItunesID == nil || *episode.FeedItunesID == 0 {
-			c.JSON(http.StatusOK, AppleReviewsResponse{
+			c.JSON(http.StatusOK, ReviewsResponse{
 				Status:    "success",
 				EpisodeID: episodeID,
 				Message:   "No iTunes ID available for this podcast",
@@ -74,7 +74,7 @@ func GetAppleReviews(deps *types.Dependencies) gin.HandlerFunc {
 		// Check if iTunes client is available
 		if deps.ITunesClient == nil {
 			log.Printf("[WARN] iTunes client not configured")
-			c.JSON(http.StatusOK, AppleReviewsResponse{
+			c.JSON(http.StatusOK, ReviewsResponse{
 				Status:    "success",
 				EpisodeID: episodeID,
 				ITunesID:  itunesID,
@@ -84,10 +84,10 @@ func GetAppleReviews(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		// Fetch reviews from Apple RSS feed
-		reviewData, err := fetchAppleReviews(itunesID, sort, page)
+		reviewData, err := fetchReviews(itunesID, sort, page)
 		if err != nil {
 			log.Printf("[ERROR] Failed to fetch Apple reviews for iTunes ID %d: %v", itunesID, err)
-			c.JSON(http.StatusOK, AppleReviewsResponse{
+			c.JSON(http.StatusOK, ReviewsResponse{
 				Status:    "success",
 				EpisodeID: episodeID,
 				ITunesID:  itunesID,
@@ -97,7 +97,7 @@ func GetAppleReviews(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		now := time.Now()
-		c.JSON(http.StatusOK, AppleReviewsResponse{
+		c.JSON(http.StatusOK, ReviewsResponse{
 			Status:    "success",
 			EpisodeID: episodeID,
 			ITunesID:  itunesID,
@@ -107,8 +107,8 @@ func GetAppleReviews(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// fetchAppleReviews fetches reviews from Apple's RSS feed
-func fetchAppleReviews(itunesID int64, sort string, page int) (*AppleReviewData, error) {
+// fetchReviews fetches reviews from Apple's RSS feed
+func fetchReviews(itunesID int64, sort string, page int) (*ReviewData, error) {
 	// Construct Apple RSS URL
 	url := fmt.Sprintf("https://itunes.apple.com/us/rss/customerreviews/page=%d/id=%d/sortby=%s/json",
 		page, itunesID, sort)
@@ -170,12 +170,12 @@ type appleRSSEntry struct {
 }
 
 // convertAppleReviews converts Apple RSS format to our AppleReviewData format
-func convertAppleReviews(rssResp *appleRSSResponse, sort string) *AppleReviewData {
-	reviewData := &AppleReviewData{
+func convertAppleReviews(rssResp *appleRSSResponse, sort string) *ReviewData {
+	reviewData := &ReviewData{
 		TotalCount:         len(rssResp.Feed.Entry),
 		RatingDistribution: make(map[string]int),
-		RecentReviews:      []AppleReview{},
-		MostHelpful:        []AppleReview{},
+		RecentReviews:      []Review{},
+		MostHelpful:        []Review{},
 	}
 
 	var totalRating float64
@@ -201,7 +201,7 @@ func convertAppleReviews(rssResp *appleRSSResponse, sort string) *AppleReviewDat
 			reviewID = idParts[len(idParts)-1]
 		}
 
-		review := AppleReview{
+		review := Review{
 			ID:        reviewID,
 			Author:    entry.Author.Name.Label,
 			Rating:    rating,

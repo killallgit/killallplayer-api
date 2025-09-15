@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -39,34 +38,33 @@ var defaultUserAgents = []string{
 // Config holds configuration for the iTunes client
 type Config struct {
 	// Rate limiting
-	RequestsPerMinute int           // Default: 250 (safe under 300 limit)
-	BurstSize        int           // Default: 5
+	RequestsPerMinute int // Default: 250 (safe under 300 limit)
+	BurstSize         int // Default: 5
 
 	// HTTP configuration
-	Timeout          time.Duration // Default: 10s
-	MaxRetries       int           // Default: 3
-	RetryBackoff     time.Duration // Default: 1s
+	Timeout      time.Duration // Default: 10s
+	MaxRetries   int           // Default: 3
+	RetryBackoff time.Duration // Default: 1s
 
 	// User agents
-	UserAgents       []string      // Custom user agents, uses defaults if empty
+	UserAgents []string // Custom user agents, uses defaults if empty
 
 	// Base URL (for testing)
-	BaseURL          string        // Default: https://itunes.apple.com
+	BaseURL string // Default: https://itunes.apple.com
 }
 
 // Client handles communication with the iTunes API
 type Client struct {
-	httpClient   *http.Client
-	rateLimiter  *rate.Limiter
-	userAgents   []string
-	config       Config
-	baseURL      string
+	httpClient  *http.Client
+	rateLimiter *rate.Limiter
+	userAgents  []string
+	config      Config
+	baseURL     string
 
 	// Metrics
-	metrics      *clientMetrics
+	metrics *clientMetrics
 
 	// State
-	mu           sync.RWMutex
 	userAgentIdx int32
 }
 

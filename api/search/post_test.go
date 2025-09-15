@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
-	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,12 +18,12 @@ import (
 
 // Mock searcher for testing
 type mockSearcher struct {
-	searchFunc func(ctx context.Context, query string, limit int, fullText bool) (*podcastindex.SearchResponse, error)
+	searchFunc func(ctx context.Context, query string, limit int, fullText bool, val string, apOnly bool, clean bool) (*podcastindex.SearchResponse, error)
 }
 
-func (m *mockSearcher) Search(ctx context.Context, query string, limit int, fullText bool) (*podcastindex.SearchResponse, error) {
+func (m *mockSearcher) Search(ctx context.Context, query string, limit int, fullText bool, val string, apOnly bool, clean bool) (*podcastindex.SearchResponse, error) {
 	if m.searchFunc != nil {
-		return m.searchFunc(ctx, query, limit, fullText)
+		return m.searchFunc(ctx, query, limit, fullText, val, apOnly, clean)
 	}
 	return &podcastindex.SearchResponse{}, nil
 }
@@ -45,18 +44,6 @@ func (m *mockSearcher) GetEpisodesByPodcastID(ctx context.Context, podcastID int
 }
 
 // Additional methods required by PodcastClient interface
-func (m *mockSearcher) GetPodcastByFeedURL(ctx context.Context, feedURL string) (*podcastindex.PodcastResponse, error) {
-	return &podcastindex.PodcastResponse{}, nil
-}
-
-func (m *mockSearcher) GetPodcastByFeedID(ctx context.Context, feedID int64) (*podcastindex.PodcastResponse, error) {
-	return &podcastindex.PodcastResponse{}, nil
-}
-
-func (m *mockSearcher) GetPodcastByiTunesID(ctx context.Context, itunesID int64) (*podcastindex.PodcastResponse, error) {
-	return &podcastindex.PodcastResponse{}, nil
-}
-
 func (m *mockSearcher) GetEpisodesByFeedURL(ctx context.Context, feedURL string, limit int) (*podcastindex.EpisodesResponse, error) {
 	return &podcastindex.EpisodesResponse{}, nil
 }
@@ -90,14 +77,14 @@ func TestPost(t *testing.T) {
 	}{
 		{
 			name: "successful search",
-			body: models.SearchRequest{
+			body: types.SearchRequest{
 				Query: "technology",
 				Limit: 5,
 			},
 			setupDeps: func() *types.Dependencies {
 				return &types.Dependencies{
 					PodcastClient: &mockSearcher{
-						searchFunc: func(ctx context.Context, query string, limit int, fullText bool) (*podcastindex.SearchResponse, error) {
+						searchFunc: func(ctx context.Context, query string, limit int, fullText bool, val string, apOnly bool, clean bool) (*podcastindex.SearchResponse, error) {
 							return &podcastindex.SearchResponse{
 								Feeds: []podcastindex.Podcast{
 									{
@@ -116,18 +103,20 @@ func TestPost(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, resp map[string]interface{}) {
-				results, ok := resp["results"].([]interface{})
+				assert.Equal(t, "ok", resp["status"])
+				assert.Equal(t, "Search results retrieved successfully", resp["message"])
+				podcasts, ok := resp["podcasts"].([]interface{})
 				require.True(t, ok)
-				assert.Len(t, results, 1)
+				assert.Len(t, podcasts, 1)
 
-				result := results[0].(map[string]interface{})
-				assert.Equal(t, float64(1), result["id"])
-				assert.Equal(t, "Tech Podcast", result["title"])
+				podcast := podcasts[0].(map[string]interface{})
+				assert.Equal(t, float64(1), podcast["id"])
+				assert.Equal(t, "Tech Podcast", podcast["title"])
 			},
 		},
 		{
 			name: "empty query",
-			body: models.SearchRequest{
+			body: types.SearchRequest{
 				Query: "",
 				Limit: 5,
 			},
@@ -139,7 +128,7 @@ func TestPost(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 			expectedBody: map[string]interface{}{
 				"status":  "error",
-				"message": "Search query is required",
+				"message": "Invalid request format",
 			},
 		},
 		{
@@ -159,7 +148,7 @@ func TestPost(t *testing.T) {
 		},
 		{
 			name: "limit too high",
-			body: models.SearchRequest{
+			body: types.SearchRequest{
 				Query: "test",
 				Limit: 101,
 			},
@@ -176,7 +165,7 @@ func TestPost(t *testing.T) {
 		},
 		{
 			name: "limit too low",
-			body: models.SearchRequest{
+			body: types.SearchRequest{
 				Query: "test",
 				Limit: -1,
 			},
@@ -193,14 +182,14 @@ func TestPost(t *testing.T) {
 		},
 		{
 			name: "default limit when not provided",
-			body: models.SearchRequest{
+			body: types.SearchRequest{
 				Query: "test",
 				Limit: 0,
 			},
 			setupDeps: func() *types.Dependencies {
 				return &types.Dependencies{
 					PodcastClient: &mockSearcher{
-						searchFunc: func(ctx context.Context, query string, limit int, fullText bool) (*podcastindex.SearchResponse, error) {
+						searchFunc: func(ctx context.Context, query string, limit int, fullText bool, val string, apOnly bool, clean bool) (*podcastindex.SearchResponse, error) {
 							assert.Equal(t, 10, limit) // Should use default of 10
 							return &podcastindex.SearchResponse{
 								Feeds: []podcastindex.Podcast{},
@@ -213,7 +202,7 @@ func TestPost(t *testing.T) {
 		},
 		{
 			name: "podcast client not configured",
-			body: models.SearchRequest{
+			body: types.SearchRequest{
 				Query: "test",
 				Limit: 5,
 			},
@@ -230,7 +219,7 @@ func TestPost(t *testing.T) {
 		},
 		{
 			name: "podcast client wrong type",
-			body: models.SearchRequest{
+			body: types.SearchRequest{
 				Query: "test",
 				Limit: 5,
 			},
@@ -247,14 +236,14 @@ func TestPost(t *testing.T) {
 		},
 		{
 			name: "search service error",
-			body: models.SearchRequest{
+			body: types.SearchRequest{
 				Query: "test",
 				Limit: 5,
 			},
 			setupDeps: func() *types.Dependencies {
 				return &types.Dependencies{
 					PodcastClient: &mockSearcher{
-						searchFunc: func(ctx context.Context, query string, limit int, fullText bool) (*podcastindex.SearchResponse, error) {
+						searchFunc: func(ctx context.Context, query string, limit int, fullText bool, val string, apOnly bool, clean bool) (*podcastindex.SearchResponse, error) {
 							return nil, errors.New("API error")
 						},
 					},
@@ -268,14 +257,14 @@ func TestPost(t *testing.T) {
 		},
 		{
 			name: "empty results",
-			body: models.SearchRequest{
+			body: types.SearchRequest{
 				Query: "nonexistent",
 				Limit: 5,
 			},
 			setupDeps: func() *types.Dependencies {
 				return &types.Dependencies{
 					PodcastClient: &mockSearcher{
-						searchFunc: func(ctx context.Context, query string, limit int, fullText bool) (*podcastindex.SearchResponse, error) {
+						searchFunc: func(ctx context.Context, query string, limit int, fullText bool, val string, apOnly bool, clean bool) (*podcastindex.SearchResponse, error) {
 							return &podcastindex.SearchResponse{
 								Feeds: []podcastindex.Podcast{},
 							}, nil
@@ -285,9 +274,11 @@ func TestPost(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			checkResponse: func(t *testing.T, resp map[string]interface{}) {
-				results, ok := resp["results"].([]interface{})
+				assert.Equal(t, "ok", resp["status"])
+				assert.Equal(t, "Search results retrieved successfully", resp["message"])
+				podcasts, ok := resp["podcasts"].([]interface{})
 				require.True(t, ok)
-				assert.Len(t, results, 0)
+				assert.Len(t, podcasts, 0)
 			},
 		},
 	}

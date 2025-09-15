@@ -109,7 +109,7 @@ func TestSearch(t *testing.T) {
 
 	// Test search
 	ctx := context.Background()
-	resp, err := client.Search(ctx, "test", 10, false)
+	resp, err := client.Search(ctx, "test", 10, false, "", false, false)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestSearchEmptyQuery(t *testing.T) {
 	client := NewClient(cfg)
 
 	ctx := context.Background()
-	_, err := client.Search(ctx, "", 10, false)
+	_, err := client.Search(ctx, "", 10, false, "", false, false)
 	if err == nil {
 		t.Error("Expected error for empty query, got nil")
 	}

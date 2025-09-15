@@ -256,71 +256,6 @@
                 }
             }
         },
-        "/api/v1/episodes/by-feed-url": {
-            "get": {
-                "description": "Get episodes for a specific podcast using its RSS feed URL",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "episodes"
-                ],
-                "summary": "Get episodes by feed URL",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "url",
-                        "example": "\"https://feeds.buzzsprout.com/123456.rss\"",
-                        "description": "RSS feed URL of the podcast",
-                        "name": "url",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 100,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Maximum number of episodes to return (1-100)",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Podcast Index episodes response",
-                        "schema": {
-                            "$ref": "#/definitions/podcastindex.SearchResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - missing or invalid feed URL",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/episodes/by-guid": {
             "get": {
                 "description": "Retrieve a single episode by its GUID",
@@ -360,188 +295,6 @@
                         "description": "Episode not found",
                         "schema": {
                             "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/episodes/by-itunes-id": {
-            "get": {
-                "description": "Get episodes for a specific podcast using its iTunes/Apple Podcasts ID from Podcast Index API",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "episodes"
-                ],
-                "summary": "Get episodes by iTunes ID",
-                "parameters": [
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "example": 1234567890,
-                        "description": "iTunes/Apple Podcasts ID",
-                        "name": "id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 100,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 25,
-                        "description": "Maximum number of episodes to return (1-100)",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Episodes from iTunes podcast",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "type": "object",
-                                    "properties": {
-                                        "count": {
-                                            "type": "integer"
-                                        },
-                                        "episodes": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object"
-                                            }
-                                        },
-                                        "limit": {
-                                            "type": "integer"
-                                        }
-                                    }
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - missing or invalid iTunes ID",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/episodes/byfeedid": {
-            "get": {
-                "description": "Get episodes for a specific podcast using its feed ID (query parameter format for Podcast Index API compatibility)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "episodes"
-                ],
-                "summary": "Get episodes by feed ID",
-                "parameters": [
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "example": 6780065,
-                        "description": "Podcast feed ID",
-                        "name": "id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 1000,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Maximum number of episodes to return (1-1000)",
-                        "name": "max",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "List of episodes for the podcast",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - missing or invalid feed ID",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/episodes/recent": {
-            "get": {
-                "description": "Get the most recent episodes across all podcasts, sorted by publish date",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "episodes"
-                ],
-                "summary": "Get recent episodes",
-                "parameters": [
-                    {
-                        "maximum": 100,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Maximum number of episodes to return (1-100)",
-                        "name": "max",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "List of recent episodes",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexResponse"
                         }
                     },
                     "500": {
@@ -698,6 +451,66 @@
                     },
                     "400": {
                         "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/{id}/reviews": {
+            "get": {
+                "description": "Fetch customer reviews from Apple Podcasts for the podcast that contains this episode",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Get podcast reviews",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID (Podcast Index ID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "mostrecent",
+                        "description": "Sort order: mostrecent or mosthelpful",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 10,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number (1-10)",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reviews data",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.ReviewsResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Episode not found or no iTunes ID available",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -1043,204 +856,6 @@
                 }
             }
         },
-        "/api/v1/podcasts/by-feed-id": {
-            "get": {
-                "description": "Get podcast information using its feed ID from Podcast Index API",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "podcasts"
-                ],
-                "summary": "Get podcast by feed ID",
-                "parameters": [
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "example": 6780065,
-                        "description": "Podcast feed ID",
-                        "name": "id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Podcast information",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "type": "object"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - missing or invalid feed ID",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/podcasts/by-feed-url": {
-            "get": {
-                "description": "Get podcast information using its RSS feed URL from Podcast Index API",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "podcasts"
-                ],
-                "summary": "Get podcast by feed URL",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "url",
-                        "example": "\"https://feeds.buzzsprout.com/123456.rss\"",
-                        "description": "RSS feed URL of the podcast",
-                        "name": "url",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Podcast information",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "type": "object"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - missing or invalid feed URL",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/podcasts/by-itunes-id": {
-            "get": {
-                "description": "Get podcast information using its iTunes/Apple Podcasts ID from Podcast Index API",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "podcasts"
-                ],
-                "summary": "Get podcast by iTunes ID",
-                "parameters": [
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "example": 1234567890,
-                        "description": "iTunes/Apple Podcasts ID",
-                        "name": "id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Podcast information",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "type": "object"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - missing or invalid iTunes ID",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/podcasts/{id}/episodes": {
             "get": {
                 "description": "Retrieve all episodes for a specific podcast by its Podcast Index ID. This is the correct endpoint to use after getting podcast IDs from /trending.",
@@ -1277,61 +892,6 @@
                 "responses": {
                     "200": {
                         "description": "List of episodes for the podcast",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - invalid podcast ID",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.PodcastIndexErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/podcasts/{id}/episodes/sync": {
-            "post": {
-                "description": "Manually trigger synchronization of episodes from Podcast Index API for a specific podcast",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "podcasts"
-                ],
-                "summary": "Sync episodes for podcast",
-                "parameters": [
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "example": 6780065,
-                        "description": "Podcast ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "maximum": 1000,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 50,
-                        "description": "Maximum number of episodes to sync (1-1000)",
-                        "name": "max",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Episodes successfully synced",
                         "schema": {
                             "$ref": "#/definitions/episodes.PodcastIndexResponse"
                         }
@@ -1407,7 +967,7 @@
         },
         "/api/v1/search": {
             "post": {
-                "description": "Search for podcasts by query string with optional result limit and full text",
+                "description": "Search for podcasts by query string with optional filters for content type, iTunes presence, and explicit content",
                 "consumes": [
                     "application/json"
                 ],
@@ -1425,115 +985,39 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.SearchRequest"
+                            "$ref": "#/definitions/types.SearchRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Podcast search response with category summary",
+                        "description": "Podcast search results",
                         "schema": {
-                            "$ref": "#/definitions/models.PodcastSearchResponse"
+                            "$ref": "#/definitions/types.PodcastSearchResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - invalid parameters",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "details": {
-                                    "type": "string"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "details": {
-                                    "type": "string"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "504": {
                         "description": "Gateway timeout - search request timed out",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
             }
         },
         "/api/v1/trending": {
-            "get": {
-                "description": "Get a list of trending podcasts from the Podcast Index API",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "trending"
-                ],
-                "summary": "Get trending podcasts",
-                "parameters": [
-                    {
-                        "maximum": 100,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Number of podcasts to return (1-100)",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Podcast trending response with category summary",
-                        "schema": {
-                            "$ref": "#/definitions/models.PodcastTrendingResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "description": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
             "post": {
                 "description": "Get trending podcasts with optional category filtering and other parameters",
                 "consumes": [
@@ -1553,63 +1037,33 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.TrendingRequest"
+                            "$ref": "#/definitions/types.TrendingRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Podcast trending response with category summary",
+                        "description": "Trending podcasts",
                         "schema": {
-                            "$ref": "#/definitions/models.PodcastTrendingResponse"
+                            "$ref": "#/definitions/types.TrendingPodcastsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request - invalid parameters",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "details": {
-                                    "type": "string"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "details": {
-                                    "type": "string"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "504": {
                         "description": "Gateway timeout - trending request timed out",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -1863,6 +1317,98 @@
                     "description": "\"true\" or \"false\"",
                     "type": "string",
                     "example": "true"
+                }
+            }
+        },
+        "episodes.Review": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string",
+                    "example": "User123"
+                },
+                "content": {
+                    "type": "string",
+                    "example": "Love this show..."
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Best podcast ever!"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "voteCount": {
+                    "type": "integer",
+                    "example": 42
+                },
+                "voteSum": {
+                    "type": "integer",
+                    "example": 38
+                }
+            }
+        },
+        "episodes.ReviewData": {
+            "type": "object",
+            "properties": {
+                "averageRating": {
+                    "type": "number",
+                    "example": 4.2
+                },
+                "mostHelpful": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/episodes.Review"
+                    }
+                },
+                "ratingDistribution": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "recentReviews": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/episodes.Review"
+                    }
+                },
+                "totalCount": {
+                    "type": "integer",
+                    "example": 487
+                }
+            }
+        },
+        "episodes.ReviewsResponse": {
+            "type": "object",
+            "properties": {
+                "cachedAt": {
+                    "type": "string"
+                },
+                "episodeId": {
+                    "type": "integer",
+                    "example": 123456789
+                },
+                "itunesId": {
+                    "type": "integer",
+                    "example": 1535809341
+                },
+                "message": {
+                    "type": "string"
+                },
+                "reviews": {
+                    "$ref": "#/definitions/episodes.ReviewData"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "success"
                 }
             }
         },
@@ -2189,214 +1735,6 @@
                 }
             }
         },
-        "models.PodcastResponse": {
-            "type": "object",
-            "properties": {
-                "artwork": {
-                    "type": "string"
-                },
-                "author": {
-                    "type": "string"
-                },
-                "categories": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "categoryList": {
-                    "description": "Array version of categories for client-side filtering",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "createdOn": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "episodeCount": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "image": {
-                    "type": "string"
-                },
-                "imageUrlHash": {
-                    "type": "integer"
-                },
-                "itunesId": {
-                    "type": "integer"
-                },
-                "language": {
-                    "type": "string"
-                },
-                "lastCrawlTime": {
-                    "type": "integer"
-                },
-                "lastGoodHttpStatusCode": {
-                    "type": "integer"
-                },
-                "lastParseTime": {
-                    "type": "integer"
-                },
-                "lastUpdateTime": {
-                    "type": "integer"
-                },
-                "link": {
-                    "type": "string"
-                },
-                "locked": {
-                    "type": "integer"
-                },
-                "originalUrl": {
-                    "type": "string"
-                },
-                "ownerName": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.PodcastSearchResponse": {
-            "type": "object",
-            "properties": {
-                "categorySummary": {
-                    "description": "Category name -\u003e count",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                },
-                "description": {
-                    "type": "string"
-                },
-                "query": {
-                    "type": "string"
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.PodcastResponse"
-                    }
-                },
-                "status": {
-                    "type": "string"
-                },
-                "totalCount": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.PodcastTrendingResponse": {
-            "type": "object",
-            "properties": {
-                "categorySummary": {
-                    "description": "Category name -\u003e count",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                },
-                "description": {
-                    "type": "string"
-                },
-                "max": {
-                    "description": "Max results parameter used",
-                    "type": "integer"
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.PodcastResponse"
-                    }
-                },
-                "since": {
-                    "description": "Hours ago parameter used",
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "totalCount": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.SearchRequest": {
-            "type": "object",
-            "required": [
-                "query"
-            ],
-            "properties": {
-                "fullText": {
-                    "description": "Return full descriptions instead of truncated",
-                    "type": "boolean",
-                    "example": false
-                },
-                "limit": {
-                    "type": "integer",
-                    "maximum": 100,
-                    "minimum": 1,
-                    "example": 10
-                },
-                "query": {
-                    "type": "string",
-                    "maxLength": 200,
-                    "minLength": 1,
-                    "example": "technology podcasts"
-                }
-            }
-        },
-        "models.TrendingRequest": {
-            "type": "object",
-            "properties": {
-                "categories": {
-                    "description": "Category names/IDs to filter",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "News",
-                        "Technology"
-                    ]
-                },
-                "fullText": {
-                    "description": "Return full descriptions",
-                    "type": "boolean",
-                    "example": false
-                },
-                "lang": {
-                    "description": "Language code",
-                    "type": "string",
-                    "maxLength": 10,
-                    "example": "en"
-                },
-                "max": {
-                    "type": "integer",
-                    "maximum": 100,
-                    "minimum": 1,
-                    "example": 10
-                },
-                "since": {
-                    "description": "Hours ago (max 30 days)",
-                    "type": "integer",
-                    "maximum": 720,
-                    "minimum": 1,
-                    "example": 24
-                }
-            }
-        },
         "models.Waveform": {
             "type": "object",
             "properties": {
@@ -2548,107 +1886,20 @@
                 }
             }
         },
-        "podcastindex.Podcast": {
-            "type": "object",
-            "properties": {
-                "artwork": {
-                    "type": "string"
-                },
-                "author": {
-                    "type": "string"
-                },
-                "categories": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "createdOn": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "episodeCount": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "image": {
-                    "type": "string"
-                },
-                "imageUrlHash": {
-                    "type": "integer"
-                },
-                "itunesId": {
-                    "type": "integer"
-                },
-                "language": {
-                    "type": "string"
-                },
-                "lastCrawlTime": {
-                    "type": "integer"
-                },
-                "lastGoodHttpStatusCode": {
-                    "type": "integer"
-                },
-                "lastParseTime": {
-                    "type": "integer"
-                },
-                "lastUpdateTime": {
-                    "type": "integer"
-                },
-                "link": {
-                    "type": "string"
-                },
-                "locked": {
-                    "type": "integer"
-                },
-                "originalUrl": {
-                    "type": "string"
-                },
-                "ownerName": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "podcastindex.SearchResponse": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "feeds": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/podcastindex.Podcast"
-                    }
-                },
-                "query": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
         "types.ErrorResponse": {
             "type": "object",
             "properties": {
                 "details": {
-                    "type": "string"
+                    "description": "Additional error details"
                 },
                 "error": {
+                    "description": "Error code/type",
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -2714,6 +1965,117 @@
                 }
             }
         },
+        "types.Podcast": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "episodeCount": {
+                    "type": "integer"
+                },
+                "feedUrl": {
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Podcast Index ID",
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "itunesId": {
+                    "type": "integer"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "lastUpdated": {
+                    "description": "Unix timestamp",
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.PodcastSearchResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "description": "Number of results in this response",
+                    "type": "integer"
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "podcasts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Podcast"
+                    }
+                },
+                "query": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "One of the Status constants above",
+                    "type": "string"
+                },
+                "total": {
+                    "description": "Total available results (if known)",
+                    "type": "integer"
+                }
+            }
+        },
+        "types.SearchRequest": {
+            "type": "object",
+            "required": [
+                "query"
+            ],
+            "properties": {
+                "apOnly": {
+                    "description": "Only return podcasts with iTunes ID",
+                    "type": "boolean",
+                    "example": false
+                },
+                "clean": {
+                    "description": "Only return non-explicit content",
+                    "type": "boolean",
+                    "example": false
+                },
+                "fullText": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "query": {
+                    "type": "string",
+                    "example": "technology"
+                },
+                "val": {
+                    "description": "Filter by value block type (e.g., \"any\", \"lightning\")",
+                    "type": "string",
+                    "example": "any"
+                }
+            }
+        },
         "types.TranscriptionData": {
             "type": "object",
             "properties": {
@@ -2748,6 +2110,73 @@
                     "description": "Full transcription text",
                     "type": "string",
                     "example": "This is the transcription..."
+                }
+            }
+        },
+        "types.TrendingPodcastsResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "description": "Number of results in this response",
+                    "type": "integer"
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "podcasts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/types.Podcast"
+                    }
+                },
+                "since": {
+                    "description": "Hours back for trending calculation",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "One of the Status constants above",
+                    "type": "string"
+                }
+            }
+        },
+        "types.TrendingRequest": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "description": "Category names/IDs to filter",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "News",
+                        "Technology"
+                    ]
+                },
+                "fullText": {
+                    "description": "Return full descriptions",
+                    "type": "boolean",
+                    "example": false
+                },
+                "lang": {
+                    "description": "Language code",
+                    "type": "string",
+                    "maxLength": 10,
+                    "example": "en"
+                },
+                "max": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1,
+                    "example": 10
+                },
+                "since": {
+                    "description": "Hours ago (max 30 days)",
+                    "type": "integer",
+                    "maximum": 720,
+                    "minimum": 1,
+                    "example": 24
                 }
             }
         },

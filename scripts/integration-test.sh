@@ -113,24 +113,8 @@ podcast_response=$(curl -s "$API_URL/api/v1/podcasts/$podcast_id")
 # Podcast details might not be implemented, so we'll skip this check
 log_info "Podcast details request sent (may not be fully implemented)"
 
-# Step 4: Sync episodes for the podcast
-log_info "Step 4: Syncing episodes for podcast $podcast_id..."
-sync_response=$(curl -s -X POST "$API_URL/api/v1/podcasts/$podcast_id/episodes/sync" \
-    -H "Content-Type: application/json" \
-    -d '{"limit": 5}')
-
-# Sync response uses "items" field, not "message"
-if echo "$sync_response" | jq -e '.items' > /dev/null 2>&1; then
-    log_info "Episodes synced successfully"
-else
-    log_warn "Episode sync may have failed, continuing anyway..."
-fi
-
-# Give sync a moment to complete
-sleep 2
-
-# Step 5: Get episodes for the podcast  
-log_info "Step 5: Getting episodes for podcast..."
+# Step 4: Get episodes for the podcast
+log_info "Step 4: Getting episodes for podcast..."
 episodes_response=$(curl -s "$API_URL/api/v1/podcasts/$podcast_id/episodes?limit=5")
 if ! check_response "$episodes_response" "items"; then
     log_error "Failed to fetch episodes"
@@ -156,8 +140,8 @@ fi
 
 log_info "Selected episode: $episode_title (ID: $episode_id)"
 
-# Step 6: Get episode details
-log_info "Step 6: Getting episode details..."
+# Step 5: Get episode details
+log_info "Step 5: Getting episode details..."
 episode_response=$(curl -s "$API_URL/api/v1/episodes/$episode_id")
 if ! check_response "$episode_response" "episode"; then
     log_error "Failed to fetch episode details"
@@ -168,8 +152,8 @@ fi
 audio_url=$(echo "$episode_response" | jq -r '.episode.enclosureUrl // .episode.audioUrl // empty')
 log_info "Episode audio URL: $audio_url"
 
-# Step 7: Trigger waveform generation
-log_info "Step 7: Triggering waveform generation for episode $episode_id..."
+# Step 6: Trigger waveform generation
+log_info "Step 6: Triggering waveform generation for episode $episode_id..."
 waveform_trigger_response=$(curl -s -X GET "$API_URL/api/v1/episodes/$episode_id/waveform")
 
 # Check if waveform already exists
@@ -190,8 +174,8 @@ else
     fi
 fi
 
-# Step 8: Verify waveform data exists
-log_info "Step 8: Verifying waveform data..."
+# Step 7: Verify waveform data exists
+log_info "Step 7: Verifying waveform data..."
 waveform_response=$(curl -s "$API_URL/api/v1/episodes/$episode_id/waveform")
 if echo "$waveform_response" | jq -e '.waveform.peaks' > /dev/null 2>&1; then
     peaks_count=$(echo "$waveform_response" | jq '.waveform.peaks | length')
@@ -201,8 +185,8 @@ else
     log_warn "Waveform data not available"
 fi
 
-# Step 9: Trigger transcription (if endpoint exists)
-log_info "Step 9: Checking for transcription endpoint..."
+# Step 8: Trigger transcription (if endpoint exists)
+log_info "Step 8: Checking for transcription endpoint..."
 transcription_endpoint="$API_URL/api/v1/episodes/$episode_id/transcribe"
 transcription_response=$(curl -s -w "\n%{http_code}" "$transcription_endpoint")
 http_code=$(echo "$transcription_response" | tail -n 1)
@@ -240,8 +224,8 @@ else
     log_warn "Unexpected response from transcription endpoint: $http_code"
 fi
 
-# Step 10: Test playback position update
-log_info "Step 10: Testing playback position update..."
+# Step 9: Test playback position update
+log_info "Step 9: Testing playback position update..."
 playback_response=$(curl -s -X PUT "$API_URL/api/v1/episodes/$episode_id/playback" \
     -H "Content-Type: application/json" \
     -d '{"position": 120, "status": "playing"}')
@@ -252,8 +236,8 @@ else
     log_warn "Playback update may have failed"
 fi
 
-# Step 11: Test regions/bookmarks
-log_info "Step 11: Testing regions/bookmarks..."
+# Step 10: Test regions/bookmarks
+log_info "Step 10: Testing regions/bookmarks..."
 region_response=$(curl -s -X POST "$API_URL/api/v1/regions" \
     -H "Content-Type: application/json" \
     -d "{\"episode_id\": $episode_id, \"start\": 60, \"end\": 120, \"label\": \"Test Region\", \"color\": \"#FF0000\"}")
@@ -271,8 +255,8 @@ else
     log_warn "Region creation may have failed"
 fi
 
-# Step 12: Test Apple data enrichment (if iTunes ID is available)
-log_info "Step 12: Testing Apple data enrichment..."
+# Step 11: Test Apple data enrichment (if iTunes ID is available)
+log_info "Step 11: Testing Apple data enrichment..."
 
 # Extract iTunes ID if available
 feed_itunes_id=$(echo "$episode_response" | jq -r '.episode.feedItunesId // .episode.feed_itunes_id // empty')
@@ -336,7 +320,7 @@ log_info "========================================="
 log_info "✓ Health check passed"
 log_info "✓ Trending podcasts fetched"
 log_info "✓ Podcast details retrieved"
-log_info "✓ Episodes synced and retrieved"
+log_info "✓ Episodes retrieved"
 log_info "✓ Episode details fetched"
 
 if [ "$waveform_exists" = true ] || [ ! -z "$peaks_count" ]; then
