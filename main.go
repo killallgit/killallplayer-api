@@ -4,8 +4,8 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 
 // @title			Podcast Player API
 // @version			1.0
-// @description		A REST API for podcast discovery, episode management, and audio streaming.
-// @description		This API provides endpoints for searching podcasts, managing episodes, streaming audio,
+// @description		A REST API for podcast discovery and episode management.
+// @description		This API provides endpoints for searching podcasts, managing episodes,
 // @description		and generating waveforms for audio visualization.
 
 // @contact.name	Podcast Player API Support
@@ -31,9 +31,6 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 
 // @tag.name			episodes
 // @tag.description	Episode management and playback
-
-// @tag.name			streaming
-// @tag.description	Audio streaming with range request support
 
 // @tag.name			trending
 // @tag.description	Trending podcast discovery

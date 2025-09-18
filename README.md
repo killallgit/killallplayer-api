@@ -1,16 +1,14 @@
 # Podcast Player API
 
-A robust REST API for podcast discovery, episode management, and audio streaming built with Go, using the Podcast Index API for content discovery.
+A robust REST API for podcast discovery and episode management built with Go, using the Podcast Index API for content discovery.
 
 ## Features
 
 - 🎙️ **Podcast Discovery** - Search and browse trending podcasts via Podcast Index API
 - 📋 **Episode Management** - Sync, store, and retrieve podcast episodes
-- 🎵 **Audio Streaming** - HTTP audio streaming with range request support (seeking)
 - 🔖 **Playback Regions** - Save bookmarks and regions within episodes
 - 📊 **Waveform Generation** - Generate audio waveforms for visual representation
 - 🆔 **Podcast Index IDs** - Uses Podcast Index IDs throughout, no ID mapping needed
-- 🔗 **Direct URL Streaming** - Stream any audio URL without database storage
 - 💾 **Local Database** - SQLite storage for offline episode access
 - ⚡ **Rate Limiting** - Built-in rate limiting for API endpoints
 - 🔄 **CORS Support** - Full CORS support for web clients
@@ -68,8 +66,6 @@ The OpenAPI specification is generated automatically from code annotations and a
 - `GET /api/v1/episodes/:id` - Get episode details (using Podcast Index ID)
 - `GET /api/v1/episodes/:id/reviews` - Get iTunes reviews for the podcast
 - `GET /api/v1/episodes/:id/waveform` - Generate/retrieve waveform data with status
-- `GET /api/v1/stream/:id` - Stream audio with range support (using Podcast Index ID) **[Legacy - Direct URLs recommended]**
-- `GET /api/v1/stream/direct?url=` - Stream audio from any URL
 - `POST /api/v1/regions` - Save playback regions/bookmarks
 - `GET /api/v1/regions?episodeId=` - Get regions for an episode
 
@@ -89,10 +85,6 @@ curl -X POST http://localhost:8080/api/v1/trending \
 # Get episodes for a podcast (using Podcast Index feedId)
 curl http://localhost:8080/api/v1/podcasts/41506/episodes
 
-# Stream audio using Podcast Index episode ID (supports seeking)
-curl http://localhost:8080/api/v1/stream/41928435424
-curl -H "Range: bytes=1024000-2048000" http://localhost:8080/api/v1/stream/41928435424
-
 # Save a playback region/bookmark
 curl -X POST http://localhost:8080/api/v1/regions \
   -H "Content-Type: application/json" \
@@ -108,7 +100,6 @@ killallplayer-api/
 │   ├── podcasts/        # Podcast endpoints
 │   ├── regions/         # Playback regions/bookmarks
 │   ├── search/          # Search functionality
-│   ├── stream/          # Audio streaming
 │   ├── trending/        # Trending podcasts
 │   ├── waveform/        # Audio waveform generation
 │   └── types/           # Shared types
@@ -196,7 +187,6 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture docum
 |----------|-----------------|-------|
 | Search | 5 | 10 |
 | Episodes | 10 | 20 |
-| Stream | 20 | 30 |
 | Sync | 1 | 2 |
 
 ## Contributing

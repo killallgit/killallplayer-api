@@ -141,7 +141,7 @@ type LiveEpisode struct {
 	LiveItem LiveItem `json:"liveItem,omitempty"`
 }
 
-// LiveItem represents live streaming information
+// LiveItem represents live episode information
 type LiveItem struct {
 	Status      string `json:"status"`
 	Start       string `json:"start"`

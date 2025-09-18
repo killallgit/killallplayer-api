@@ -5,7 +5,7 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "A REST API for podcast discovery, episode management, and audio streaming.\nThis API provides endpoints for searching podcasts, managing episodes, streaming audio,\nand generating waveforms for audio visualization.",
+        "description": "A REST API for podcast discovery and episode management.\nThis API provides endpoints for searching podcasts, managing episodes,\nand generating waveforms for audio visualization.",
         "title": "Podcast Player API",
         "contact": {
             "name": "Podcast Player API Support",
@@ -1782,10 +1782,6 @@
         {
             "description": "Episode management and playback",
             "name": "episodes"
-        },
-        {
-            "description": "Audio streaming with range request support",
-            "name": "streaming"
         },
         {
             "description": "Trending podcast discovery",

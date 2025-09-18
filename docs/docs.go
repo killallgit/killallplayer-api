@@ -1786,10 +1786,6 @@ const docTemplate = `{
             "name": "episodes"
         },
         {
-            "description": "Audio streaming with range request support",
-            "name": "streaming"
-        },
-        {
             "description": "Trending podcast discovery",
             "name": "trending"
         },
@@ -1815,7 +1811,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},
 	Title:            "Podcast Player API",
-	Description:      "A REST API for podcast discovery, episode management, and audio streaming.\nThis API provides endpoints for searching podcasts, managing episodes, streaming audio,\nand generating waveforms for audio visualization.",
+	Description:      "A REST API for podcast discovery and episode management.\nThis API provides endpoints for searching podcasts, managing episodes,\nand generating waveforms for audio visualization.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

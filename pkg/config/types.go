@@ -11,7 +11,6 @@ type Config struct {
 	Whisper      WhisperConfig      `mapstructure:"whisper"`
 	Storage      StorageConfig      `mapstructure:"storage"`
 	Cache        CacheConfig        `mapstructure:"cache"`
-	Streaming    StreamingConfig    `mapstructure:"streaming"`
 	RateLimiting RateLimitConfig    `mapstructure:"rate_limiting"`
 	Security     SecurityConfig     `mapstructure:"security"`
 	Logging      LoggingConfig      `mapstructure:"logging"`
@@ -108,14 +107,6 @@ type APICacheConfig struct {
 	SearchTTL  time.Duration `mapstructure:"search_ttl"`
 	PodcastTTL time.Duration `mapstructure:"podcast_ttl"`
 	EpisodeTTL time.Duration `mapstructure:"episode_ttl"`
-}
-
-// StreamingConfig contains audio streaming settings
-type StreamingConfig struct {
-	BufferSize           int   `mapstructure:"buffer_size"`
-	EnableRangeRequests  bool  `mapstructure:"enable_range_requests"`
-	MaxConcurrentStreams int   `mapstructure:"max_concurrent_streams"`
-	BandwidthLimit       int64 `mapstructure:"bandwidth_limit"`
 }
 
 // RateLimitConfig contains rate limiting settings

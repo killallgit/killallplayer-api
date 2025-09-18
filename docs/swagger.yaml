@@ -620,8 +620,8 @@ info:
     name: Podcast Player API Support
     url: https://github.com/killallgit/killallplayer-api
   description: |-
-    A REST API for podcast discovery, episode management, and audio streaming.
-    This API provides endpoints for searching podcasts, managing episodes, streaming audio,
+    A REST API for podcast discovery and episode management.
+    This API provides endpoints for searching podcasts, managing episodes,
     and generating waveforms for audio visualization.
   license:
     name: MIT
@@ -1228,8 +1228,6 @@ tags:
   name: search
 - description: Episode management and playback
   name: episodes
-- description: Audio streaming with range request support
-  name: streaming
 - description: Trending podcast discovery
   name: trending
 - description: Podcast management and synchronization

@@ -14,14 +14,13 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "killallplayer-api",
 	Short: "Podcast Player API server",
-	Long: `Podcast Player API - A comprehensive podcast streaming and processing API
+	Long: `Podcast Player API - A comprehensive podcast discovery and processing API
 
-This API provides podcast discovery, audio streaming, real-time updates,
+This API provides podcast discovery, real-time updates,
 and audio processing capabilities including waveform generation and transcription.
 
 Features:
   • Podcast discovery via Podcast Index API
-  • Audio streaming with range request support
   • Real-time updates via WebSocket
   • Audio processing (waveform generation, transcription)
   • Audio tagging system`,
