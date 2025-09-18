@@ -115,10 +115,8 @@ func (c *Client) Search(ctx context.Context, query string, limit int, fullText b
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 
-	// Debug: log first podcast to see actual fields
 	if len(searchResp.Feeds) > 0 {
-		debugJSON, _ := json.MarshalIndent(searchResp.Feeds[0], "", "  ")
-		fmt.Printf("DEBUG: First podcast from search:\n%s\n", string(debugJSON))
+		fmt.Printf("DEBUG: Found %d podcasts\n", len(searchResp.Feeds))
 	}
 
 	// Check API status

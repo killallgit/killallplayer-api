@@ -95,7 +95,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 							// Don't create a new job, just report the current status
 							c.JSON(http.StatusAccepted, types.WaveformResponse{
 								BaseResponse: types.BaseResponse{
-									Status:  types.StatusProcessing,
+									Status: types.StatusProcessing,
 									Message: fmt.Sprintf("Waveform generation failed, retry %d/%d pending",
 										existingJob.RetryCount, existingJob.MaxRetries),
 								},
@@ -169,7 +169,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 								podcastIndexID, episodeDuration, maxDurationSeconds)
 
 							c.JSON(http.StatusServiceUnavailable, types.ErrorResponse{
-								Status:  types.StatusError,
+								Status: types.StatusError,
 								Message: fmt.Sprintf("Episode duration (%.1f hours) exceeds maximum limit (%.1f hours)",
 									float64(episodeDuration)/3600, float64(maxDurationSeconds)/3600),
 							})
