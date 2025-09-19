@@ -4,6 +4,7 @@ import (
 	"github.com/killallgit/player-api/internal/database"
 	"github.com/killallgit/player-api/internal/services/annotations"
 	"github.com/killallgit/player-api/internal/services/audiocache"
+	"github.com/killallgit/player-api/internal/services/auth"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/jobs"
@@ -25,4 +26,5 @@ type Dependencies struct {
 	WorkerPool           *workers.WorkerPool
 	PodcastClient        PodcastClient
 	ITunesClient         *itunes.Client
+	AuthService          *auth.Service
 }

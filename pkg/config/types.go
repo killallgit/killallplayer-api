@@ -91,22 +91,23 @@ type StorageConfig struct {
 
 // CacheConfig contains cache settings
 type CacheConfig struct {
-	Memory MemoryCacheConfig `mapstructure:"memory"`
-	API    APICacheConfig    `mapstructure:"api"`
+	Enabled         bool                     `mapstructure:"enabled"`
+	Type            string                   `mapstructure:"type"` // "memory" or "redis"
+	MaxSizeMB       int64                    `mapstructure:"max_size_mb"`
+	DefaultTTL      time.Duration            `mapstructure:"default_ttl"`
+	CleanupInterval time.Duration            `mapstructure:"cleanup_interval"`
+	TTLs            map[string]time.Duration `mapstructure:"ttls"`
+
+	// Redis settings (for future use)
+	Redis RedisCacheConfig `mapstructure:"redis"`
 }
 
-// MemoryCacheConfig contains in-memory cache settings
-type MemoryCacheConfig struct {
-	DefaultTTL      time.Duration `mapstructure:"default_ttl"`
-	CleanupInterval time.Duration `mapstructure:"cleanup_interval"`
-	MaxEntries      int           `mapstructure:"max_entries"`
-}
-
-// APICacheConfig contains API response cache settings
-type APICacheConfig struct {
-	SearchTTL  time.Duration `mapstructure:"search_ttl"`
-	PodcastTTL time.Duration `mapstructure:"podcast_ttl"`
-	EpisodeTTL time.Duration `mapstructure:"episode_ttl"`
+// RedisCacheConfig contains Redis cache settings
+type RedisCacheConfig struct {
+	Addr     string `mapstructure:"addr"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
+	PoolSize int    `mapstructure:"pool_size"`
 }
 
 // RateLimitConfig contains rate limiting settings

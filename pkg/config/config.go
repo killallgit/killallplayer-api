@@ -240,10 +240,20 @@ func setDefaults() {
 	viper.SetDefault("transcription.allowed_transcript_formats", "vtt,srt,txt,json")
 
 	// Cache defaults
+	viper.SetDefault("cache.enabled", true)
 	viper.SetDefault("cache.type", "memory")
-	viper.SetDefault("cache.ttl", "1h")
-	viper.SetDefault("cache.max_size", 100)
-	viper.SetDefault("cache.cleanup_interval", "10m")
+	viper.SetDefault("cache.max_size_mb", 100)
+	viper.SetDefault("cache.default_ttl", "30m")
+	viper.SetDefault("cache.cleanup_interval", "1m")
+
+	// Cache TTL defaults (in minutes)
+	viper.SetDefault("cache.ttl_search", 15)
+	viper.SetDefault("cache.ttl_trending", 60)
+	viper.SetDefault("cache.ttl_podcast", 120)
+	viper.SetDefault("cache.ttl_episode", 60)
+	viper.SetDefault("cache.ttl_reviews", 120)
+	viper.SetDefault("cache.ttl_categories", 240)
+	viper.SetDefault("cache.ttl_waveform", 1440)
 
 	// Logging defaults
 	viper.SetDefault("logging.level", "info")

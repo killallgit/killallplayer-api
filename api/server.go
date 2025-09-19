@@ -231,6 +231,8 @@ func (s *Server) initializeCleanupService() {
 	s.cleanupService.Start(context.Background())
 
 	log.Printf("[INFO] Cleanup service started for %s (interval: %v, max age: %v)", tempDir, cleanupInterval, maxTempAge)
+
+	// Note: No token cleanup needed for Supabase auth - tokens are managed by Supabase
 }
 
 // Start starts the HTTP server

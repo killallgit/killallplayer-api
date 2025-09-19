@@ -94,7 +94,7 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 	}
 
 	// Check if waveform already exists for this episode
-	existingWaveform, err := p.waveformService.GetWaveform(ctx, uint(podcastIndexID))
+	existingWaveform, err := p.waveformService.GetWaveform(ctx, podcastIndexID)
 	if err == nil && existingWaveform != nil {
 		log.Printf("[DEBUG] Waveform already exists for Podcast Index Episode %d, skipping generation", podcastIndexID)
 
@@ -199,7 +199,7 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 
 	// Create waveform model - Use Podcast Index Episode ID for API consistency
 	waveformModel := &models.Waveform{
-		EpisodeID:  uint(podcastIndexID), // Use Podcast Index Episode ID, not database ID
+		EpisodeID:  podcastIndexID, // Use Podcast Index Episode ID, not database ID
 		Duration:   waveformData.Duration,
 		Resolution: waveformData.Resolution,
 		SampleRate: waveformData.SampleRate,

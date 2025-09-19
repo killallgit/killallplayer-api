@@ -62,6 +62,11 @@ func NewService(fetcher EpisodeFetcher, repository EpisodeRepository, cache Epis
 
 // FetchAndSyncEpisodes fetches episodes from external API and syncs to database
 func (s *Service) FetchAndSyncEpisodes(ctx context.Context, podcastID int64, limit int) (*PodcastIndexResponse, error) {
+	// Check if fetcher is available
+	if s.fetcher == nil {
+		return nil, fmt.Errorf("podcast API client not available - check Podcast Index API credentials")
+	}
+
 	// Try to fetch from external API first
 	response, err := s.fetcher.GetEpisodesByPodcastID(ctx, podcastID, limit)
 	if err != nil {

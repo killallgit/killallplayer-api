@@ -8,6 +8,8 @@ A robust REST API for podcast discovery and episode management built with Go, us
 - 📋 **Episode Management** - Sync, store, and retrieve podcast episodes
 - 🔖 **Playback Regions** - Save bookmarks and regions within episodes
 - 📊 **Waveform Generation** - Generate audio waveforms for visual representation
+- 🔐 **Supabase Authentication** - JWT-based authentication with custom permissions via JWKS
+- 🛡️ **Permission System** - Role-based access control with scoped permissions
 - 🆔 **Podcast Index IDs** - Uses Podcast Index IDs throughout, no ID mapping needed
 - 💾 **Local Database** - SQLite storage for offline episode access
 - ⚡ **Rate Limiting** - Built-in rate limiting for API endpoints
@@ -20,6 +22,7 @@ A robust REST API for podcast discovery and episode management built with Go, us
 - Go 1.23.6+
 - SQLite 3.35+
 - Podcast Index API credentials ([get them here](https://api.podcastindex.org))
+- Supabase project with configured authentication
 
 ### Installation
 
@@ -59,35 +62,53 @@ The OpenAPI specification is generated automatically from code annotations and a
 
 ### Key Endpoints
 
+#### Public Endpoints
 - `GET /health` - Health check
+
+#### Authenticated Endpoints (require Bearer token)
+- `GET /api/v1/me` - Get current user information
 - `POST /api/v1/search` - Search podcasts
 - `POST /api/v1/trending` - Get trending podcasts
 - `GET /api/v1/podcasts/:id/episodes` - Get episodes for a podcast (using Podcast Index feedId)
 - `GET /api/v1/episodes/:id` - Get episode details (using Podcast Index ID)
 - `GET /api/v1/episodes/:id/reviews` - Get iTunes reviews for the podcast
 - `GET /api/v1/episodes/:id/waveform` - Generate/retrieve waveform data with status
+- `GET /api/v1/episodes/:id/annotations` - Get episode annotations
+- `POST /api/v1/episodes/:id/annotations` - Create episode annotation
+- `PUT /api/v1/episodes/annotations/:id` - Update episode annotation
+- `DELETE /api/v1/episodes/annotations/:id` - Delete episode annotation
 - `POST /api/v1/regions` - Save playback regions/bookmarks
 - `GET /api/v1/regions?episodeId=` - Get regions for an episode
 
 ### Example Usage
 
+**Note:** Most endpoints require authentication. Get a JWT token from your Supabase client, then include it in the Authorization header.
+
 ```bash
-# Search for podcasts
+# Get current user info (requires authentication)
+curl -X GET http://localhost:8080/api/v1/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Search for podcasts (requires authentication)
 curl -X POST http://localhost:8080/api/v1/search \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"query": "technology", "limit": 5}'
 
-# Get trending podcasts
+# Get trending podcasts (requires authentication)
 curl -X POST http://localhost:8080/api/v1/trending \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"max": 3}'
 
-# Get episodes for a podcast (using Podcast Index feedId)
-curl http://localhost:8080/api/v1/podcasts/41506/episodes
+# Get episodes for a podcast (requires authentication)
+curl -X GET http://localhost:8080/api/v1/podcasts/41506/episodes \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
-# Save a playback region/bookmark
+# Save a playbook region/bookmark (requires authentication)
 curl -X POST http://localhost:8080/api/v1/regions \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"episodeId": 41951637359, "startTime": 10.5, "endTime": 45.8, "label": "Important"}'
 ```
 
@@ -96,6 +117,7 @@ curl -X POST http://localhost:8080/api/v1/regions \
 ```
 killallplayer-api/
 ├── api/                  # API handlers and routes
+│   ├── auth/            # Authentication endpoints and middleware
 │   ├── episodes/        # Episode endpoints
 │   ├── podcasts/        # Podcast endpoints
 │   ├── regions/         # Playback regions/bookmarks
@@ -108,8 +130,10 @@ killallplayer-api/
 │   ├── database/        # Database layer
 │   ├── models/          # Data models
 │   └── services/        # Business logic
+│       └── auth/        # Supabase JWT authentication service
 ├── pkg/                 # Public packages
 │   └── config/          # Configuration management
+├── scripts/             # Setup and testing scripts
 └── docs/                # Documentation
 ```
 
@@ -134,6 +158,175 @@ KILLALL_SERVER_HOST=0.0.0.0
 
 # Database (optional)
 KILLALL_DATABASE_PATH=./data/podcast.db
+
+# Supabase Authentication (required for protected endpoints)
+KILLALL_SUPABASE_JWKS_URL=https://your-project.supabase.co/auth/v1/.well-known/jwks.json
+
+# Optional: Development authentication bypass
+KILLALL_DEV_AUTH_ENABLED=false
+KILLALL_DEV_AUTH_TOKEN=dev-token-for-testing
+```
+
+## Authentication
+
+The API uses **Supabase JWT authentication** with custom permissions. Users must be manually provisioned with appropriate permissions to access the API.
+
+### Overview
+
+- **JWT Validation**: Uses JWKS (JSON Web Key Set) with ES256 (ECDSA) signatures
+- **Permission System**: Role-based access control with scoped permissions
+- **No Local User Storage**: Supabase is the single source of truth for user data
+- **Performance**: Permissions embedded in JWT claims (no database lookups per request)
+
+### Permission System
+
+The API uses a hierarchical permission system with the following scopes:
+
+| Permission | Description |
+|------------|-------------|
+| `podcasts:read` | Read access to podcast data, search, and episode information |
+| `podcasts:write` | Write access to create annotations, regions, and user data |
+| `podcasts:admin` | Full administrative access to all endpoints and features |
+
+**Authorization Requirements:**
+- All `/api/v1/*` endpoints require authentication (except `/api/v1/auth/dev-login` in dev mode)
+- Users must have at least one `podcasts:*` permission to access the API
+- Users without any permissions are automatically denied access
+
+### Setup Instructions
+
+#### 1. Configure Supabase Project
+
+1. **Create Supabase Project**: Set up a new project at [supabase.com](https://supabase.com)
+
+2. **Enable ECC Keys**: In your Supabase dashboard:
+   - Go to **Settings > API > JWT Settings**
+   - Switch from legacy HS256 to **ECC (P-256)** keys
+   - This enables ES256 signatures required by the API
+
+3. **Get JWKS URL**: Copy your JWKS URL:
+   ```
+   https://your-project.supabase.co/auth/v1/.well-known/jwks.json
+   ```
+
+#### 2. Configure API Environment
+
+Add to your `.env` file:
+```bash
+KILLALL_SUPABASE_JWKS_URL=https://your-project.supabase.co/auth/v1/.well-known/jwks.json
+```
+
+#### 3. User Provisioning
+
+Users must be manually provisioned with permissions. Use the included scripts:
+
+**Add Basic User Permissions:**
+```bash
+# Set user credentials in .env
+SUPABASE_ADMIN_USER=admin@example.com
+SUPABASE_ADMIN_PASSWORD=your-password
+SUPABASE_API_KEY=your-service-role-key
+
+# Add permissions to existing user
+./scripts/setup-user-permissions.sh
+```
+
+**Upgrade User to Admin:**
+```bash
+./scripts/upgrade-to-admin.sh
+```
+
+**Manual User Creation (via Supabase Admin API):**
+```bash
+# Create user with permissions
+curl -X POST "https://your-project.supabase.co/auth/v1/admin/users" \
+  -H "Authorization: Bearer YOUR_SERVICE_ROLE_KEY" \
+  -H "apikey: YOUR_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "secure-password",
+    "email_confirm": true,
+    "app_metadata": {
+      "permissions": ["podcasts:read", "podcasts:write"],
+      "role": "user"
+    }
+  }'
+```
+
+#### 4. Client Integration
+
+**Frontend (JavaScript/TypeScript):**
+```javascript
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  'https://your-project.supabase.co',
+  'your-anon-key'
+)
+
+// Login user
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: 'user@example.com',
+  password: 'password'
+})
+
+// Get JWT token for API calls
+const token = data.session?.access_token
+
+// Use token with API
+const response = await fetch('http://localhost:8080/api/v1/me', {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  }
+})
+```
+
+**Mobile (React Native/Expo):**
+```javascript
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  'https://your-project.supabase.co',
+  'your-anon-key'
+)
+
+// Handle auth state changes
+supabase.auth.onAuthStateChange((event, session) => {
+  if (session) {
+    const token = session.access_token
+    // Store token for API calls
+  }
+})
+```
+
+### Development Mode
+
+For development and testing, you can enable auth bypass:
+
+```bash
+# In .env file
+KILLALL_DEV_AUTH_ENABLED=true
+KILLALL_DEV_AUTH_TOKEN=dev-token-for-testing
+```
+
+Then use the dev token in requests:
+```bash
+curl -X GET http://localhost:8080/api/v1/me \
+  -H "Authorization: Bearer dev-token-for-testing"
+```
+
+### Testing Authentication
+
+Use the included test scripts to verify your setup:
+
+```bash
+# Test real Supabase authentication
+./scripts/test-supabase-auth.sh
+
+# Test admin access to all endpoints
+./scripts/test-admin-endpoints.sh
 ```
 
 ## Development

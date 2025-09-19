@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -51,6 +52,62 @@ func NewClient(cfg Config) *Client {
 	}
 }
 
+// makeAPIRequest is a helper method to reduce code duplication for API requests
+func (c *Client) makeAPIRequest(ctx context.Context, endpoint string, result interface{}) error {
+	fullURL := fmt.Sprintf("%s/%s", c.baseURL, endpoint)
+
+	// Create a clean context that inherits deadlines but not values/metadata
+	// This prevents auth middleware headers from propagating to external API calls
+	cleanCtx := context.Background()
+	if deadline, ok := ctx.Deadline(); ok {
+		var cancel context.CancelFunc
+		cleanCtx, cancel = context.WithDeadline(cleanCtx, deadline)
+		defer cancel()
+	}
+
+	req, err := http.NewRequestWithContext(cleanCtx, "GET", fullURL, nil)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
+	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
+
+	// Debug log the headers being sent (only Authorization for security)
+	if authHeader := req.Header.Get("Authorization"); authHeader != "" {
+		// Only log first 10 chars of auth header for security
+		if len(authHeader) > 10 {
+			log.Printf("[DEBUG] Sending Authorization header to Podcast Index: %.10s...", authHeader)
+		}
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("[ERROR] Podcast Index API returned status %d for %s", resp.StatusCode, fullURL)
+		return fmt.Errorf("API returned status %d", resp.StatusCode)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+		return fmt.Errorf("decoding response: %w", err)
+	}
+
+	// Check for API error status if the result has Status field
+	if statusObj, ok := result.(interface{ GetStatus() string }); ok {
+		if statusObj.GetStatus() != "true" {
+			if descObj, ok := result.(interface{ GetDescription() string }); ok {
+				return fmt.Errorf("API error: %s", descObj.GetDescription())
+			}
+			return fmt.Errorf("API returned error status")
+		}
+	}
+
+	return nil
+}
+
 // Search searches for podcasts by term
 func (c *Client) Search(ctx context.Context, query string, limit int, fullText bool, val string, apOnly bool, clean bool) (*SearchResponse, error) {
 	if query == "" {
@@ -84,8 +141,17 @@ func (c *Client) Search(ctx context.Context, query string, limit int, fullText b
 
 	endpoint := fmt.Sprintf("%s/search/byterm?%s", c.baseURL, params.Encode())
 
-	// Create request
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	// Create a clean context that inherits deadlines but not values/metadata
+	// This prevents auth middleware headers from propagating to external API calls
+	cleanCtx := context.Background()
+	if deadline, ok := ctx.Deadline(); ok {
+		var cancel context.CancelFunc
+		cleanCtx, cancel = context.WithDeadline(cleanCtx, deadline)
+		defer cancel()
+	}
+
+	// Create request with clean context
+	req, err := http.NewRequestWithContext(cleanCtx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -162,8 +228,17 @@ func (c *Client) GetTrending(ctx context.Context, max, since int, categories []s
 
 	endpoint := fmt.Sprintf("%s/podcasts/trending?%s", c.baseURL, params.Encode())
 
-	// Create request
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	// Create a clean context that inherits deadlines but not values/metadata
+	// This prevents auth middleware headers from propagating to external API calls
+	cleanCtx := context.Background()
+	if deadline, ok := ctx.Deadline(); ok {
+		var cancel context.CancelFunc
+		cleanCtx, cancel = context.WithDeadline(cleanCtx, deadline)
+		defer cancel()
+	}
+
+	// Create request with clean context
+	req, err := http.NewRequestWithContext(cleanCtx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -241,38 +316,19 @@ func (c *Client) GetCategories() (*CategoriesResponse, error) {
 func (c *Client) GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) (*EpisodesResponse, error) {
 	// Build URL with query parameters
 	params := url.Values{}
-	params.Set("id", fmt.Sprintf("%d", podcastID))
+	params.Set("id", fmt.Sprintf("%d", podcastID)) // API expects "id" not "feedId"
 	if limit > 0 {
 		params.Set("max", fmt.Sprintf("%d", limit))
 	}
 
-	endpoint := fmt.Sprintf("%s/episodes/byfeedid?%s", c.baseURL, params.Encode())
+	endpoint := fmt.Sprintf("episodes/byfeedid?%s", params.Encode())
 
-	// Create request
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
+	// Debug log the endpoint
+	log.Printf("[DEBUG] Calling Podcast Index API: %s/%s", c.baseURL, endpoint)
 
-	// Sign the request
-	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
-
-	// Execute request
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Check status code
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
-
-	// Decode response
 	var episodesResp EpisodesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&episodesResp); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
+	if err := c.makeAPIRequest(ctx, endpoint, &episodesResp); err != nil {
+		return nil, err
 	}
 
 	// Check API status
@@ -291,8 +347,17 @@ func (c *Client) GetEpisodeByGUID(ctx context.Context, guid string) (*EpisodeByG
 
 	endpoint := fmt.Sprintf("%s/episodes/byguid?%s", c.baseURL, params.Encode())
 
-	// Create request
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	// Create a clean context that inherits deadlines but not values/metadata
+	// This prevents auth middleware headers from propagating to external API calls
+	cleanCtx := context.Background()
+	if deadline, ok := ctx.Deadline(); ok {
+		var cancel context.CancelFunc
+		cleanCtx, cancel = context.WithDeadline(cleanCtx, deadline)
+		defer cancel()
+	}
+
+	// Create request with clean context
+	req, err := http.NewRequestWithContext(cleanCtx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -338,28 +403,11 @@ func (c *Client) GetEpisodesByFeedURL(ctx context.Context, feedURL string, limit
 		params.Set("max", fmt.Sprintf("%d", limit))
 	}
 
-	endpoint := fmt.Sprintf("%s/episodes/byfeedurl?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
+	endpoint := fmt.Sprintf("episodes/byfeedurl?%s", params.Encode())
 
 	var episodesResp EpisodesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&episodesResp); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
+	if err := c.makeAPIRequest(ctx, endpoint, &episodesResp); err != nil {
+		return nil, err
 	}
 
 	if episodesResp.Status != "true" {
@@ -377,28 +425,11 @@ func (c *Client) GetEpisodesByiTunesID(ctx context.Context, itunesID int64, limi
 		params.Set("max", fmt.Sprintf("%d", limit))
 	}
 
-	endpoint := fmt.Sprintf("%s/episodes/byitunesid?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
+	endpoint := fmt.Sprintf("episodes/byitunesid?%s", params.Encode())
 
 	var episodesResp EpisodesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&episodesResp); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
+	if err := c.makeAPIRequest(ctx, endpoint, &episodesResp); err != nil {
+		return nil, err
 	}
 
 	if episodesResp.Status != "true" {
@@ -420,28 +451,11 @@ func (c *Client) GetRecentEpisodes(ctx context.Context, limit int) (*EpisodesRes
 	params := url.Values{}
 	params.Set("max", fmt.Sprintf("%d", limit))
 
-	endpoint := fmt.Sprintf("%s/recent/episodes?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
+	endpoint := fmt.Sprintf("recent/episodes?%s", params.Encode())
 
 	var episodesResp EpisodesResponse
-	if err := json.NewDecoder(resp.Body).Decode(&episodesResp); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
+	if err := c.makeAPIRequest(ctx, endpoint, &episodesResp); err != nil {
+		return nil, err
 	}
 
 	if episodesResp.Status != "true" {
@@ -533,28 +547,11 @@ func (c *Client) GetRecentFeeds(ctx context.Context, limit int) (*RecentFeedsRes
 	params := url.Values{}
 	params.Set("max", fmt.Sprintf("%d", limit))
 
-	endpoint := fmt.Sprintf("%s/recent/feeds?%s", c.baseURL, params.Encode())
-
-	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	signRequest(req, c.apiKey, c.apiSecret, c.userAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
-	}
+	endpoint := fmt.Sprintf("recent/feeds?%s", params.Encode())
 
 	var feedsResp RecentFeedsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&feedsResp); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
+	if err := c.makeAPIRequest(ctx, endpoint, &feedsResp); err != nil {
+		return nil, err
 	}
 
 	if feedsResp.Status != "true" {

@@ -43,7 +43,6 @@ func setupIntegrationTestSuite(t *testing.T) *IntegrationTestSuite {
 	err = db.AutoMigrate(
 		&models.Podcast{},
 		&models.Episode{},
-		&models.User{},
 		&models.Subscription{},
 		&models.Waveform{},
 		&models.Job{},

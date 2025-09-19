@@ -11,9 +11,11 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/killallgit/player-api/api/annotations"
+	authAPI "github.com/killallgit/player-api/api/auth"
 	"github.com/killallgit/player-api/api/categories"
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
+	"github.com/killallgit/player-api/api/middleware"
 	"github.com/killallgit/player-api/api/podcasts"
 	"github.com/killallgit/player-api/api/random"
 	"github.com/killallgit/player-api/api/search"
@@ -24,6 +26,8 @@ import (
 	"github.com/killallgit/player-api/api/waveform"
 	_ "github.com/killallgit/player-api/docs"
 	annotationsService "github.com/killallgit/player-api/internal/services/annotations"
+	authService "github.com/killallgit/player-api/internal/services/auth"
+	"github.com/killallgit/player-api/internal/services/cache"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/jobs"
@@ -79,6 +83,50 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		deps = &types.Dependencies{}
 	}
 
+	// Initialize auth service if not set
+	var authHandler *authAPI.Handler
+	if deps.AuthService == nil {
+		jwksURL := viper.GetString("supabase.jwks_url")
+
+		if jwksURL != "" {
+			authSvc, err := authService.NewService(jwksURL)
+			if err != nil {
+				log.Printf("Failed to initialize auth service: %v", err)
+			} else {
+				// Configure development authentication if enabled
+				devAuthEnabled := viper.GetBool("dev.auth_enabled")
+				devAuthToken := viper.GetString("dev.auth_token")
+				if devAuthEnabled && devAuthToken != "" {
+					authSvc.SetDevAuth(true, devAuthToken)
+					log.Printf("WARNING: Development authentication enabled - DO NOT USE IN PRODUCTION")
+				}
+
+				deps.AuthService = authSvc
+				log.Println("Auth service initialized successfully with JWKS")
+			}
+		} else {
+			log.Println("Supabase JWKS URL not configured - skipping auth service initialization")
+		}
+	}
+
+	// Setup auth handler and routes if service is available
+	if deps.AuthService != nil {
+		authHandler = authAPI.NewHandler(deps.AuthService)
+
+		// Configure dev auth in handler if enabled
+		devAuthEnabled := viper.GetBool("dev.auth_enabled")
+		devAuthToken := viper.GetString("dev.auth_token")
+		if devAuthEnabled && devAuthToken != "" {
+			authHandler.SetDevAuth(true, devAuthToken)
+		}
+
+		// Apply auth middleware to ALL v1 routes
+		v1.Use(authHandler.AuthMiddleware())
+
+		// Register /me endpoint at v1 level (protected by middleware)
+		v1.GET("/me", authHandler.Me)
+	}
+
 	// Initialize podcast client if not set
 	if deps.PodcastClient == nil {
 		// Use Viper directly for Podcast Index credentials since unmarshal isn't working correctly
@@ -103,19 +151,57 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		})
 	}
 
-	// Register search routes with dedicated rate limiting
+	// Initialize cache if enabled
+	var cacheMiddleware gin.HandlerFunc
+	if viper.GetBool("cache.enabled") {
+		maxSizeMB := viper.GetInt64("cache.max_size_mb")
+		if maxSizeMB == 0 {
+			maxSizeMB = 100 // Default 100MB
+		}
+
+		memCache := cache.NewMemoryCache(maxSizeMB)
+
+		// Build TTL configuration map
+		ttlByPath := make(map[string]time.Duration)
+		ttlByPath["/api/v1/search"] = time.Duration(viper.GetInt("cache.ttl_search")) * time.Minute
+		ttlByPath["/api/v1/trending"] = time.Duration(viper.GetInt("cache.ttl_trending")) * time.Minute
+		ttlByPath["/api/v1/podcasts"] = time.Duration(viper.GetInt("cache.ttl_podcast")) * time.Minute
+		ttlByPath["/api/v1/episodes"] = time.Duration(viper.GetInt("cache.ttl_episode")) * time.Minute
+		ttlByPath["/api/v1/categories"] = time.Duration(viper.GetInt("cache.ttl_categories")) * time.Minute
+
+		// Create cache configuration
+		cacheConfig := middleware.CacheConfig{
+			Cache:      memCache,
+			DefaultTTL: viper.GetDuration("cache.default_ttl"),
+			TTLByPath:  ttlByPath,
+			Enabled:    true,
+		}
+
+		cacheMiddleware = middleware.CacheMiddleware(cacheConfig)
+	}
+
+	// Register search routes with dedicated rate limiting and caching
 	searchGroup := v1.Group("/search")
 	searchGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, SearchRateLimit, SearchRateLimitBurst))
+	if cacheMiddleware != nil {
+		searchGroup.Use(cacheMiddleware)
+	}
 	search.RegisterRoutes(searchGroup, deps)
 
-	// Register trending routes with general rate limiting
+	// Register trending routes with general rate limiting and caching
 	trendingGroup := v1.Group("/trending")
 	trendingGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
+	if cacheMiddleware != nil {
+		trendingGroup.Use(cacheMiddleware)
+	}
 	trending.RegisterRoutes(trendingGroup, deps)
 
-	// Register categories routes with general rate limiting
+	// Register categories routes with general rate limiting and caching
 	categoriesGroup := v1.Group("/categories")
 	categoriesGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
+	if cacheMiddleware != nil {
+		categoriesGroup.Use(cacheMiddleware)
+	}
 	categories.RegisterRoutes(categoriesGroup, deps)
 
 	// Register random routes with general rate limiting
@@ -127,10 +213,14 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 	if deps.DB != nil && deps.DB.DB != nil {
 		initializeAllServices(deps, cfg)
 
-		// Register all episode-related routes with general rate limiting
+		// Register all episode-related routes with general rate limiting and caching
 		// All episode features share the same rate limits since they operate on the same resource
 		episodeGroup := v1.Group("/episodes")
 		episodeGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
+		if cacheMiddleware != nil {
+			// Apply cache only to GET endpoints (other middleware will filter out non-GET)
+			episodeGroup.Use(cacheMiddleware)
+		}
 
 		// Register all episode-related routes under the same group
 		episodes.RegisterRoutes(episodeGroup, deps)
@@ -138,10 +228,13 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		transcriptionAPI.RegisterRoutes(episodeGroup, deps) // Transcription generation may be CPU intensive
 		annotations.RegisterRoutes(episodeGroup, deps)
 
-		// Register podcast routes with rate limiting
+		// Register podcast routes with rate limiting and caching
 		podcastGroup := v1.Group("/podcasts")
 		// Create middleware for rate limiting
 		episodesMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst)
+		if cacheMiddleware != nil {
+			podcastGroup.Use(cacheMiddleware)
+		}
 		podcasts.RegisterRoutes(podcastGroup, deps, episodesMiddleware)
 
 	}
@@ -184,8 +277,29 @@ func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
 
 // initializeEpisodeService creates and configures the episode service
 func initializeEpisodeService(deps *types.Dependencies, _ *config.Config) {
+	// Check if PodcastClient is available
+	if deps.PodcastClient == nil {
+		log.Printf("[ERROR] PodcastClient is nil - episode service will not be able to fetch from API")
+		// Still create the service but with nil fetcher - it will only use database
+		episodeRepo := episodesService.NewRepository(deps.DB.DB)
+		episodeCache := episodesService.NewCache(time.Hour)
+
+		deps.EpisodeService = episodesService.NewService(
+			nil, // No fetcher available
+			episodeRepo,
+			episodeCache,
+		)
+		deps.EpisodeTransformer = episodesService.NewTransformer()
+		return
+	}
+
 	// Create dependencies
-	podcastClient := deps.PodcastClient.(*podcastindex.Client)
+	podcastClient, ok := deps.PodcastClient.(*podcastindex.Client)
+	if !ok {
+		log.Printf("[ERROR] PodcastClient is not of expected type *podcastindex.Client")
+		return
+	}
+
 	episodeFetcher := episodesService.NewPodcastIndexAdapter(podcastClient)
 	episodeRepo := episodesService.NewRepository(deps.DB.DB)
 	episodeCache := episodesService.NewCache(time.Hour)

@@ -1,5 +1,18 @@
 basePath: /
 definitions:
+  auth.UserInfo:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+    type: object
   episodes.Review:
     properties:
       author:
@@ -1049,6 +1062,27 @@ paths:
       summary: Update annotation
       tags:
       - annotations
+  /api/v1/me:
+    get:
+      description: Get current user information from Supabase JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.UserInfo'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
   /api/v1/podcasts/{id}/episodes:
     get:
       consumes:

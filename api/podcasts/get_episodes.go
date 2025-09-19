@@ -1,6 +1,7 @@
 package podcasts
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -35,43 +36,39 @@ func GetEpisodesForPodcast(deps *types.Dependencies) gin.HandlerFunc {
 			max = 20
 		}
 
-		// Try to fetch fresh data from API and sync
+		// Fetch episodes from API (cache middleware will handle caching)
 		apiResponse, err := deps.EpisodeService.FetchAndSyncEpisodes(c.Request.Context(), podcastID, max)
-		if err == nil && apiResponse != nil {
-			// Transform to unified response type
-			episodes := types.FromServiceEpisodeList(apiResponse.Items)
-			c.JSON(http.StatusOK, types.EpisodesResponse{
-				BaseResponse: types.BaseResponse{
-					Status:  types.StatusOK,
-					Message: "Fetched episodes for podcast",
-				},
-				Episodes: episodes,
-				Count:    len(episodes),
-			})
-			return
-		}
+		if err != nil {
+			log.Printf("[ERROR] Failed to fetch episodes for podcast %d: %v", podcastID, err)
 
-		// Fallback to database
-		page := 1
-		episodes, total, dbErr := deps.EpisodeService.GetEpisodesByPodcastID(c.Request.Context(), uint(podcastID), page, max)
-		if dbErr != nil {
-			log.Printf("[ERROR] Failed to fetch episodes from database for podcast %d: %v", podcastID, dbErr)
-			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+			// Check if it's a configuration issue
+			if err.Error() == "podcast API client not available - check Podcast Index API credentials" {
+				c.JSON(http.StatusServiceUnavailable, types.ErrorResponse{
+					Status:  types.StatusError,
+					Message: "Podcast API service is not configured",
+					Details: "The server is not properly configured to fetch podcast data. Please contact the administrator.",
+				})
+				return
+			}
+
+			// Return error to client
+			c.JSON(http.StatusBadGateway, types.ErrorResponse{
 				Status:  types.StatusError,
-				Message: "Failed to fetch episodes",
-				Details: dbErr.Error(),
+				Message: "Failed to fetch episodes from Podcast Index API",
+				Details: err.Error(),
 			})
 			return
 		}
 
-		// Transform and return
-		response := deps.EpisodeTransformer.CreateSuccessResponse(episodes, "")
-		response.Query = podcastID
-
-		if total > int64(len(episodes)) {
-			response.Description = response.Description + ". Total available: " + strconv.FormatInt(total, 10)
-		}
-
-		c.JSON(http.StatusOK, response)
+		// Transform to unified response type
+		episodes := types.FromServiceEpisodeList(apiResponse.Items)
+		c.JSON(http.StatusOK, types.EpisodesResponse{
+			BaseResponse: types.BaseResponse{
+				Status:  types.StatusOK,
+				Message: fmt.Sprintf("Fetched %d episodes for podcast", len(episodes)),
+			},
+			Episodes: episodes,
+			Count:    len(episodes),
+		})
 	}
 }

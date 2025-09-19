@@ -90,15 +90,21 @@ log_info "API is healthy"
 
 # Step 2: Fetch trending podcasts
 log_info "Step 2: Fetching trending podcasts..."
-trending_response=$(curl -s "$API_URL/api/v1/trending?limit=5")
-if ! check_response "$trending_response" "results"; then
+# Use dev token for auth (if configured) or empty token
+AUTH_TOKEN="${AUTH_TOKEN:-foobarbaz}"
+trending_response=$(curl -s -X POST "$API_URL/api/v1/trending" \
+    -H "Authorization: Bearer $AUTH_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"max": 5}')
+if ! check_response "$trending_response" "podcasts"; then
     log_error "Failed to fetch trending podcasts"
+    echo "Response: $trending_response"
     exit 1
 fi
 
-# Extract first podcast (results array format)
-podcast_id=$(echo "$trending_response" | jq -r '.results[0].id // empty')
-podcast_title=$(echo "$trending_response" | jq -r '.results[0].title // empty')
+# Extract first podcast (podcasts array format)
+podcast_id=$(echo "$trending_response" | jq -r '.podcasts[0].id // empty')
+podcast_title=$(echo "$trending_response" | jq -r '.podcasts[0].title // empty')
 
 if [ -z "$podcast_id" ]; then
     log_error "No podcast ID found in trending response"
@@ -115,8 +121,9 @@ log_info "Podcast details request sent (may not be fully implemented)"
 
 # Step 4: Get episodes for the podcast
 log_info "Step 4: Getting episodes for podcast..."
-episodes_response=$(curl -s "$API_URL/api/v1/podcasts/$podcast_id/episodes?limit=5")
-if ! check_response "$episodes_response" "items"; then
+episodes_response=$(curl -s "$API_URL/api/v1/podcasts/$podcast_id/episodes?limit=5" \
+    -H "Authorization: Bearer $AUTH_TOKEN")
+if ! check_response "$episodes_response" "episodes"; then
     log_error "Failed to fetch episodes"
     exit 1
 fi
@@ -125,10 +132,10 @@ fi
 episode_id=""
 episode_title=""
 for i in {0..4}; do
-    duration=$(echo "$episodes_response" | jq -r ".items[$i].duration // 0")
+    duration=$(echo "$episodes_response" | jq -r ".episodes[$i].duration // 0")
     if [ "$duration" -gt 0 ] && [ "$duration" -lt 7200 ]; then
-        episode_id=$(echo "$episodes_response" | jq -r ".items[$i].id // empty")
-        episode_title=$(echo "$episodes_response" | jq -r ".items[$i].title // empty")
+        episode_id=$(echo "$episodes_response" | jq -r ".episodes[$i].id // empty")
+        episode_title=$(echo "$episodes_response" | jq -r ".episodes[$i].title // empty")
         break
     fi
 done

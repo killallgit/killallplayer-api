@@ -62,21 +62,11 @@ type Episode struct {
 	Annotations []Annotation `json:"annotations,omitempty" gorm:"foreignKey:EpisodeID"`
 }
 
-// User represents a user account
-type User struct {
-	gorm.Model
-	Email         string         `json:"email" gorm:"uniqueIndex;not null"`
-	Username      string         `json:"username" gorm:"uniqueIndex;not null"`
-	PasswordHash  string         `json:"-" gorm:"not null"`
-	IsActive      bool           `json:"is_active" gorm:"default:true"`
-	Subscriptions []Subscription `json:"subscriptions,omitempty" gorm:"foreignKey:UserID"`
-}
-
 // Subscription represents a user's subscription to a podcast
+// Note: UserID now references Supabase user UUID
 type Subscription struct {
 	gorm.Model
-	UserID    uint    `json:"user_id" gorm:"not null"`
+	UserID    string  `json:"user_id" gorm:"not null;size:36;index"` // Supabase UUID
 	PodcastID uint    `json:"podcast_id" gorm:"not null"`
-	User      User    `json:"-" gorm:"foreignKey:UserID"`
 	Podcast   Podcast `json:"podcast,omitempty" gorm:"foreignKey:PodcastID"`
 }
