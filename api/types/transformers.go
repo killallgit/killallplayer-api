@@ -1,6 +1,9 @@
 package types
 
 import (
+	"time"
+
+	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
@@ -156,6 +159,36 @@ func FromServiceEpisodeList(episodes []episodes.PodcastIndexEpisode) []Episode {
 	result := make([]Episode, 0, len(episodes))
 	for _, e := range episodes {
 		if transformed := FromServiceEpisode(&e); transformed != nil {
+			result = append(result, *transformed)
+		}
+	}
+	return result
+}
+
+// FromModelAnnotation transforms a models.Annotation to API Annotation type
+func FromModelAnnotation(a *models.Annotation) *Annotation {
+	if a == nil {
+		return nil
+	}
+
+	return &Annotation{
+		ID:         a.UUID, // Use UUID as API ID
+		EpisodeID:  int64(a.EpisodeID),
+		StartTime:  a.StartTime,
+		EndTime:    a.EndTime,
+		Label:      a.Label,
+		ClipStatus: a.ClipStatus,
+		ClipSize:   a.ClipSize,
+		CreatedAt:  a.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:  a.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+// FromModelAnnotationList transforms a list of models.Annotation to API Annotation type
+func FromModelAnnotationList(annotations []models.Annotation) []Annotation {
+	result := make([]Annotation, 0, len(annotations))
+	for _, a := range annotations {
+		if transformed := FromModelAnnotation(&a); transformed != nil {
 			result = append(result, *transformed)
 		}
 	}

@@ -74,3 +74,37 @@ func (r *RepositoryImpl) DeleteAnnotation(ctx context.Context, id uint) error {
 	}
 	return nil
 }
+
+// GetAnnotationByUUID retrieves an annotation by its UUID
+func (r *RepositoryImpl) GetAnnotationByUUID(ctx context.Context, uuid string) (*models.Annotation, error) {
+	var annotation models.Annotation
+	if err := r.db.WithContext(ctx).Where("uuid = ?", uuid).First(&annotation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("annotation not found")
+		}
+		return nil, fmt.Errorf("getting annotation: %w", err)
+	}
+	return &annotation, nil
+}
+
+// CheckOverlappingAnnotation checks if there's an existing annotation that overlaps with the given time range
+func (r *RepositoryImpl) CheckOverlappingAnnotation(ctx context.Context, episodeID uint, startTime, endTime float64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.Annotation{}).
+		Where("episode_id = ? AND start_time < ? AND end_time > ?",
+			episodeID, endTime, startTime).
+		Count(&count).Error
+
+	return count > 0, err
+}
+
+// CheckOverlappingAnnotationExcluding checks for overlaps excluding a specific annotation ID
+func (r *RepositoryImpl) CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID uint, startTime, endTime float64, excludeID uint) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.Annotation{}).
+		Where("episode_id = ? AND id != ? AND start_time < ? AND end_time > ?",
+			episodeID, excludeID, endTime, startTime).
+		Count(&count).Error
+
+	return count > 0, err
+}

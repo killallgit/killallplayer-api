@@ -84,3 +84,68 @@ func (s *ServiceImpl) UpdateAnnotation(ctx context.Context, id uint, label strin
 func (s *ServiceImpl) DeleteAnnotation(ctx context.Context, id uint) error {
 	return s.repository.DeleteAnnotation(ctx, id)
 }
+
+// GetAnnotationByUUID retrieves an annotation by its UUID
+func (s *ServiceImpl) GetAnnotationByUUID(ctx context.Context, uuid string) (*models.Annotation, error) {
+	return s.repository.GetAnnotationByUUID(ctx, uuid)
+}
+
+// CheckOverlappingAnnotation checks if there's an existing annotation that overlaps with the given time range
+func (s *ServiceImpl) CheckOverlappingAnnotation(ctx context.Context, episodeID uint, startTime, endTime float64) (bool, error) {
+	return s.repository.CheckOverlappingAnnotation(ctx, episodeID, startTime, endTime)
+}
+
+// CheckOverlappingAnnotationExcluding checks for overlaps excluding a specific annotation ID
+func (s *ServiceImpl) CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID uint, startTime, endTime float64, excludeID uint) (bool, error) {
+	return s.repository.CheckOverlappingAnnotationExcluding(ctx, episodeID, startTime, endTime, excludeID)
+}
+
+// UpdateAnnotationByUUID updates an existing annotation by UUID
+func (s *ServiceImpl) UpdateAnnotationByUUID(ctx context.Context, uuid, label string, startTime, endTime float64) (*models.Annotation, error) {
+	// Validate input
+	if label == "" {
+		return nil, fmt.Errorf("Label is required")
+	}
+	if startTime >= endTime {
+		return nil, fmt.Errorf("Start time must be before end time")
+	}
+
+	// Get existing annotation
+	annotation, err := s.repository.GetAnnotationByUUID(ctx, uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if time bounds changed
+	timeBoundsChanged := annotation.StartTime != startTime || annotation.EndTime != endTime
+
+	// Check for overlaps with OTHER annotations (exclude current one)
+	if timeBoundsChanged {
+		isDuplicate, err := s.repository.CheckOverlappingAnnotationExcluding(ctx, annotation.EpisodeID, startTime, endTime, annotation.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check for duplicates: %w", err)
+		}
+		if isDuplicate {
+			return nil, fmt.Errorf("updated annotation would overlap with existing annotation")
+		}
+	}
+
+	// Update fields
+	annotation.Label = label
+	annotation.StartTime = startTime
+	annotation.EndTime = endTime
+
+	// If time bounds changed, reset clip status for re-processing
+	if timeBoundsChanged {
+		annotation.ClipStatus = "pending"
+		annotation.ClipSize = 0
+		annotation.ClipPath = "" // Clear old clip path
+	}
+
+	// Save changes
+	if err := s.repository.UpdateAnnotation(ctx, annotation); err != nil {
+		return nil, err
+	}
+
+	return annotation, nil
+}

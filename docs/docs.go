@@ -60,6 +60,154 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/annotations/{uuid}": {
+            "get": {
+                "description": "Retrieve a specific annotation by its UUID, including clip status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "annotations"
+                ],
+                "summary": "Get annotation by UUID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Annotation UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Annotation details",
+                        "schema": {
+                            "$ref": "#/definitions/types.SingleAnnotationResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Annotation not found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update an existing annotation's label, start time, or end time using UUID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "annotations"
+                ],
+                "summary": "Update annotation by UUID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Annotation UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated annotation data (label, start_time, end_time)",
+                        "name": "annotation",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Annotation"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated annotation",
+                        "schema": {
+                            "$ref": "#/definitions/types.SingleAnnotationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or overlapping annotation",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Annotation not found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an existing annotation by UUID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "annotations"
+                ],
+                "summary": "Delete annotation by UUID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Annotation UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Annotation deleted successfully",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Annotation not found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/categories": {
             "get": {
                 "description": "Get a list of all available podcast categories from the Podcast Index API",
@@ -140,59 +288,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Annotation not found",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Delete an existing annotation by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "annotations"
-                ],
-                "summary": "Delete annotation",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Annotation ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Annotation deleted successfully",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid annotation ID",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -1048,6 +1143,18 @@ const docTemplate = `{
         "models.Annotation": {
             "type": "object",
             "properties": {
+                "clip_path": {
+                    "description": "Clip extraction fields",
+                    "type": "string"
+                },
+                "clip_size": {
+                    "description": "File size in bytes",
+                    "type": "integer"
+                },
+                "clip_status": {
+                    "description": "pending|processing|ready|failed",
+                    "type": "string"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -1383,6 +1490,48 @@ const docTemplate = `{
                 }
             }
         },
+        "types.Annotation": {
+            "type": "object",
+            "properties": {
+                "clipSize": {
+                    "description": "Size in bytes",
+                    "type": "integer"
+                },
+                "clipStatus": {
+                    "description": "Clip extraction fields",
+                    "type": "string"
+                },
+                "createdAt": {
+                    "description": "ISO 8601",
+                    "type": "string"
+                },
+                "endTime": {
+                    "description": "Seconds",
+                    "type": "number"
+                },
+                "episodeId": {
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "UUID for stable reference",
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "startTime": {
+                    "description": "Seconds",
+                    "type": "number"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "description": "ISO 8601",
+                    "type": "string"
+                }
+            }
+        },
         "types.Episode": {
             "type": "object",
             "properties": {
@@ -1655,6 +1804,22 @@ const docTemplate = `{
                     "description": "Filter by value block type (e.g., \"any\", \"lightning\")",
                     "type": "string",
                     "example": "any"
+                }
+            }
+        },
+        "types.SingleAnnotationResponse": {
+            "type": "object",
+            "properties": {
+                "annotation": {
+                    "$ref": "#/definitions/types.Annotation"
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "One of the Status constants above",
+                    "type": "string"
                 }
             }
         },

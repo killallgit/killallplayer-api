@@ -59,12 +59,18 @@ type Transcription struct {
 
 // Annotation represents audio segment annotation
 type Annotation struct {
-	ID        string  `json:"id"`
+	ID        string  `json:"id"` // UUID for stable reference
 	EpisodeID int64   `json:"episodeId"`
 	StartTime float64 `json:"startTime"` // Seconds
 	EndTime   float64 `json:"endTime"`   // Seconds
 	Label     string  `json:"label"`
 	Text      string  `json:"text,omitempty"`
+
+	// Clip extraction fields
+	ClipStatus string `json:"clipStatus,omitempty"` // pending|processing|ready|failed
+	ClipSize   int64  `json:"clipSize,omitempty"`   // Size in bytes
+	CreatedAt  string `json:"createdAt,omitempty"`  // ISO 8601
+	UpdatedAt  string `json:"updatedAt,omitempty"`  // ISO 8601
 }
 
 // Category represents a podcast category

@@ -44,6 +44,24 @@ func (m *MockRepository) DeleteAnnotation(ctx context.Context, id uint) error {
 	return args.Error(0)
 }
 
+func (m *MockRepository) GetAnnotationByUUID(ctx context.Context, uuid string) (*models.Annotation, error) {
+	args := m.Called(ctx, uuid)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Annotation), args.Error(1)
+}
+
+func (m *MockRepository) CheckOverlappingAnnotation(ctx context.Context, episodeID uint, startTime, endTime float64) (bool, error) {
+	args := m.Called(ctx, episodeID, startTime, endTime)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockRepository) CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID uint, startTime, endTime float64, excludeID uint) (bool, error) {
+	args := m.Called(ctx, episodeID, startTime, endTime, excludeID)
+	return args.Bool(0), args.Error(1)
+}
+
 func TestServiceImpl_CreateAnnotation(t *testing.T) {
 	ctx := context.Background()
 

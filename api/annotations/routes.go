@@ -11,10 +11,11 @@ func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
 	router.POST("/:id/annotations", CreateAnnotation(deps))
 	router.GET("/:id/annotations", GetAnnotations(deps))
 
-	// Direct annotation endpoints (not nested under episodes)
+	// Direct annotation endpoints (UUID-based)
 	annotationsGroup := router.Group("/annotations")
 	{
-		annotationsGroup.PUT("/:id", UpdateAnnotation(deps))
-		annotationsGroup.DELETE("/:id", DeleteAnnotation(deps))
+		annotationsGroup.GET("/:uuid", GetAnnotationByUUID(deps))    // Get by UUID
+		annotationsGroup.PUT("/:uuid", UpdateAnnotationByUUID(deps)) // Update by UUID
+		annotationsGroup.DELETE("/:uuid", DeleteAnnotation(deps))    // Use UUID for consistency
 	}
 }

@@ -87,6 +87,15 @@ definitions:
     type: object
   models.Annotation:
     properties:
+      clip_path:
+        description: Clip extraction fields
+        type: string
+      clip_size:
+        description: File size in bytes
+        type: integer
+      clip_status:
+        description: pending|processing|ready|failed
+        type: string
       createdAt:
         type: string
       deletedAt:
@@ -310,6 +319,36 @@ definitions:
       transcriptUrl:
         type: string
     type: object
+  types.Annotation:
+    properties:
+      clipSize:
+        description: Size in bytes
+        type: integer
+      clipStatus:
+        description: Clip extraction fields
+        type: string
+      createdAt:
+        description: ISO 8601
+        type: string
+      endTime:
+        description: Seconds
+        type: number
+      episodeId:
+        type: integer
+      id:
+        description: UUID for stable reference
+        type: string
+      label:
+        type: string
+      startTime:
+        description: Seconds
+        type: number
+      text:
+        type: string
+      updatedAt:
+        description: ISO 8601
+        type: string
+    type: object
   types.Episode:
     properties:
       audioUrl:
@@ -508,6 +547,17 @@ definitions:
     required:
     - query
     type: object
+  types.SingleAnnotationResponse:
+    properties:
+      annotation:
+        $ref: '#/definitions/types.Annotation'
+      message:
+        description: Human-readable message
+        type: string
+      status:
+        description: One of the Status constants above
+        type: string
+    type: object
   types.SingleEpisodeResponse:
     properties:
       episode:
@@ -666,6 +716,105 @@ paths:
       summary: Get API version
       tags:
       - version
+  /api/v1/annotations/{uuid}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an existing annotation by UUID
+      parameters:
+      - description: Annotation UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Annotation deleted successfully
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "404":
+          description: Annotation not found
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Delete annotation by UUID
+      tags:
+      - annotations
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific annotation by its UUID, including clip status
+      parameters:
+      - description: Annotation UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Annotation details
+          schema:
+            $ref: '#/definitions/types.SingleAnnotationResponse'
+        "404":
+          description: Annotation not found
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Get annotation by UUID
+      tags:
+      - annotations
+    put:
+      consumes:
+      - application/json
+      description: Update an existing annotation's label, start time, or end time
+        using UUID
+      parameters:
+      - description: Annotation UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Updated annotation data (label, start_time, end_time)
+        in: body
+        name: annotation
+        required: true
+        schema:
+          $ref: '#/definitions/models.Annotation'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated annotation
+          schema:
+            $ref: '#/definitions/types.SingleAnnotationResponse'
+        "400":
+          description: Invalid request or overlapping annotation
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "404":
+          description: Annotation not found
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Update annotation by UUID
+      tags:
+      - annotations
   /api/v1/categories:
     get:
       consumes:
@@ -989,41 +1138,6 @@ paths:
       tags:
       - waveform
   /api/v1/episodes/annotations/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete an existing annotation by ID
-      parameters:
-      - description: Annotation ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Annotation deleted successfully
-          schema:
-            properties:
-              message:
-                type: string
-            type: object
-        "400":
-          description: Invalid annotation ID
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "404":
-          description: Annotation not found
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/types.ErrorResponse'
-      summary: Delete annotation
-      tags:
-      - annotations
     put:
       consumes:
       - application/json

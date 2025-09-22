@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
 	"time"
 
@@ -67,8 +66,9 @@ func setupAnnotationTestSuite(t *testing.T) *AnnotationTestSuite {
 	router := gin.New()
 	router.POST("/episodes/:id/annotations", annotations.CreateAnnotation(deps))
 	router.GET("/episodes/:id/annotations", annotations.GetAnnotations(deps))
-	router.PUT("/annotations/:id", annotations.UpdateAnnotation(deps))
-	router.DELETE("/annotations/:id", annotations.DeleteAnnotation(deps))
+	router.PUT("/annotations/:uuid", annotations.UpdateAnnotationByUUID(deps))
+	router.DELETE("/annotations/:uuid", annotations.DeleteAnnotation(deps))
+	router.GET("/annotations/:uuid", annotations.GetAnnotationByUUID(deps))
 
 	return &AnnotationTestSuite{
 		t:      t,
@@ -114,21 +114,22 @@ func TestCreateAnnotation(t *testing.T) {
 			},
 			expectedStatus: http.StatusCreated,
 			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
-				var annotation models.Annotation
+				var annotation types.Annotation
 				err := json.Unmarshal(w.Body.Bytes(), &annotation)
 				assert.NoError(t, err)
 				assert.Equal(t, "Introduction", annotation.Label)
 				assert.Equal(t, 0.0, annotation.StartTime)
 				assert.Equal(t, 30.5, annotation.EndTime)
-				assert.Equal(t, episodeID, annotation.EpisodeID)
+				assert.Equal(t, int64(episodeID), annotation.EpisodeID)
+				assert.NotEmpty(t, annotation.ID) // UUID should be set
 			},
 		},
 		{
 			name:      "missing label",
 			episodeID: "12345", // Use PodcastIndexID
 			payload: map[string]interface{}{
-				"start_time": 0.0,
-				"end_time":   30.5,
+				"start_time": 50.0,
+				"end_time":   80.5,
 			},
 			expectedStatus: http.StatusBadRequest,
 			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -143,8 +144,8 @@ func TestCreateAnnotation(t *testing.T) {
 			episodeID: "12345", // Use PodcastIndexID
 			payload: map[string]interface{}{
 				"label":      "Invalid Range",
-				"start_time": 30.0,
-				"end_time":   10.0,
+				"start_time": 100.0,
+				"end_time":   90.0,
 			},
 			expectedStatus: http.StatusBadRequest,
 			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -222,7 +223,7 @@ func TestGetAnnotations(t *testing.T) {
 				// Check that annotations are ordered by start time
 				firstAnnotation := annotationsData[0].(map[string]interface{})
 				assert.Equal(t, "Introduction", firstAnnotation["label"])
-				assert.Equal(t, 0.0, firstAnnotation["start_time"])
+				assert.Equal(t, 0.0, firstAnnotation["startTime"])
 			},
 		},
 		{
@@ -287,7 +288,7 @@ func TestUpdateAnnotation(t *testing.T) {
 	}{
 		{
 			name:         "successful update",
-			annotationID: strconv.Itoa(int(annotation.ID)),
+			annotationID: annotation.UUID,
 			payload: map[string]interface{}{
 				"label":      "Updated Label",
 				"start_time": 5.0,
@@ -295,9 +296,10 @@ func TestUpdateAnnotation(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
-				var updatedAnnotation models.Annotation
-				err := json.Unmarshal(w.Body.Bytes(), &updatedAnnotation)
+				var response types.SingleAnnotationResponse
+				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
+				updatedAnnotation := response.Annotation
 				assert.Equal(t, "Updated Label", updatedAnnotation.Label)
 				assert.Equal(t, 5.0, updatedAnnotation.StartTime)
 				assert.Equal(t, 45.0, updatedAnnotation.EndTime)
@@ -305,7 +307,7 @@ func TestUpdateAnnotation(t *testing.T) {
 		},
 		{
 			name:         "missing label",
-			annotationID: strconv.Itoa(int(annotation.ID)),
+			annotationID: annotation.UUID,
 			payload: map[string]interface{}{
 				"start_time": 5.0,
 				"end_time":   45.0,
@@ -320,7 +322,7 @@ func TestUpdateAnnotation(t *testing.T) {
 		},
 		{
 			name:         "invalid time range",
-			annotationID: strconv.Itoa(int(annotation.ID)),
+			annotationID: annotation.UUID,
 			payload: map[string]interface{}{
 				"label":      "Updated Label",
 				"start_time": 45.0,
@@ -387,7 +389,7 @@ func TestDeleteAnnotation(t *testing.T) {
 	}{
 		{
 			name:           "successful deletion",
-			annotationID:   strconv.Itoa(int(annotation.ID)),
+			annotationID:   annotation.UUID,
 			expectedStatus: http.StatusOK,
 			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]interface{}
@@ -403,13 +405,13 @@ func TestDeleteAnnotation(t *testing.T) {
 		},
 		{
 			name:           "invalid annotation ID",
-			annotationID:   "invalid",
-			expectedStatus: http.StatusBadRequest,
+			annotationID:   "invalid-uuid",
+			expectedStatus: http.StatusNotFound,
 			validateFunc: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				assert.NoError(t, err)
-				assert.Contains(t, response["error"], "Invalid annotation ID")
+				assert.Contains(t, response["error"], "Annotation not found")
 			},
 		},
 		{
@@ -461,16 +463,16 @@ func TestAnnotationUUID(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, w.Code)
 
-		var annotation models.Annotation
+		var annotation types.Annotation
 		err := json.Unmarshal(w.Body.Bytes(), &annotation)
 		require.NoError(t, err)
 
 		// Verify UUID was generated
-		assert.NotEmpty(t, annotation.UUID)
-		assert.Len(t, annotation.UUID, 36) // Standard UUID format with hyphens
+		assert.NotEmpty(t, annotation.ID)
+		assert.Len(t, annotation.ID, 36) // Standard UUID format with hyphens
 
 		// Verify UUID follows UUID v4 format (xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx)
-		assert.Regexp(t, `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, annotation.UUID)
+		assert.Regexp(t, `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, annotation.ID)
 	})
 
 	t.Run("UUID remains stable after update", func(t *testing.T) {
@@ -478,8 +480,8 @@ func TestAnnotationUUID(t *testing.T) {
 		annotation := models.Annotation{
 			EpisodeID: episodeID,
 			Label:     "Original",
-			StartTime: 0.0,
-			EndTime:   10.0,
+			StartTime: 100.0,
+			EndTime:   110.0,
 		}
 		result := suite.db.Create(&annotation)
 		require.NoError(t, result.Error)
@@ -488,12 +490,12 @@ func TestAnnotationUUID(t *testing.T) {
 		// Update the annotation
 		updatePayload := map[string]interface{}{
 			"label":      "Updated",
-			"start_time": 5.0,
-			"end_time":   15.0,
+			"start_time": 105.0,
+			"end_time":   115.0,
 		}
 
 		body, _ := json.Marshal(updatePayload)
-		req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/annotations/%d", annotation.ID), bytes.NewBuffer(body))
+		req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/annotations/%s", annotation.UUID), bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 
 		w := httptest.NewRecorder()
@@ -501,16 +503,17 @@ func TestAnnotationUUID(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		var updatedAnnotation models.Annotation
-		err := json.Unmarshal(w.Body.Bytes(), &updatedAnnotation)
+		var response types.SingleAnnotationResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err)
+		updatedAnnotation := response.Annotation
 
 		// UUID should remain the same
-		assert.Equal(t, originalUUID, updatedAnnotation.UUID)
+		assert.Equal(t, originalUUID, updatedAnnotation.ID)
 		// But other fields should be updated
 		assert.Equal(t, "Updated", updatedAnnotation.Label)
-		assert.Equal(t, 5.0, updatedAnnotation.StartTime)
-		assert.Equal(t, 15.0, updatedAnnotation.EndTime)
+		assert.Equal(t, 105.0, updatedAnnotation.StartTime)
+		assert.Equal(t, 115.0, updatedAnnotation.EndTime)
 	})
 
 	t.Run("Each annotation gets unique UUID", func(t *testing.T) {
@@ -520,8 +523,8 @@ func TestAnnotationUUID(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			payload := map[string]interface{}{
 				"label":      fmt.Sprintf("Annotation %d", i),
-				"start_time": float64(i * 10),
-				"end_time":   float64((i + 1) * 10),
+				"start_time": float64(150 + i*10),
+				"end_time":   float64(150 + (i+1)*10),
 			}
 
 			body, _ := json.Marshal(payload)
@@ -533,15 +536,15 @@ func TestAnnotationUUID(t *testing.T) {
 
 			assert.Equal(t, http.StatusCreated, w.Code)
 
-			var annotation models.Annotation
+			var annotation types.Annotation
 			err := json.Unmarshal(w.Body.Bytes(), &annotation)
 			require.NoError(t, err)
 
 			// Check UUID is unique
-			assert.NotEmpty(t, annotation.UUID)
-			_, exists := uuids[annotation.UUID]
+			assert.NotEmpty(t, annotation.ID)
+			_, exists := uuids[annotation.ID]
 			assert.False(t, exists, "UUID should be unique")
-			uuids[annotation.UUID] = true
+			uuids[annotation.ID] = true
 		}
 
 		// Verify we created 5 unique UUIDs
@@ -553,8 +556,8 @@ func TestAnnotationUUID(t *testing.T) {
 		annotation := models.Annotation{
 			EpisodeID: episodeID,
 			Label:     "Test",
-			StartTime: 0.0,
-			EndTime:   10.0,
+			StartTime: 200.0,
+			EndTime:   210.0,
 		}
 		result := suite.db.Create(&annotation)
 		require.NoError(t, result.Error)
@@ -586,6 +589,6 @@ func TestAnnotationUUID(t *testing.T) {
 
 		require.NotNil(t, foundAnnotation, "Should find our test annotation")
 		// Check that UUID is present and matches
-		assert.Equal(t, annotation.UUID, foundAnnotation["uuid"])
+		assert.Equal(t, annotation.UUID, foundAnnotation["id"])
 	})
 }

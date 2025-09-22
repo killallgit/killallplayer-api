@@ -14,6 +14,11 @@ type Annotation struct {
 	StartTime float64 `json:"start_time" gorm:"not null"` // Time in seconds
 	EndTime   float64 `json:"end_time" gorm:"not null"`   // Time in seconds
 
+	// Clip extraction fields
+	ClipPath   string `json:"clip_path" gorm:""`                  // Path to extracted audio clip
+	ClipStatus string `json:"clip_status" gorm:"default:pending"` // pending|processing|ready|failed
+	ClipSize   int64  `json:"clip_size" gorm:"default:0"`         // File size in bytes
+
 	// Relationship
 	Episode Episode `json:"episode,omitempty" gorm:"foreignKey:EpisodeID"`
 }
