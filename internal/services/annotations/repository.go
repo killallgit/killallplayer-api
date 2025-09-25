@@ -39,11 +39,11 @@ func (r *RepositoryImpl) GetAnnotationByID(ctx context.Context, id uint) (*model
 	return &annotation, nil
 }
 
-// GetAnnotationsByEpisodeID retrieves all annotations for a specific episode
-func (r *RepositoryImpl) GetAnnotationsByEpisodeID(ctx context.Context, episodeID uint) ([]models.Annotation, error) {
+// GetAnnotationsByPodcastIndexEpisodeID retrieves all annotations for a specific episode
+func (r *RepositoryImpl) GetAnnotationsByPodcastIndexEpisodeID(ctx context.Context, podcastIndexEpisodeID int64) ([]models.Annotation, error) {
 	var annotations []models.Annotation
 	if err := r.db.WithContext(ctx).
-		Where("episode_id = ?", episodeID).
+		Where("podcast_index_episode_id = ?", podcastIndexEpisodeID).
 		Order("start_time ASC").
 		Find(&annotations).Error; err != nil {
 		return nil, fmt.Errorf("getting annotations for episode: %w", err)
@@ -88,22 +88,22 @@ func (r *RepositoryImpl) GetAnnotationByUUID(ctx context.Context, uuid string) (
 }
 
 // CheckOverlappingAnnotation checks if there's an existing annotation that overlaps with the given time range
-func (r *RepositoryImpl) CheckOverlappingAnnotation(ctx context.Context, episodeID uint, startTime, endTime float64) (bool, error) {
+func (r *RepositoryImpl) CheckOverlappingAnnotation(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&models.Annotation{}).
-		Where("episode_id = ? AND start_time < ? AND end_time > ?",
-			episodeID, endTime, startTime).
+		Where("podcast_index_episode_id = ? AND start_time < ? AND end_time > ?",
+			podcastIndexEpisodeID, endTime, startTime).
 		Count(&count).Error
 
 	return count > 0, err
 }
 
 // CheckOverlappingAnnotationExcluding checks for overlaps excluding a specific annotation ID
-func (r *RepositoryImpl) CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID uint, startTime, endTime float64, excludeID uint) (bool, error) {
+func (r *RepositoryImpl) CheckOverlappingAnnotationExcluding(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64, excludeID uint) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&models.Annotation{}).
-		Where("episode_id = ? AND id != ? AND start_time < ? AND end_time > ?",
-			episodeID, excludeID, endTime, startTime).
+		Where("podcast_index_episode_id = ? AND id != ? AND start_time < ? AND end_time > ?",
+			podcastIndexEpisodeID, excludeID, endTime, startTime).
 		Count(&count).Error
 
 	return count > 0, err

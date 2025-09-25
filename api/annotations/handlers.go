@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/internal/models"
+	episodeService "github.com/killallgit/player-api/internal/services/episodes"
 )
 
 // CreateAnnotation creates a new annotation for an episode
@@ -15,10 +16,11 @@ import (
 // @Tags         annotations
 // @Accept       json
 // @Produce      json
-// @Param        id path int64 true "Episode ID"
+// @Param        id path int64 true "Episode Podcast Index ID"
 // @Param        annotation body models.Annotation true "Annotation data (label, start_time, end_time)"
-// @Success      201 {object} models.Annotation "Created annotation"
-// @Failure      400 {object} types.ErrorResponse "Invalid request"
+// @Success      201 {object} types.Annotation "Created annotation"
+// @Failure      400 {object} types.ErrorResponse "Invalid request or overlapping annotation"
+// @Failure      404 {object} types.ErrorResponse "Episode not found"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/annotations [post]
 func CreateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
@@ -42,13 +44,13 @@ func CreateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 			return // Error response already sent by utility
 		}
 
-		// Set episode ID and default clip status
-		annotation.EpisodeID = episode.ID
+		// Set Podcast Index episode ID and default clip status
+		annotation.PodcastIndexEpisodeID = episode.PodcastIndexID
 		annotation.ClipStatus = "pending"
 
-		// Check for duplicate annotations
+		// Check for duplicate annotations using Podcast Index ID
 		if isDuplicate, err := deps.AnnotationService.CheckOverlappingAnnotation(
-			c.Request.Context(), episode.ID, annotation.StartTime, annotation.EndTime); err != nil {
+			c.Request.Context(), episode.PodcastIndexID, annotation.StartTime, annotation.EndTime); err != nil {
 			types.SendInternalError(c, "Failed to check for duplicates")
 			return
 		} else if isDuplicate {
@@ -87,9 +89,10 @@ func CreateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 // @Tags         annotations
 // @Accept       json
 // @Produce      json
-// @Param        id path int64 true "Episode ID"
-// @Success      200 {object} object{annotations=[]models.Annotation} "List of annotations"
+// @Param        id path int64 true "Episode Podcast Index ID"
+// @Success      200 {object} object{annotations=[]types.Annotation} "List of annotations"
 // @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      404 {object} types.ErrorResponse "Episode not found"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/annotations [get]
 func GetAnnotations(deps *types.Dependencies) gin.HandlerFunc {
@@ -100,15 +103,19 @@ func GetAnnotations(deps *types.Dependencies) gin.HandlerFunc {
 			return // Error response already sent by utility
 		}
 
-		// Fetch episode by PodcastIndexID to get database ID
-		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(c.Request.Context(), podcastIndexID)
+		// Validate episode exists first
+		_, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(c.Request.Context(), podcastIndexID)
 		if err != nil {
-			types.SendNotFound(c, "Episode not found")
+			if episodeService.IsNotFound(err) {
+				types.SendNotFound(c, "Episode not found")
+			} else {
+				types.SendInternalError(c, "Failed to validate episode")
+			}
 			return
 		}
 
-		// Get annotations using service
-		annotations, err := deps.AnnotationService.GetAnnotationsByEpisodeID(c.Request.Context(), episode.ID)
+		// Get annotations using service - use Podcast Index ID directly
+		annotations, err := deps.AnnotationService.GetAnnotationsByPodcastIndexEpisodeID(c.Request.Context(), podcastIndexID)
 		if err != nil {
 			types.SendInternalError(c, "Failed to retrieve annotations")
 			return
@@ -128,7 +135,7 @@ func GetAnnotations(deps *types.Dependencies) gin.HandlerFunc {
 // @Produce      json
 // @Param        id path int true "Annotation ID"
 // @Param        annotation body models.Annotation true "Updated annotation data (label, start_time, end_time)"
-// @Success      200 {object} models.Annotation "Updated annotation"
+// @Success      200 {object} types.Annotation "Updated annotation"
 // @Failure      400 {object} types.ErrorResponse "Invalid request"
 // @Failure      404 {object} types.ErrorResponse "Annotation not found"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
@@ -172,7 +179,9 @@ func UpdateAnnotation(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, annotation)
+		// Transform to API type and return
+		apiAnnotation := types.FromModelAnnotation(annotation)
+		types.SendSuccess(c, apiAnnotation)
 	}
 }
 

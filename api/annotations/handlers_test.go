@@ -2,12 +2,12 @@ package annotations_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/annotations"
@@ -17,11 +17,64 @@ import (
 	annotationsService "github.com/killallgit/player-api/internal/services/annotations"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+// MockEpisodeService is a mock implementation of the episode service for testing
+type MockEpisodeService struct {
+	mock.Mock
+}
+
+func (m *MockEpisodeService) FetchAndSyncEpisodes(ctx context.Context, podcastID int64, limit int) (*episodesService.PodcastIndexResponse, error) {
+	args := m.Called(ctx, podcastID, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*episodesService.PodcastIndexResponse), args.Error(1)
+}
+
+func (m *MockEpisodeService) SyncEpisodesToDatabase(ctx context.Context, episodes []episodesService.PodcastIndexEpisode, podcastID uint) (int, error) {
+	args := m.Called(ctx, episodes, podcastID)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *MockEpisodeService) GetEpisodeByID(ctx context.Context, id uint) (*models.Episode, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Episode), args.Error(1)
+}
+
+func (m *MockEpisodeService) GetEpisodeByGUID(ctx context.Context, guid string) (*models.Episode, error) {
+	args := m.Called(ctx, guid)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Episode), args.Error(1)
+}
+
+func (m *MockEpisodeService) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) {
+	args := m.Called(ctx, podcastIndexID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Episode), args.Error(1)
+}
+
+func (m *MockEpisodeService) GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error) {
+	args := m.Called(ctx, podcastID, page, limit)
+	return args.Get(0).([]models.Episode), args.Get(1).(int64), args.Error(2)
+}
+
+func (m *MockEpisodeService) GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error) {
+	args := m.Called(ctx, limit)
+	return args.Get(0).([]models.Episode), args.Error(1)
+}
 
 type AnnotationTestSuite struct {
 	t      *testing.T
@@ -49,14 +102,23 @@ func setupAnnotationTestSuite(t *testing.T) *AnnotationTestSuite {
 		DB: &database.DB{DB: db},
 	}
 
-	// Initialize episode service (required for fetching by PodcastIndexID)
-	episodeRepo := episodesService.NewRepository(db)
-	episodeCache := episodesService.NewCache(time.Hour)
-	deps.EpisodeService = episodesService.NewService(
-		nil, // No fetcher needed for tests
-		episodeRepo,
-		episodeCache,
-	)
+	// Initialize mock episode service
+	mockEpisodeService := &MockEpisodeService{}
+	deps.EpisodeService = mockEpisodeService
+
+	// Configure mock to return a valid episode for ID 12345
+	validEpisode := &models.Episode{
+		PodcastID:      1,
+		PodcastIndexID: 12345,
+		Title:          "Test Episode",
+		Description:    "Test Episode Description",
+		AudioURL:       "https://example.com/test-audio.mp3",
+	}
+	validEpisode.ID = 1
+	mockEpisodeService.On("GetEpisodeByPodcastIndexID", mock.Anything, int64(12345)).Return(validEpisode, nil)
+
+	// Configure mock to return error for non-existent episode (99999)
+	mockEpisodeService.On("GetEpisodeByPodcastIndexID", mock.Anything, int64(99999)).Return(nil, episodesService.ErrEpisodeNotFound)
 
 	// Initialize annotation service
 	annotationRepo := annotationsService.NewRepository(db)
@@ -78,24 +140,8 @@ func setupAnnotationTestSuite(t *testing.T) *AnnotationTestSuite {
 	}
 }
 
-func (suite *AnnotationTestSuite) createTestEpisode() uint {
-	episode := models.Episode{
-		PodcastID:      1,
-		PodcastIndexID: 12345,
-		Title:          "Test Episode",
-		Description:    "Test Description",
-		AudioURL:       "https://example.com/audio.mp3",
-	}
-
-	result := suite.db.Create(&episode)
-	require.NoError(suite.t, result.Error, "Failed to create test episode")
-
-	return episode.ID
-}
-
 func TestCreateAnnotation(t *testing.T) {
 	suite := setupAnnotationTestSuite(t)
-	episodeID := suite.createTestEpisode()
 
 	tests := []struct {
 		name           string
@@ -120,7 +166,7 @@ func TestCreateAnnotation(t *testing.T) {
 				assert.Equal(t, "Introduction", annotation.Label)
 				assert.Equal(t, 0.0, annotation.StartTime)
 				assert.Equal(t, 30.5, annotation.EndTime)
-				assert.Equal(t, int64(episodeID), annotation.EpisodeID)
+				assert.Equal(t, int64(12345), annotation.PodcastIndexEpisodeID)
 				assert.NotEmpty(t, annotation.ID) // UUID should be set
 			},
 		},
@@ -188,13 +234,12 @@ func TestCreateAnnotation(t *testing.T) {
 
 func TestGetAnnotations(t *testing.T) {
 	suite := setupAnnotationTestSuite(t)
-	episodeID := suite.createTestEpisode()
 
-	// Create test annotations
+	// Create test annotations using PodcastIndexID (12345) instead of database ID
 	annotations := []models.Annotation{
-		{EpisodeID: episodeID, Label: "Introduction", StartTime: 0.0, EndTime: 30.0},
-		{EpisodeID: episodeID, Label: "Main Content", StartTime: 30.0, EndTime: 1800.0},
-		{EpisodeID: episodeID, Label: "Conclusion", StartTime: 1800.0, EndTime: 1850.0},
+		{PodcastIndexEpisodeID: 12345, Label: "Introduction", StartTime: 0.0, EndTime: 30.0},
+		{PodcastIndexEpisodeID: 12345, Label: "Main Content", StartTime: 30.0, EndTime: 1800.0},
+		{PodcastIndexEpisodeID: 12345, Label: "Conclusion", StartTime: 1800.0, EndTime: 1850.0},
 	}
 
 	for _, annotation := range annotations {
@@ -267,14 +312,13 @@ func TestGetAnnotations(t *testing.T) {
 
 func TestUpdateAnnotation(t *testing.T) {
 	suite := setupAnnotationTestSuite(t)
-	episodeID := suite.createTestEpisode()
 
-	// Create test annotation
+	// Create test annotation using PodcastIndexID (12345) instead of database ID
 	annotation := models.Annotation{
-		EpisodeID: episodeID,
-		Label:     "Original Label",
-		StartTime: 0.0,
-		EndTime:   30.0,
+		PodcastIndexEpisodeID: 12345,
+		Label:                 "Original Label",
+		StartTime:             0.0,
+		EndTime:               30.0,
 	}
 	result := suite.db.Create(&annotation)
 	require.NoError(t, result.Error, "Failed to create test annotation")
@@ -369,14 +413,13 @@ func TestUpdateAnnotation(t *testing.T) {
 
 func TestDeleteAnnotation(t *testing.T) {
 	suite := setupAnnotationTestSuite(t)
-	episodeID := suite.createTestEpisode()
 
-	// Create test annotation
+	// Create test annotation using PodcastIndexID (12345) instead of database ID
 	annotation := models.Annotation{
-		EpisodeID: episodeID,
-		Label:     "To Be Deleted",
-		StartTime: 0.0,
-		EndTime:   30.0,
+		PodcastIndexEpisodeID: 12345,
+		Label:                 "To Be Deleted",
+		StartTime:             0.0,
+		EndTime:               30.0,
 	}
 	result := suite.db.Create(&annotation)
 	require.NoError(t, result.Error, "Failed to create test annotation")
@@ -445,7 +488,6 @@ func TestDeleteAnnotation(t *testing.T) {
 // TestAnnotationUUID tests UUID generation and stability for annotations
 func TestAnnotationUUID(t *testing.T) {
 	suite := setupAnnotationTestSuite(t)
-	episodeID := suite.createTestEpisode()
 
 	t.Run("UUID is generated on creation", func(t *testing.T) {
 		payload := map[string]interface{}{
@@ -476,12 +518,12 @@ func TestAnnotationUUID(t *testing.T) {
 	})
 
 	t.Run("UUID remains stable after update", func(t *testing.T) {
-		// First create an annotation
+		// First create an annotation using PodcastIndexID (12345) instead of database ID
 		annotation := models.Annotation{
-			EpisodeID: episodeID,
-			Label:     "Original",
-			StartTime: 100.0,
-			EndTime:   110.0,
+			PodcastIndexEpisodeID: 12345,
+			Label:                 "Original",
+			StartTime:             100.0,
+			EndTime:               110.0,
 		}
 		result := suite.db.Create(&annotation)
 		require.NoError(t, result.Error)
@@ -552,12 +594,12 @@ func TestAnnotationUUID(t *testing.T) {
 	})
 
 	t.Run("UUID is included in GET response", func(t *testing.T) {
-		// Create an annotation
+		// Create an annotation using PodcastIndexID (12345) instead of database ID
 		annotation := models.Annotation{
-			EpisodeID: episodeID,
-			Label:     "Test",
-			StartTime: 200.0,
-			EndTime:   210.0,
+			PodcastIndexEpisodeID: 12345,
+			Label:                 "Test",
+			StartTime:             200.0,
+			EndTime:               210.0,
 		}
 		result := suite.db.Create(&annotation)
 		require.NoError(t, result.Error)

@@ -2,10 +2,12 @@ package annotations_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +17,8 @@ import (
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/internal/database"
 	"github.com/killallgit/player-api/internal/models"
+	annotationsService "github.com/killallgit/player-api/internal/services/annotations"
+	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -55,6 +59,21 @@ func setupIntegrationTestSuite(t *testing.T) *IntegrationTestSuite {
 		DB: &database.DB{DB: db},
 	}
 
+	// Initialize required services for annotation tests
+	// Episode service (needed by annotation handlers)
+	episodeRepo := episodesService.NewRepository(deps.DB.DB) // Use the same DB instance
+	episodeCache := episodesService.NewCache(time.Hour)
+	deps.EpisodeService = episodesService.NewService(
+		nil, // No fetcher needed for integration tests
+		episodeRepo,
+		episodeCache,
+	)
+	deps.EpisodeTransformer = episodesService.NewTransformer()
+
+	// Annotation service
+	annotationRepo := annotationsService.NewRepository(deps.DB.DB) // Use the same DB instance
+	deps.AnnotationService = annotationsService.NewService(annotationRepo)
+
 	// Setup router with all routes
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -90,6 +109,21 @@ func (suite *IntegrationTestSuite) createTestEpisode() *models.Episode {
 	result := suite.db.Create(episode)
 	require.NoError(suite.t, result.Error, "Failed to create test episode")
 
+	// Verify the episode was actually created and can be found
+	var foundEpisode models.Episode
+	findResult := suite.db.Where("podcast_index_id = ?", 12345).First(&foundEpisode)
+	require.NoError(suite.t, findResult.Error, "Failed to find created episode")
+
+	suite.t.Logf("Created episode with ID=%d, PodcastIndexID=%d", episode.ID, episode.PodcastIndexID)
+
+	// Test the service method directly to see if it works
+	testEpisode, err := suite.deps.EpisodeService.GetEpisodeByPodcastIndexID(context.Background(), 12345)
+	if err != nil {
+		suite.t.Logf("Service failed to find episode: %v", err)
+	} else {
+		suite.t.Logf("Service found episode with ID=%d, PodcastIndexID=%d", testEpisode.ID, testEpisode.PodcastIndexID)
+	}
+
 	return episode
 }
 
@@ -115,10 +149,12 @@ func TestFullAnnotationWorkflow(t *testing.T) {
 
 	require.Equal(t, http.StatusCreated, w.Code, "Failed to create annotation")
 
-	var createdAnnotation models.Annotation
+	var createdAnnotation types.Annotation
 	err := json.Unmarshal(w.Body.Bytes(), &createdAnnotation)
 	require.NoError(t, err, "Failed to parse created annotation")
-	require.NotZero(t, createdAnnotation.ID, "Created annotation should have an ID")
+	require.NotEmpty(t, createdAnnotation.ID, "Created annotation should have an ID")
+
+	suite.t.Logf("Created annotation with UUID: %s", createdAnnotation.ID)
 
 	// Step 2: Get annotations for the episode
 	req = httptest.NewRequest(http.MethodGet,
@@ -139,8 +175,8 @@ func TestFullAnnotationWorkflow(t *testing.T) {
 
 	firstAnnotation := annotations[0].(map[string]interface{})
 	assert.Equal(t, "Integration Test Annotation", firstAnnotation["label"])
-	assert.Equal(t, 10.5, firstAnnotation["start_time"])
-	assert.Equal(t, 120.0, firstAnnotation["end_time"])
+	assert.Equal(t, 10.5, firstAnnotation["startTime"])
+	assert.Equal(t, 120.0, firstAnnotation["endTime"])
 
 	// Step 3: Update the annotation
 	updatePayload := map[string]interface{}{
@@ -151,7 +187,7 @@ func TestFullAnnotationWorkflow(t *testing.T) {
 
 	body, _ = json.Marshal(updatePayload)
 	req = httptest.NewRequest(http.MethodPut,
-		fmt.Sprintf("/api/v1/episodes/annotations/%d", createdAnnotation.ID),
+		fmt.Sprintf("/api/v1/episodes/annotations/%s", createdAnnotation.ID),
 		bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -160,12 +196,12 @@ func TestFullAnnotationWorkflow(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code, "Failed to update annotation")
 
-	var updatedAnnotation models.Annotation
-	err = json.Unmarshal(w.Body.Bytes(), &updatedAnnotation)
-	require.NoError(t, err, "Failed to parse updated annotation")
-	assert.Equal(t, "Updated Integration Test Annotation", updatedAnnotation.Label)
-	assert.Equal(t, 15.0, updatedAnnotation.StartTime)
-	assert.Equal(t, 150.0, updatedAnnotation.EndTime)
+	var updateResponse types.SingleAnnotationResponse
+	err = json.Unmarshal(w.Body.Bytes(), &updateResponse)
+	require.NoError(t, err, "Failed to parse updated annotation response")
+	assert.Equal(t, "Updated Integration Test Annotation", updateResponse.Annotation.Label)
+	assert.Equal(t, 15.0, updateResponse.Annotation.StartTime)
+	assert.Equal(t, 150.0, updateResponse.Annotation.EndTime)
 
 	// Step 4: Verify update by getting annotations again
 	req = httptest.NewRequest(http.MethodGet,
@@ -185,12 +221,12 @@ func TestFullAnnotationWorkflow(t *testing.T) {
 
 	updatedFirstAnnotation := annotations[0].(map[string]interface{})
 	assert.Equal(t, "Updated Integration Test Annotation", updatedFirstAnnotation["label"])
-	assert.Equal(t, 15.0, updatedFirstAnnotation["start_time"])
-	assert.Equal(t, 150.0, updatedFirstAnnotation["end_time"])
+	assert.Equal(t, 15.0, updatedFirstAnnotation["startTime"])
+	assert.Equal(t, 150.0, updatedFirstAnnotation["endTime"])
 
 	// Step 5: Delete the annotation
 	req = httptest.NewRequest(http.MethodDelete,
-		fmt.Sprintf("/api/v1/episodes/annotations/%d", createdAnnotation.ID),
+		fmt.Sprintf("/api/v1/episodes/annotations/%s", createdAnnotation.ID),
 		nil)
 
 	w = httptest.NewRecorder()
@@ -268,7 +304,7 @@ func TestMultipleAnnotationsOrderedByTime(t *testing.T) {
 	for i, annotation := range retrievedAnnotations {
 		annotationMap := annotation.(map[string]interface{})
 		assert.Equal(t, expectedLabels[i], annotationMap["label"])
-		assert.Equal(t, expectedStartTimes[i], annotationMap["start_time"])
+		assert.Equal(t, expectedStartTimes[i], annotationMap["startTime"])
 	}
 }
 
@@ -290,7 +326,7 @@ func TestAnnotationValidationConstraints(t *testing.T) {
 		},
 		{
 			name:           "start time equals end time",
-			payload:        map[string]interface{}{"label": "Equal Times", "start_time": 30.0, "end_time": 30.0},
+			payload:        map[string]interface{}{"label": "Equal Times", "start_time": 50.0, "end_time": 50.0},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "Start time must be before end time",
 		},
@@ -300,8 +336,12 @@ func TestAnnotationValidationConstraints(t *testing.T) {
 			expectedStatus: http.StatusCreated, // This should be allowed for ML training
 		},
 		{
-			name:           "very long label",
-			payload:        map[string]interface{}{"label": string(make([]byte, 1000)), "start_time": 0.0, "end_time": 30.0},
+			name: "very long label",
+			payload: map[string]interface{}{
+				"label":      strings.Repeat("A", 1000), // Use regular characters instead of null bytes
+				"start_time": 100.0,                     // Use different time range to avoid overlap
+				"end_time":   130.0,
+			},
 			expectedStatus: http.StatusCreated, // Long labels should be allowed for detailed ML annotations
 		},
 	}
@@ -317,6 +357,10 @@ func TestAnnotationValidationConstraints(t *testing.T) {
 			w := httptest.NewRecorder()
 			suite.router.ServeHTTP(w, req)
 
+			if w.Code != tt.expectedStatus {
+				// Print the response to debug
+				t.Logf("Expected status %d but got %d. Response: %s", tt.expectedStatus, w.Code, w.Body.String())
+			}
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedError != "" {

@@ -202,7 +202,7 @@ func (c *Config) Validate() error {
 func setDefaults() {
 	// Core server defaults
 	viper.SetDefault("server.host", "0.0.0.0")
-	viper.SetDefault("server.port", 8080)
+	viper.SetDefault("server.port", 9000)
 	viper.SetDefault("server.shutdown_timeout", "10s")
 	viper.SetDefault("server.read_timeout", "30s")
 	viper.SetDefault("server.write_timeout", "30s")
@@ -228,6 +228,10 @@ func setDefaults() {
 	viper.SetDefault("security.rate_limit_enabled", true)
 	viper.SetDefault("security.rate_limit_rps", 10)
 	viper.SetDefault("security.rate_limit_burst", 20)
+
+	// Development auth defaults
+	viper.SetDefault("dev.auth_enabled", false)
+	viper.SetDefault("dev.auth_token", "")
 
 	// Processing defaults
 	viper.SetDefault("processing.workers", 2)

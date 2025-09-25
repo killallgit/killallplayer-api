@@ -284,3 +284,8 @@ func (s *service) CleanupOldJobs(ctx context.Context, retentionDays int) (int64,
 
 	return deleted, nil
 }
+
+// DeletePermanentlyFailedJob deletes a permanently failed job by ID
+func (s *service) DeletePermanentlyFailedJob(ctx context.Context, jobID uint) error {
+	return s.repo.DeletePermanentlyFailedJob(ctx, jobID)
+}

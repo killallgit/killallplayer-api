@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
+	episodeService "github.com/killallgit/player-api/internal/services/episodes"
 )
 
 // GetByID returns a single episode by Podcast Index ID
@@ -31,7 +32,7 @@ func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 		// Fetch episode
 		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(c.Request.Context(), podcastIndexID)
 		if err != nil {
-			if IsNotFound(err) {
+			if episodeService.IsNotFound(err) {
 				log.Printf("[WARN] Episode not found - Podcast Index ID: %d, Error: %v", podcastIndexID, err)
 				c.JSON(http.StatusNotFound, types.ErrorResponse{
 					Status:  types.StatusError,
@@ -61,12 +62,4 @@ func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 			Episode: unifiedEpisode,
 		})
 	}
-}
-
-// IsNotFound checks if the error indicates a not found condition
-func IsNotFound(err error) bool {
-	if err == nil {
-		return false
-	}
-	return err.Error() == "episode not found" || err.Error() == "record not found"
 }

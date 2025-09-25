@@ -29,8 +29,8 @@ func (s *ServiceImpl) CreateAnnotation(ctx context.Context, annotation *models.A
 	if annotation.StartTime >= annotation.EndTime {
 		return fmt.Errorf("Start time must be before end time")
 	}
-	if annotation.EpisodeID == 0 {
-		return fmt.Errorf("Episode ID is required")
+	if annotation.PodcastIndexEpisodeID == 0 {
+		return fmt.Errorf("Podcast Index Episode ID is required")
 	}
 
 	// Generate UUID if not provided
@@ -46,9 +46,9 @@ func (s *ServiceImpl) GetAnnotationByID(ctx context.Context, id uint) (*models.A
 	return s.repository.GetAnnotationByID(ctx, id)
 }
 
-// GetAnnotationsByEpisodeID retrieves all annotations for a specific episode
-func (s *ServiceImpl) GetAnnotationsByEpisodeID(ctx context.Context, episodeID uint) ([]models.Annotation, error) {
-	return s.repository.GetAnnotationsByEpisodeID(ctx, episodeID)
+// GetAnnotationsByPodcastIndexEpisodeID retrieves all annotations for a specific episode
+func (s *ServiceImpl) GetAnnotationsByPodcastIndexEpisodeID(ctx context.Context, podcastIndexEpisodeID int64) ([]models.Annotation, error) {
+	return s.repository.GetAnnotationsByPodcastIndexEpisodeID(ctx, podcastIndexEpisodeID)
 }
 
 // UpdateAnnotation updates an existing annotation
@@ -91,13 +91,13 @@ func (s *ServiceImpl) GetAnnotationByUUID(ctx context.Context, uuid string) (*mo
 }
 
 // CheckOverlappingAnnotation checks if there's an existing annotation that overlaps with the given time range
-func (s *ServiceImpl) CheckOverlappingAnnotation(ctx context.Context, episodeID uint, startTime, endTime float64) (bool, error) {
-	return s.repository.CheckOverlappingAnnotation(ctx, episodeID, startTime, endTime)
+func (s *ServiceImpl) CheckOverlappingAnnotation(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64) (bool, error) {
+	return s.repository.CheckOverlappingAnnotation(ctx, podcastIndexEpisodeID, startTime, endTime)
 }
 
 // CheckOverlappingAnnotationExcluding checks for overlaps excluding a specific annotation ID
-func (s *ServiceImpl) CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID uint, startTime, endTime float64, excludeID uint) (bool, error) {
-	return s.repository.CheckOverlappingAnnotationExcluding(ctx, episodeID, startTime, endTime, excludeID)
+func (s *ServiceImpl) CheckOverlappingAnnotationExcluding(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64, excludeID uint) (bool, error) {
+	return s.repository.CheckOverlappingAnnotationExcluding(ctx, podcastIndexEpisodeID, startTime, endTime, excludeID)
 }
 
 // UpdateAnnotationByUUID updates an existing annotation by UUID
@@ -121,7 +121,7 @@ func (s *ServiceImpl) UpdateAnnotationByUUID(ctx context.Context, uuid, label st
 
 	// Check for overlaps with OTHER annotations (exclude current one)
 	if timeBoundsChanged {
-		isDuplicate, err := s.repository.CheckOverlappingAnnotationExcluding(ctx, annotation.EpisodeID, startTime, endTime, annotation.ID)
+		isDuplicate, err := s.repository.CheckOverlappingAnnotationExcluding(ctx, annotation.PodcastIndexEpisodeID, startTime, endTime, annotation.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check for duplicates: %w", err)
 		}

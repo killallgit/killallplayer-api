@@ -196,10 +196,10 @@ func (s *ServiceImpl) getFilteredAnnotations(ctx context.Context, request *Gener
 
 	// If specific episode IDs are provided, use those
 	if request.Filters != nil && len(request.Filters.EpisodeIDs) > 0 {
-		for _, episodeID := range request.Filters.EpisodeIDs {
-			annotations, err := s.annotationService.GetAnnotationsByEpisodeID(ctx, episodeID)
+		for _, podcastIndexEpisodeID := range request.Filters.EpisodeIDs {
+			annotations, err := s.annotationService.GetAnnotationsByPodcastIndexEpisodeID(ctx, int64(podcastIndexEpisodeID))
 			if err != nil {
-				log.Printf("[WARN] Failed to get annotations for episode %d: %v", episodeID, err)
+				log.Printf("[WARN] Failed to get annotations for Podcast Index episode %d: %v", podcastIndexEpisodeID, err)
 				continue
 			}
 			allAnnotations = append(allAnnotations, annotations...)
@@ -272,17 +272,17 @@ func (s *ServiceImpl) generateDatasetEntries(ctx context.Context, annotations []
 	successCount := 0
 
 	for _, annotation := range annotations {
-		// Get episode details
-		episode, err := s.episodeService.GetEpisodeByID(ctx, annotation.EpisodeID)
+		// Get episode details using Podcast Index ID
+		episode, err := s.episodeService.GetEpisodeByPodcastIndexID(ctx, annotation.PodcastIndexEpisodeID)
 		if err != nil {
-			log.Printf("[WARN] Failed to get episode %d for annotation: %v", annotation.EpisodeID, err)
+			log.Printf("[WARN] Failed to get episode with Podcast Index ID %d for annotation: %v", annotation.PodcastIndexEpisodeID, err)
 			continue
 		}
 
-		// Get cached audio
-		audioCache, err := s.audioCacheService.GetCachedAudio(ctx, annotation.EpisodeID)
+		// Get cached audio using Podcast Index ID
+		audioCache, err := s.audioCacheService.GetCachedAudio(ctx, annotation.PodcastIndexEpisodeID)
 		if err != nil || audioCache == nil {
-			log.Printf("[WARN] No cached audio found for episode %d, skipping annotation", annotation.EpisodeID)
+			log.Printf("[WARN] No cached audio found for Podcast Index episode %d, skipping annotation", annotation.PodcastIndexEpisodeID)
 			continue
 		}
 
@@ -298,7 +298,7 @@ func (s *ServiceImpl) generateDatasetEntries(ctx context.Context, annotations []
 				audioSize = audioCache.ProcessedSize
 				sampleRate = audioCache.SampleRate
 			} else {
-				log.Printf("[WARN] No processed audio available for episode %d, using original", annotation.EpisodeID)
+				log.Printf("[WARN] No processed audio available for Podcast Index episode %d, using original", annotation.PodcastIndexEpisodeID)
 				audioPath = audioCache.OriginalPath
 				audioSize = audioCache.OriginalSize
 				sampleRate = 0 // Unknown for original
@@ -314,7 +314,7 @@ func (s *ServiceImpl) generateDatasetEntries(ctx context.Context, annotations []
 		}
 
 		if audioPath == "" {
-			log.Printf("[WARN] No audio path available for episode %d, skipping annotation", annotation.EpisodeID)
+			log.Printf("[WARN] No audio path available for Podcast Index episode %d, skipping annotation", annotation.PodcastIndexEpisodeID)
 			continue
 		}
 
@@ -326,7 +326,7 @@ func (s *ServiceImpl) generateDatasetEntries(ctx context.Context, annotations []
 			EndTime:      annotation.EndTime,
 			Duration:     duration,
 			Label:        annotation.Label,
-			EpisodeID:    annotation.EpisodeID,
+			EpisodeID:    uint(annotation.PodcastIndexEpisodeID),
 			EpisodeTitle: episode.Title,
 			PodcastName:  episode.Description, // TODO: Get actual podcast name
 			OriginalURL:  audioCache.OriginalURL,

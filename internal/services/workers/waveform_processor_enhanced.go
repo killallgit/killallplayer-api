@@ -90,7 +90,10 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 	// Get episode details using Podcast Index ID
 	episode, err := p.episodeService.GetEpisodeByPodcastIndexID(ctx, int64(podcastIndexID))
 	if err != nil {
-		return fmt.Errorf("failed to get episode %d: %w", podcastIndexID, err)
+		// This is expected - episodes need to be synced before waveforms can be generated
+		log.Printf("[INFO] Episode %d not yet synced to database. Please fetch podcast episodes via /api/v1/podcasts/{podcastId}/episodes first", podcastIndexID)
+		// Return a specific error that indicates this is expected and shouldn't trigger aggressive retries
+		return fmt.Errorf("episode %d not yet available - sync in progress or needs to be initiated", podcastIndexID)
 	}
 
 	// Check if waveform already exists for this episode
@@ -99,7 +102,7 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		log.Printf("[DEBUG] Waveform already exists for Podcast Index Episode %d, skipping generation", podcastIndexID)
 
 		// Complete the job immediately since waveform exists
-		result := map[string]interface{}{
+		result := map[string]any{
 			"episode_id": podcastIndexID,
 			"status":     "already_exists",
 			"message":    "Waveform already exists for this episode",
@@ -116,6 +119,17 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 		}
 
 		return nil
+	}
+
+	// Check episode duration before processing
+	if episode.Duration != nil {
+		const maxDurationSeconds = 7200 // 2 hours limit
+		if *episode.Duration > maxDurationSeconds {
+			log.Printf("[ERROR] Episode %d duration %d seconds exceeds limit %d seconds",
+				podcastIndexID, *episode.Duration, maxDurationSeconds)
+			return fmt.Errorf("episode duration (%.1f hours) exceeds maximum limit (%.1f hours)",
+				float64(*episode.Duration)/3600, float64(maxDurationSeconds)/3600)
+		}
 	}
 
 	// Check if episode has audio URL
@@ -135,12 +149,12 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 	if p.audioCacheService != nil {
 		log.Printf("[DEBUG] Checking audio cache for episode %d (database ID: %d)", podcastIndexID, episode.ID)
 
-		// Get or download audio through cache
-		audioCache, err := p.audioCacheService.GetOrDownloadAudio(ctx, episode.ID, episode.AudioURL)
+		// Get or download audio through cache - use Podcast Index ID, not database ID
+		audioCache, err := p.audioCacheService.GetOrDownloadAudio(ctx, int64(podcastIndexID), episode.AudioURL)
 		if err != nil {
-			log.Printf("[WARN] Audio cache failed, falling back to direct download: %v", err)
+			log.Printf("[WARN] Audio cache failed for Podcast Index episode %d, falling back to direct download: %v", podcastIndexID, err)
 		} else if audioCache != nil && audioCache.OriginalPath != "" {
-			log.Printf("[DEBUG] Using cached audio for episode %d from %s", episode.ID, audioCache.OriginalPath)
+			log.Printf("[DEBUG] Using cached audio for Podcast Index episode %d from %s", podcastIndexID, audioCache.OriginalPath)
 			audioFilePath = audioCache.OriginalPath
 			audioFileSize = audioCache.OriginalSize
 		}
@@ -246,7 +260,7 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 // parseEpisodeID extracts the episode ID from the job payload
 func (p *EnhancedWaveformProcessor) parseEpisodeID(payload models.JobPayload) (uint, error) {
 	// JobPayload is already a map[string]interface{}, so use it directly
-	data := map[string]interface{}(payload)
+	data := map[string]any(payload)
 
 	// Extract episode_id
 	episodeIDValue, exists := data["episode_id"]

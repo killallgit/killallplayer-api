@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
+	episodeService "github.com/killallgit/player-api/internal/services/episodes"
 )
 
 // GetReviews fetches podcast reviews for the podcast containing this episode
@@ -19,7 +20,7 @@ import (
 // @Tags         episodes
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Episode ID (Podcast Index ID)"
+// @Param        id path int64 true "Episode Podcast Index ID"
 // @Param        sort query string false "Sort order: mostrecent or mosthelpful" default(mostrecent)
 // @Param        page query int false "Page number (1-10)" minimum(1) maximum(10) default(1)
 // @Success      200 {object} episodes.ReviewsResponse "Reviews data"
@@ -37,7 +38,7 @@ func GetReviews(deps *types.Dependencies) gin.HandlerFunc {
 		// Get episode to extract iTunes ID
 		episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(c.Request.Context(), episodeID)
 		if err != nil {
-			if IsNotFound(err) {
+			if episodeService.IsNotFound(err) {
 				types.SendNotFound(c, "Episode not found")
 			} else {
 				log.Printf("[ERROR] Failed to fetch episode %d: %v", episodeID, err)

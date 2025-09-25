@@ -58,8 +58,8 @@ type Episode struct {
 	TranscriptURL string `json:"transcript_url"`
 
 	// Relationships
-	Waveform    *Waveform    `json:"waveform,omitempty" gorm:"foreignKey:EpisodeID"`
-	Annotations []Annotation `json:"annotations,omitempty" gorm:"foreignKey:EpisodeID"`
+	Waveform *Waveform `json:"waveform,omitempty" gorm:"foreignKey:EpisodeID"`
+	// Annotations are now linked via PodcastIndexEpisodeID, not database ID
 }
 
 // Subscription represents a user's subscription to a podcast

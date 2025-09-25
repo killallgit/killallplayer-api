@@ -172,15 +172,15 @@ func FromModelAnnotation(a *models.Annotation) *Annotation {
 	}
 
 	return &Annotation{
-		ID:         a.UUID, // Use UUID as API ID
-		EpisodeID:  int64(a.EpisodeID),
-		StartTime:  a.StartTime,
-		EndTime:    a.EndTime,
-		Label:      a.Label,
-		ClipStatus: a.ClipStatus,
-		ClipSize:   a.ClipSize,
-		CreatedAt:  a.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:  a.UpdatedAt.Format(time.RFC3339),
+		ID:                    a.UUID, // Use UUID as API ID
+		PodcastIndexEpisodeID: a.PodcastIndexEpisodeID,
+		StartTime:             a.StartTime,
+		EndTime:               a.EndTime,
+		Label:                 a.Label,
+		ClipStatus:            a.ClipStatus,
+		ClipSize:              a.ClipSize,
+		CreatedAt:             a.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:             a.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 // @Tags         podcasts
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Podcast ID from trending or search results" minimum(1) example(6780065)
+// @Param        id path int64 true "Podcast ID from trending or search results" minimum(1) example(6780065)
 // @Param        max query int false "Maximum number of episodes to return (1-1000)" minimum(1) maximum(1000) default(20)
 // @Success      200 {object} types.EpisodesResponse "List of episodes for the podcast"
 // @Failure      400 {object} types.ErrorResponse "Bad request - invalid podcast ID"

@@ -226,16 +226,16 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 	if p.audioCacheService != nil {
 		log.Printf("[DEBUG] Checking audio cache for transcription of episode %d (database ID: %d)", episodeID, episode.ID)
 
-		// Get or download audio through cache (prefer processed audio for ML)
-		audioCache, err := p.audioCacheService.GetOrDownloadAudio(ctx, episode.ID, episode.AudioURL)
+		// Get or download audio through cache (prefer processed audio for ML) - use Podcast Index ID
+		audioCache, err := p.audioCacheService.GetOrDownloadAudio(ctx, int64(episodeID), episode.AudioURL)
 		if err != nil {
-			log.Printf("[WARN] Audio cache failed for transcription, falling back to direct download: %v", err)
+			log.Printf("[WARN] Audio cache failed for transcription of Podcast Index episode %d, falling back to direct download: %v", episodeID, err)
 		} else if audioCache != nil && audioCache.ProcessedPath != "" {
-			log.Printf("[DEBUG] Using cached processed audio for transcription of episode %d from %s", episode.ID, audioCache.ProcessedPath)
+			log.Printf("[DEBUG] Using cached processed audio for transcription of Podcast Index episode %d from %s", episodeID, audioCache.ProcessedPath)
 			audioFilePath = audioCache.ProcessedPath
 			audioFileSize = audioCache.ProcessedSize
 		} else if audioCache != nil && audioCache.OriginalPath != "" {
-			log.Printf("[DEBUG] Using cached original audio for transcription of episode %d from %s", episode.ID, audioCache.OriginalPath)
+			log.Printf("[DEBUG] Using cached original audio for transcription of Podcast Index episode %d from %s", episodeID, audioCache.OriginalPath)
 			audioFilePath = audioCache.OriginalPath
 			audioFileSize = audioCache.OriginalSize
 		}

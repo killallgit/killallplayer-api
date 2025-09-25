@@ -120,21 +120,20 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 							})
 							return
 						case models.JobStatusPermanentlyFailed:
-							// Job permanently failed - don't retry, return error status
-							log.Printf("Previous waveform job %d permanently failed for episode %d, not allowing new jobs",
+							// Job permanently failed - allow creating a new job after cleanup
+							log.Printf("Previous waveform job %d permanently failed for episode %d, will clean up and retry",
 								existingJob.ID, podcastIndexID)
 
-							// Return an error indicating permanent failure
-							errorMsg := "Waveform generation permanently failed"
-							if existingJob.Error != "" {
-								errorMsg = fmt.Sprintf("Waveform generation permanently failed: %s", existingJob.Error)
+							// Clean up the permanently failed job by deleting it
+							if deps.JobService != nil {
+								if err := deps.JobService.DeletePermanentlyFailedJob(c.Request.Context(), existingJob.ID); err != nil {
+									log.Printf("Failed to delete permanently failed job %d: %v", existingJob.ID, err)
+								} else {
+									log.Printf("Successfully deleted permanently failed job %d for episode %d", existingJob.ID, podcastIndexID)
+								}
 							}
 
-							c.JSON(http.StatusServiceUnavailable, types.ErrorResponse{
-								Status:  types.StatusError,
-								Message: errorMsg,
-							})
-							return
+							// Continue to create a new job (don't return here)
 						default:
 							// Unknown status - log and return error
 							log.Printf("Unknown job status %s for job %d", existingJob.Status, existingJob.ID)
@@ -146,44 +145,8 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 						}
 					}
 
-					// No existing job or permanently failed job - check duration before creating job
-
-					// Get episode details to check duration BEFORE creating a job
-					episode, err := deps.EpisodeService.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
-					if err != nil {
-						log.Printf("Failed to get episode %d for duration check: %v", podcastIndexID, err)
-						c.JSON(http.StatusInternalServerError, types.ErrorResponse{
-							Status:  types.StatusError,
-							Message: "Failed to get episode details",
-						})
-						return
-					}
-
-					// Check if episode duration exceeds the processing limit BEFORE creating a job
-					if episode.Duration != nil {
-						const maxDurationSeconds = 7200 // 2 hours limit (matches DefaultProcessingOptions)
-						episodeDuration := *episode.Duration
-
-						if episodeDuration > maxDurationSeconds {
-							log.Printf("Episode %d duration %d seconds exceeds limit %d seconds, rejecting waveform request",
-								podcastIndexID, episodeDuration, maxDurationSeconds)
-
-							c.JSON(http.StatusServiceUnavailable, types.ErrorResponse{
-								Status: types.StatusError,
-								Message: fmt.Sprintf("Episode duration (%.1f hours) exceeds maximum limit (%.1f hours)",
-									float64(episodeDuration)/3600, float64(maxDurationSeconds)/3600),
-							})
-							return
-						}
-					}
-
-					// Duration is acceptable - clean up any old permanently failed jobs and create a new one
-
-					// If there was a permanently failed job, delete it from the database to clean up
-					if existingJob != nil && existingJob.Status == models.JobStatusPermanentlyFailed {
-						log.Printf("Deleting permanently failed job %d for episode %d", existingJob.ID, podcastIndexID)
-						// Note: We'll add this functionality to the job service later
-					}
+					// No existing job or cleaned up permanently failed job - create a new one
+					// Note: Duration check is done in the worker to avoid requiring episode in database
 
 					payload := models.JobPayload{
 						"episode_id": podcastIndexID, // Use Podcast Index ID in the job payload

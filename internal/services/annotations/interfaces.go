@@ -14,11 +14,11 @@ type Repository interface {
 	// Read operations
 	GetAnnotationByID(ctx context.Context, id uint) (*models.Annotation, error)
 	GetAnnotationByUUID(ctx context.Context, uuid string) (*models.Annotation, error)
-	GetAnnotationsByEpisodeID(ctx context.Context, episodeID uint) ([]models.Annotation, error)
+	GetAnnotationsByPodcastIndexEpisodeID(ctx context.Context, podcastIndexEpisodeID int64) ([]models.Annotation, error)
 
 	// Validation operations
-	CheckOverlappingAnnotation(ctx context.Context, episodeID uint, startTime, endTime float64) (bool, error)
-	CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID uint, startTime, endTime float64, excludeID uint) (bool, error)
+	CheckOverlappingAnnotation(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64) (bool, error)
+	CheckOverlappingAnnotationExcluding(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64, excludeID uint) (bool, error)
 
 	// Update operations
 	UpdateAnnotation(ctx context.Context, annotation *models.Annotation) error
@@ -35,11 +35,11 @@ type Service interface {
 	// Read operations
 	GetAnnotationByID(ctx context.Context, id uint) (*models.Annotation, error)
 	GetAnnotationByUUID(ctx context.Context, uuid string) (*models.Annotation, error)
-	GetAnnotationsByEpisodeID(ctx context.Context, episodeID uint) ([]models.Annotation, error)
+	GetAnnotationsByPodcastIndexEpisodeID(ctx context.Context, podcastIndexEpisodeID int64) ([]models.Annotation, error)
 
 	// Validation operations
-	CheckOverlappingAnnotation(ctx context.Context, episodeID uint, startTime, endTime float64) (bool, error)
-	CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID uint, startTime, endTime float64, excludeID uint) (bool, error)
+	CheckOverlappingAnnotation(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64) (bool, error)
+	CheckOverlappingAnnotationExcluding(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64, excludeID uint) (bool, error)
 
 	// Update operations
 	UpdateAnnotation(ctx context.Context, id uint, label string, startTime, endTime float64) (*models.Annotation, error)

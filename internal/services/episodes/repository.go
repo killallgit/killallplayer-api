@@ -45,9 +45,6 @@ func (r *Repository) UpdateEpisode(ctx context.Context, episode *models.Episode)
 func (r *Repository) GetEpisodeByID(ctx context.Context, id uint) (*models.Episode, error) {
 	var episode models.Episode
 	if err := r.db.WithContext(ctx).
-		Preload("Annotations", func(db *gorm.DB) *gorm.DB {
-			return db.Order("start_time ASC")
-		}).
 		First(&episode, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, NewNotFoundError("episode", id)
@@ -60,9 +57,6 @@ func (r *Repository) GetEpisodeByID(ctx context.Context, id uint) (*models.Episo
 func (r *Repository) GetEpisodeByGUID(ctx context.Context, guid string) (*models.Episode, error) {
 	var episode models.Episode
 	if err := r.db.WithContext(ctx).
-		Preload("Annotations", func(db *gorm.DB) *gorm.DB {
-			return db.Order("start_time ASC")
-		}).
 		Where("guid = ?", guid).
 		First(&episode).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -76,9 +70,6 @@ func (r *Repository) GetEpisodeByGUID(ctx context.Context, guid string) (*models
 func (r *Repository) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) {
 	var episode models.Episode
 	if err := r.db.WithContext(ctx).
-		Preload("Annotations", func(db *gorm.DB) *gorm.DB {
-			return db.Order("start_time ASC")
-		}).
 		Where("podcast_index_id = ?", podcastIndexID).
 		First(&episode).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -88,8 +79,8 @@ func (r *Repository) GetEpisodeByPodcastIndexID(ctx context.Context, podcastInde
 	}
 
 	// Debug logging to diagnose ID issues
-	log.Printf("[DEBUG] Repository.GetEpisodeByPodcastIndexID: Query for PodcastIndexID=%d returned episode with ID=%d, PodcastIndexID=%d with %d annotations",
-		podcastIndexID, episode.ID, episode.PodcastIndexID, len(episode.Annotations))
+	log.Printf("[DEBUG] Repository.GetEpisodeByPodcastIndexID: Query for PodcastIndexID=%d returned episode with ID=%d, PodcastIndexID=%d",
+		podcastIndexID, episode.ID, episode.PodcastIndexID)
 
 	return &episode, nil
 }

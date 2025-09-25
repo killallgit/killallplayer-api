@@ -31,6 +31,7 @@ type Service interface {
 
 	// Maintenance
 	CleanupOldJobs(ctx context.Context, retentionDays int) (int64, error)
+	DeletePermanentlyFailedJob(ctx context.Context, jobID uint) error
 }
 
 // JobOption is a functional option for configuring jobs

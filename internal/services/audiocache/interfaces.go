@@ -11,10 +11,10 @@ import (
 type Service interface {
 	// GetOrDownloadAudio retrieves cached audio or downloads if not present
 	// Returns paths to both original and processed audio files
-	GetOrDownloadAudio(ctx context.Context, episodeID uint, audioURL string) (*models.AudioCache, error)
+	GetOrDownloadAudio(ctx context.Context, podcastIndexEpisodeID int64, audioURL string) (*models.AudioCache, error)
 
 	// GetCachedAudio retrieves cached audio without downloading
-	GetCachedAudio(ctx context.Context, episodeID uint) (*models.AudioCache, error)
+	GetCachedAudio(ctx context.Context, podcastIndexEpisodeID int64) (*models.AudioCache, error)
 
 	// ProcessAudioForML converts audio to 16kHz mono for ML training
 	ProcessAudioForML(ctx context.Context, originalPath string, outputPath string) error
@@ -34,8 +34,8 @@ type Repository interface {
 	// Create creates a new audio cache entry
 	Create(ctx context.Context, cache *models.AudioCache) error
 
-	// GetByEpisodeID retrieves cache entry by episode ID
-	GetByEpisodeID(ctx context.Context, episodeID uint) (*models.AudioCache, error)
+	// GetByPodcastIndexEpisodeID retrieves cache entry by Podcast Index episode ID
+	GetByPodcastIndexEpisodeID(ctx context.Context, podcastIndexEpisodeID int64) (*models.AudioCache, error)
 
 	// GetBySHA256 retrieves cache entry by SHA256 hash
 	GetBySHA256(ctx context.Context, sha256 string) (*models.AudioCache, error)

@@ -53,11 +53,11 @@ task serve
 # Or without Task: source .env && go run main.go serve
 ```
 
-The API will be available at `http://localhost:8080`
+The API will be available at `http://localhost:9000`
 
 ## API Documentation
 
-Interactive API documentation is available via Swagger UI at `http://localhost:8080/docs` when the server is running.
+Interactive API documentation is available via Swagger UI at `http://localhost:9000/docs` when the server is running.
 The OpenAPI specification is generated automatically from code annotations and available in `docs/swagger.json` and `docs/swagger.yaml`.
 
 ### Key Endpoints
@@ -86,27 +86,27 @@ The OpenAPI specification is generated automatically from code annotations and a
 
 ```bash
 # Get current user info (requires authentication)
-curl -X GET http://localhost:8080/api/v1/me \
+curl -X GET http://localhost:9000/api/v1/me \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Search for podcasts (requires authentication)
-curl -X POST http://localhost:8080/api/v1/search \
+curl -X POST http://localhost:9000/api/v1/search \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"query": "technology", "limit": 5}'
 
 # Get trending podcasts (requires authentication)
-curl -X POST http://localhost:8080/api/v1/trending \
+curl -X POST http://localhost:9000/api/v1/trending \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"max": 3}'
 
 # Get episodes for a podcast (requires authentication)
-curl -X GET http://localhost:8080/api/v1/podcasts/41506/episodes \
+curl -X GET http://localhost:9000/api/v1/podcasts/41506/episodes \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Save a playbook region/bookmark (requires authentication)
-curl -X POST http://localhost:8080/api/v1/regions \
+curl -X POST http://localhost:9000/api/v1/regions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"episodeId": 41951637359, "startTime": 10.5, "endTime": 45.8, "label": "Important"}'
@@ -153,7 +153,7 @@ KILLALL_PODCAST_INDEX_API_KEY=your_api_key
 KILLALL_PODCAST_INDEX_API_SECRET=your_api_secret
 
 # Server (optional)
-KILLALL_SERVER_PORT=8080
+KILLALL_SERVER_PORT=9000
 KILLALL_SERVER_HOST=0.0.0.0
 
 # Database (optional)

@@ -54,6 +54,25 @@ func (h *Handler) Me(c *gin.Context) {
 // AuthMiddleware validates Supabase JWT tokens
 func (h *Handler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Skip auth entirely in development mode if configured
+		if h.devAuthEnabled && h.devAuthToken == "SKIP_AUTH" {
+			// Set mock dev user claims
+			c.Set("claims", &auth.Claims{
+				Sub:   "dev-user",
+				Email: "dev@localhost",
+				AppMetadata: auth.AppMetadata{
+					Permissions: []string{"podcasts:read", "podcasts:write", "podcasts:admin"},
+					Role:        "admin",
+				},
+			})
+			c.Set("user_id", "dev-user")
+			c.Set("email", "dev@localhost")
+			c.Set("permissions", []string{"podcasts:read", "podcasts:write", "podcasts:admin"})
+			c.Set("role", "admin")
+			c.Next()
+			return
+		}
+
 		// Get token from Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {

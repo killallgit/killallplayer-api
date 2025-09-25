@@ -283,7 +283,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Updated annotation",
                         "schema": {
-                            "$ref": "#/definitions/models.Annotation"
+                            "$ref": "#/definitions/types.Annotation"
                         }
                     },
                     "400": {
@@ -377,7 +377,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "format": "int64",
-                        "description": "Episode ID",
+                        "description": "Episode Podcast Index ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -392,7 +392,7 @@ const docTemplate = `{
                                 "annotations": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/definitions/models.Annotation"
+                                        "$ref": "#/definitions/types.Annotation"
                                     }
                                 }
                             }
@@ -400,6 +400,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid episode ID",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Episode not found",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -428,7 +434,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "format": "int64",
-                        "description": "Episode ID",
+                        "description": "Episode Podcast Index ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -447,11 +453,17 @@ const docTemplate = `{
                     "201": {
                         "description": "Created annotation",
                         "schema": {
-                            "$ref": "#/definitions/models.Annotation"
+                            "$ref": "#/definitions/types.Annotation"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request or overlapping annotation",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Episode not found",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -481,7 +493,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Episode ID (Podcast Index ID)",
+                        "format": "int64",
+                        "description": "Episode Podcast Index ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -784,6 +797,7 @@ const docTemplate = `{
                     {
                         "minimum": 1,
                         "type": "integer",
+                        "format": "int64",
                         "example": 6780065,
                         "description": "Podcast ID from trending or search results",
                         "name": "id",
@@ -1165,22 +1179,15 @@ const docTemplate = `{
                     "description": "Time in seconds",
                     "type": "number"
                 },
-                "episode": {
-                    "description": "Relationship",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Episode"
-                        }
-                    ]
-                },
-                "episode_id": {
-                    "type": "integer"
-                },
                 "id": {
                     "type": "integer"
                 },
                 "label": {
                     "type": "string"
+                },
+                "podcast_index_episode_id": {
+                    "description": "Use Podcast Index ID for consistency",
+                    "type": "integer"
                 },
                 "start_time": {
                     "description": "Time in seconds",
@@ -1191,116 +1198,6 @@ const docTemplate = `{
                 },
                 "uuid": {
                     "type": "string"
-                }
-            }
-        },
-        "models.Episode": {
-            "type": "object",
-            "properties": {
-                "annotations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Annotation"
-                    }
-                },
-                "audio_url": {
-                    "description": "Media information",
-                    "type": "string"
-                },
-                "chapters_url": {
-                    "description": "Podcast 2.0 features",
-                    "type": "string"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "date_crawled": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "duration": {
-                    "description": "Duration in seconds, nullable",
-                    "type": "integer"
-                },
-                "enclosure_length": {
-                    "type": "integer"
-                },
-                "enclosure_type": {
-                    "type": "string"
-                },
-                "episode_number": {
-                    "description": "Episode metadata",
-                    "type": "integer"
-                },
-                "episode_type": {
-                    "description": "full, trailer, bonus",
-                    "type": "string"
-                },
-                "explicit": {
-                    "description": "0=not explicit, 1=explicit",
-                    "type": "integer"
-                },
-                "feed_image": {
-                    "type": "string"
-                },
-                "feed_itunes_id": {
-                    "type": "integer"
-                },
-                "feed_language": {
-                    "type": "string"
-                },
-                "feed_title": {
-                    "description": "Feed metadata (denormalized for performance)",
-                    "type": "string"
-                },
-                "guid": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "image": {
-                    "type": "string"
-                },
-                "link": {
-                    "type": "string"
-                },
-                "podcast_id": {
-                    "description": "Core episode fields",
-                    "type": "integer"
-                },
-                "podcast_index_id": {
-                    "description": "Podcast Index episode ID",
-                    "type": "integer"
-                },
-                "published_at": {
-                    "description": "Timestamps",
-                    "type": "string"
-                },
-                "season": {
-                    "type": "integer"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "transcript_url": {
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "waveform": {
-                    "description": "Relationships",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Waveform"
-                        }
-                    ]
                 }
             }
         },
@@ -1336,46 +1233,6 @@ const docTemplate = `{
                 },
                 "totalCount": {
                     "type": "integer"
-                }
-            }
-        },
-        "models.Waveform": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "duration": {
-                    "description": "Duration in seconds",
-                    "type": "number"
-                },
-                "episode": {
-                    "description": "Relationship",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Episode"
-                        }
-                    ]
-                },
-                "episode_id": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "resolution": {
-                    "description": "Number of peaks",
-                    "type": "integer"
-                },
-                "sample_rate": {
-                    "description": "Sample rate of original audio",
-                    "type": "integer"
-                },
-                "updatedAt": {
-                    "type": "string"
                 }
             }
         },
@@ -1510,6 +1367,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "episodeId": {
+                    "description": "Keep JSON field name for API compatibility",
                     "type": "integer"
                 },
                 "id": {
@@ -2026,7 +1884,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "localhost:9000",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},
 	Title:            "Podcast Player API",

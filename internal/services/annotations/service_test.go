@@ -29,7 +29,7 @@ func (m *MockRepository) GetAnnotationByID(ctx context.Context, id uint) (*model
 	return args.Get(0).(*models.Annotation), args.Error(1)
 }
 
-func (m *MockRepository) GetAnnotationsByEpisodeID(ctx context.Context, episodeID uint) ([]models.Annotation, error) {
+func (m *MockRepository) GetAnnotationsByPodcastIndexEpisodeID(ctx context.Context, episodeID int64) ([]models.Annotation, error) {
 	args := m.Called(ctx, episodeID)
 	return args.Get(0).([]models.Annotation), args.Error(1)
 }
@@ -52,12 +52,12 @@ func (m *MockRepository) GetAnnotationByUUID(ctx context.Context, uuid string) (
 	return args.Get(0).(*models.Annotation), args.Error(1)
 }
 
-func (m *MockRepository) CheckOverlappingAnnotation(ctx context.Context, episodeID uint, startTime, endTime float64) (bool, error) {
+func (m *MockRepository) CheckOverlappingAnnotation(ctx context.Context, episodeID int64, startTime, endTime float64) (bool, error) {
 	args := m.Called(ctx, episodeID, startTime, endTime)
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockRepository) CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID uint, startTime, endTime float64, excludeID uint) (bool, error) {
+func (m *MockRepository) CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID int64, startTime, endTime float64, excludeID uint) (bool, error) {
 	args := m.Called(ctx, episodeID, startTime, endTime, excludeID)
 	return args.Bool(0), args.Error(1)
 }
@@ -70,10 +70,10 @@ func TestServiceImpl_CreateAnnotation(t *testing.T) {
 		service := NewService(mockRepo)
 
 		annotation := &models.Annotation{
-			EpisodeID: 1,
-			Label:     "test_label",
-			StartTime: 10.5,
-			EndTime:   20.5,
+			PodcastIndexEpisodeID: 1,
+			Label:                 "test_label",
+			StartTime:             10.5,
+			EndTime:               20.5,
 		}
 
 		mockRepo.On("CreateAnnotation", ctx, mock.AnythingOfType("*models.Annotation")).
@@ -97,11 +97,11 @@ func TestServiceImpl_CreateAnnotation(t *testing.T) {
 
 		providedUUID := "12345678-1234-5678-1234-567812345678"
 		annotation := &models.Annotation{
-			UUID:      providedUUID,
-			EpisodeID: 1,
-			Label:     "test_label",
-			StartTime: 10.5,
-			EndTime:   20.5,
+			UUID:                  providedUUID,
+			PodcastIndexEpisodeID: 1,
+			Label:                 "test_label",
+			StartTime:             10.5,
+			EndTime:               20.5,
 		}
 
 		mockRepo.On("CreateAnnotation", ctx, annotation).Return(nil)
@@ -125,19 +125,19 @@ func TestServiceImpl_CreateAnnotation(t *testing.T) {
 			{
 				name: "missing label",
 				annotation: &models.Annotation{
-					EpisodeID: 1,
-					StartTime: 10.5,
-					EndTime:   20.5,
+					PodcastIndexEpisodeID: 1,
+					StartTime:             10.5,
+					EndTime:               20.5,
 				},
 				expectedErr: "Label is required",
 			},
 			{
 				name: "invalid time range",
 				annotation: &models.Annotation{
-					EpisodeID: 1,
-					Label:     "test",
-					StartTime: 20.5,
-					EndTime:   10.5,
+					PodcastIndexEpisodeID: 1,
+					Label:                 "test",
+					StartTime:             20.5,
+					EndTime:               10.5,
 				},
 				expectedErr: "Start time must be before end time",
 			},
@@ -168,10 +168,10 @@ func TestServiceImpl_CreateAnnotation(t *testing.T) {
 		service := NewService(mockRepo)
 
 		annotation := &models.Annotation{
-			EpisodeID: 1,
-			Label:     "test_label",
-			StartTime: 10.5,
-			EndTime:   20.5,
+			PodcastIndexEpisodeID: 1,
+			Label:                 "test_label",
+			StartTime:             10.5,
+			EndTime:               20.5,
 		}
 
 		expectedErr := errors.New("database error")
@@ -194,11 +194,11 @@ func TestServiceImpl_UpdateAnnotation(t *testing.T) {
 
 		originalUUID := "12345678-1234-5678-1234-567812345678"
 		existingAnnotation := &models.Annotation{
-			UUID:      originalUUID,
-			EpisodeID: 1,
-			Label:     "original",
-			StartTime: 10.5,
-			EndTime:   20.5,
+			UUID:                  originalUUID,
+			PodcastIndexEpisodeID: 1,
+			Label:                 "original",
+			StartTime:             10.5,
+			EndTime:               20.5,
 		}
 
 		mockRepo.On("GetAnnotationByID", ctx, uint(1)).Return(existingAnnotation, nil)
@@ -271,7 +271,7 @@ func TestServiceImpl_UpdateAnnotation(t *testing.T) {
 	})
 }
 
-func TestServiceImpl_GetAnnotationsByEpisodeID(t *testing.T) {
+func TestServiceImpl_GetAnnotationsByPodcastIndexEpisodeID(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("returns annotations with UUIDs", func(t *testing.T) {
@@ -280,31 +280,31 @@ func TestServiceImpl_GetAnnotationsByEpisodeID(t *testing.T) {
 
 		expectedAnnotations := []models.Annotation{
 			{
-				UUID:      "uuid-1",
-				EpisodeID: 1,
-				Label:     "intro",
-				StartTime: 0,
-				EndTime:   10,
+				UUID:                  "uuid-1",
+				PodcastIndexEpisodeID: 1,
+				Label:                 "intro",
+				StartTime:             0,
+				EndTime:               10,
 			},
 			{
-				UUID:      "uuid-2",
-				EpisodeID: 1,
-				Label:     "content",
-				StartTime: 10,
-				EndTime:   100,
+				UUID:                  "uuid-2",
+				PodcastIndexEpisodeID: 1,
+				Label:                 "content",
+				StartTime:             10,
+				EndTime:               100,
 			},
 			{
-				UUID:      "uuid-3",
-				EpisodeID: 1,
-				Label:     "outro",
-				StartTime: 100,
-				EndTime:   110,
+				UUID:                  "uuid-3",
+				PodcastIndexEpisodeID: 1,
+				Label:                 "outro",
+				StartTime:             100,
+				EndTime:               110,
 			},
 		}
 
-		mockRepo.On("GetAnnotationsByEpisodeID", ctx, uint(1)).Return(expectedAnnotations, nil)
+		mockRepo.On("GetAnnotationsByPodcastIndexEpisodeID", ctx, int64(1)).Return(expectedAnnotations, nil)
 
-		annotations, err := service.GetAnnotationsByEpisodeID(ctx, uint(1))
+		annotations, err := service.GetAnnotationsByPodcastIndexEpisodeID(ctx, int64(1))
 		require.NoError(t, err)
 		assert.Len(t, annotations, 3)
 
@@ -320,9 +320,9 @@ func TestServiceImpl_GetAnnotationsByEpisodeID(t *testing.T) {
 		mockRepo := new(MockRepository)
 		service := NewService(mockRepo)
 
-		mockRepo.On("GetAnnotationsByEpisodeID", ctx, uint(1)).Return([]models.Annotation{}, nil)
+		mockRepo.On("GetAnnotationsByPodcastIndexEpisodeID", ctx, int64(1)).Return([]models.Annotation{}, nil)
 
-		annotations, err := service.GetAnnotationsByEpisodeID(ctx, uint(1))
+		annotations, err := service.GetAnnotationsByPodcastIndexEpisodeID(ctx, int64(1))
 		require.NoError(t, err)
 		assert.Empty(t, annotations)
 

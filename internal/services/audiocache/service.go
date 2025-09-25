@@ -33,9 +33,9 @@ func NewService(repository Repository, storage StorageBackend) Service {
 }
 
 // GetOrDownloadAudio retrieves cached audio or downloads if not present
-func (s *ServiceImpl) GetOrDownloadAudio(ctx context.Context, episodeID uint, audioURL string) (*models.AudioCache, error) {
+func (s *ServiceImpl) GetOrDownloadAudio(ctx context.Context, podcastIndexEpisodeID int64, audioURL string) (*models.AudioCache, error) {
 	// Check if already cached
-	cache, err := s.repository.GetByEpisodeID(ctx, episodeID)
+	cache, err := s.repository.GetByPodcastIndexEpisodeID(ctx, podcastIndexEpisodeID)
 	if err == nil && cache != nil {
 		// Update last used timestamp
 		if err := s.UpdateLastUsed(ctx, cache.ID); err != nil {
@@ -45,7 +45,7 @@ func (s *ServiceImpl) GetOrDownloadAudio(ctx context.Context, episodeID uint, au
 	}
 
 	// Not cached, download and process
-	log.Printf("[INFO] Downloading audio for episode %d from %s", episodeID, audioURL)
+	log.Printf("[INFO] Downloading audio for Podcast Index episode %d from %s", podcastIndexEpisodeID, audioURL)
 
 	// Download audio to temp file
 	tempFile, err := s.downloadAudio(ctx, audioURL)
@@ -63,20 +63,20 @@ func (s *ServiceImpl) GetOrDownloadAudio(ctx context.Context, episodeID uint, au
 	// Check if this audio already exists (by SHA256)
 	existingCache, err := s.repository.GetBySHA256(ctx, sha256Hash)
 	if err == nil && existingCache != nil {
-		log.Printf("[INFO] Audio already cached with SHA256 %s, linking to episode %d", sha256Hash, episodeID)
+		log.Printf("[INFO] Audio already cached with SHA256 %s, linking to Podcast Index episode %d", sha256Hash, podcastIndexEpisodeID)
 
 		// Create new cache entry for this episode linking to existing files
 		newCache := &models.AudioCache{
-			EpisodeID:       episodeID,
-			OriginalURL:     audioURL,
-			OriginalSHA256:  existingCache.OriginalSHA256,
-			OriginalPath:    existingCache.OriginalPath,
-			OriginalSize:    existingCache.OriginalSize,
-			ProcessedPath:   existingCache.ProcessedPath,
-			ProcessedSHA256: existingCache.ProcessedSHA256,
-			ProcessedSize:   existingCache.ProcessedSize,
-			DurationSeconds: existingCache.DurationSeconds,
-			SampleRate:      existingCache.SampleRate,
+			PodcastIndexEpisodeID: podcastIndexEpisodeID,
+			OriginalURL:           audioURL,
+			OriginalSHA256:        existingCache.OriginalSHA256,
+			OriginalPath:          existingCache.OriginalPath,
+			OriginalSize:          existingCache.OriginalSize,
+			ProcessedPath:         existingCache.ProcessedPath,
+			ProcessedSHA256:       existingCache.ProcessedSHA256,
+			ProcessedSize:         existingCache.ProcessedSize,
+			DurationSeconds:       existingCache.DurationSeconds,
+			SampleRate:            existingCache.SampleRate,
 		}
 
 		if err := s.repository.Create(ctx, newCache); err != nil {
@@ -93,7 +93,7 @@ func (s *ServiceImpl) GetOrDownloadAudio(ctx context.Context, episodeID uint, au
 	}
 
 	// Save original file to storage
-	originalFilename := fmt.Sprintf("original/%d_%s.mp3", episodeID, sha256Hash[:8])
+	originalFilename := fmt.Sprintf("original/%d_%s.mp3", podcastIndexEpisodeID, sha256Hash[:8])
 	originalFile, err := os.Open(tempFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open temp file: %w", err)
@@ -106,7 +106,7 @@ func (s *ServiceImpl) GetOrDownloadAudio(ctx context.Context, episodeID uint, au
 	}
 
 	// Process audio for ML (16kHz mono)
-	processedFilename := fmt.Sprintf("processed/%d_%s_16khz.mp3", episodeID, sha256Hash[:8])
+	processedFilename := fmt.Sprintf("processed/%d_%s_16khz.mp3", podcastIndexEpisodeID, sha256Hash[:8])
 	processedTempFile := tempFile + "_processed.mp3"
 
 	if err := s.ProcessAudioForML(ctx, tempFile, processedTempFile); err != nil {
@@ -166,16 +166,16 @@ func (s *ServiceImpl) GetOrDownloadAudio(ctx context.Context, episodeID uint, au
 
 	// Create cache entry
 	cache = &models.AudioCache{
-		EpisodeID:       episodeID,
-		OriginalURL:     audioURL,
-		OriginalSHA256:  sha256Hash,
-		OriginalPath:    originalPath,
-		OriginalSize:    fileInfo.Size(),
-		ProcessedPath:   processedPath,
-		ProcessedSHA256: processedSHA256,
-		ProcessedSize:   processedInfo.Size(),
-		DurationSeconds: duration,
-		SampleRate:      16000,
+		PodcastIndexEpisodeID: podcastIndexEpisodeID,
+		OriginalURL:           audioURL,
+		OriginalSHA256:        sha256Hash,
+		OriginalPath:          originalPath,
+		OriginalSize:          fileInfo.Size(),
+		ProcessedPath:         processedPath,
+		ProcessedSHA256:       processedSHA256,
+		ProcessedSize:         processedInfo.Size(),
+		DurationSeconds:       duration,
+		SampleRate:            16000,
 	}
 
 	if err := s.repository.Create(ctx, cache); err != nil {
@@ -189,13 +189,13 @@ func (s *ServiceImpl) GetOrDownloadAudio(ctx context.Context, episodeID uint, au
 		return nil, fmt.Errorf("failed to create cache entry: %w", err)
 	}
 
-	log.Printf("[INFO] Successfully cached audio for episode %d", episodeID)
+	log.Printf("[INFO] Successfully cached audio for Podcast Index episode %d", podcastIndexEpisodeID)
 	return cache, nil
 }
 
 // GetCachedAudio retrieves cached audio without downloading
-func (s *ServiceImpl) GetCachedAudio(ctx context.Context, episodeID uint) (*models.AudioCache, error) {
-	cache, err := s.repository.GetByEpisodeID(ctx, episodeID)
+func (s *ServiceImpl) GetCachedAudio(ctx context.Context, podcastIndexEpisodeID int64) (*models.AudioCache, error) {
+	cache, err := s.repository.GetByPodcastIndexEpisodeID(ctx, podcastIndexEpisodeID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil // Return nil without error if not found
@@ -264,7 +264,7 @@ func (s *ServiceImpl) CleanupOldCache(ctx context.Context, olderThanDays int) er
 		if err := s.repository.Delete(ctx, cache.ID); err != nil {
 			log.Printf("[WARN] Failed to delete cache entry %d: %v", cache.ID, err)
 		} else {
-			log.Printf("[INFO] Deleted cache entry %d (episode %d)", cache.ID, cache.EpisodeID)
+			log.Printf("[INFO] Deleted cache entry %d (Podcast Index episode %d)", cache.ID, cache.PodcastIndexEpisodeID)
 		}
 	}
 

@@ -2,8 +2,6 @@ package episodes
 
 import (
 	"time"
-
-	"github.com/killallgit/player-api/internal/models"
 )
 
 // EpisodeMetadata represents metadata about an episode file (audio/video)
@@ -51,7 +49,7 @@ type PodcastIndexEpisode struct {
 	Persons             []Person            `json:"persons,omitempty"`
 	SocialInteract      []SocialInteraction `json:"socialInteract,omitempty"`
 	Value               *Value              `json:"value,omitempty"`
-	Annotations         []models.Annotation `json:"annotations,omitempty"`
+	// Annotations are now fetched separately via PodcastIndexEpisodeID
 }
 
 // PodcastIndexResponse represents the standard response wrapper from Podcast Index API

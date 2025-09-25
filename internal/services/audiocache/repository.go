@@ -23,10 +23,10 @@ func (r *RepositoryImpl) Create(ctx context.Context, cache *models.AudioCache) e
 	return r.db.WithContext(ctx).Create(cache).Error
 }
 
-// GetByEpisodeID retrieves cache entry by episode ID
-func (r *RepositoryImpl) GetByEpisodeID(ctx context.Context, episodeID uint) (*models.AudioCache, error) {
+// GetByPodcastIndexEpisodeID retrieves cache entry by Podcast Index episode ID
+func (r *RepositoryImpl) GetByPodcastIndexEpisodeID(ctx context.Context, podcastIndexEpisodeID int64) (*models.AudioCache, error) {
 	var cache models.AudioCache
-	err := r.db.WithContext(ctx).Where("episode_id = ?", episodeID).First(&cache).Error
+	err := r.db.WithContext(ctx).Where("podcast_index_episode_id = ?", podcastIndexEpisodeID).First(&cache).Error
 	if err != nil {
 		return nil, err
 	}
