@@ -21,7 +21,7 @@ import (
 // @Param        id path int64 true "Episode ID (Podcast Index ID)"
 // @Success      200 {object} types.JobStatusResponse "Transcription already exists (source: 'fetched' or 'generated')"
 // @Success      202 {object} types.JobStatusResponse "Transcription generation triggered"
-// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      400 {object} types.ErrorResponse "Invalid Podcast Index Episode ID"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/transcribe [post]
 func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
@@ -31,7 +31,7 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil || episodeID < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Podcast Index Episode ID"})
 			return
 		}
 
@@ -70,7 +70,7 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		// Check if there's already a job for this episode
-		existingJob, jobErr := deps.JobService.GetJobForTranscription(ctx, uint(episodeID))
+		existingJob, jobErr := deps.JobService.GetJobForTranscription(ctx, int64(episodeID))
 		if jobErr == nil && existingJob != nil {
 			// Job already exists, return status based on job state
 			switch existingJob.Status {
@@ -133,7 +133,7 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 // @Produce      json
 // @Param        id path int64 true "Episode ID (Podcast Index ID)"
 // @Success      200 {object} types.TranscriptionData "Transcription data (includes source: 'fetched' or 'generated')"
-// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      400 {object} types.ErrorResponse "Invalid Podcast Index Episode ID"
 // @Failure      404 {object} types.ErrorResponse "Transcription not found"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/transcribe [get]
@@ -144,7 +144,7 @@ func GetTranscription(deps *types.Dependencies) gin.HandlerFunc {
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil || episodeID < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Podcast Index Episode ID"})
 			return
 		}
 
@@ -202,7 +202,7 @@ func GetTranscription(deps *types.Dependencies) gin.HandlerFunc {
 // @Produce      json
 // @Param        id path int64 true "Episode ID (Podcast Index ID)"
 // @Success      200 {object} types.JobStatusResponse "Transcription status"
-// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      400 {object} types.ErrorResponse "Invalid Podcast Index Episode ID"
 // @Failure      404 {object} types.JobStatusResponse "Transcription not available"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Router       /api/v1/episodes/{id}/transcribe/status [get]
@@ -213,7 +213,7 @@ func GetTranscriptionStatus(deps *types.Dependencies) gin.HandlerFunc {
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil || episodeID < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid episode ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Podcast Index Episode ID"})
 			return
 		}
 
@@ -245,7 +245,7 @@ func GetTranscriptionStatus(deps *types.Dependencies) gin.HandlerFunc {
 
 		// Check if there's a job in progress
 		if deps.JobService != nil {
-			job, jobErr := deps.JobService.GetJobForTranscription(ctx, uint(episodeID))
+			job, jobErr := deps.JobService.GetJobForTranscription(ctx, int64(episodeID))
 			if jobErr == nil && job != nil {
 				status := gin.H{
 					"episode_id": episodeID,

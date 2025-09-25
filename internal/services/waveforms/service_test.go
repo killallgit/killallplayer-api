@@ -10,23 +10,23 @@ import (
 
 // mockWaveformRepository is a mock implementation of WaveformRepository for testing
 type mockWaveformRepository struct {
-	waveforms map[uint]*models.Waveform
+	waveforms map[int64]*models.Waveform
 	shouldErr bool
 }
 
 func newMockWaveformRepository() *mockWaveformRepository {
 	return &mockWaveformRepository{
-		waveforms: make(map[uint]*models.Waveform),
+		waveforms: make(map[int64]*models.Waveform),
 		shouldErr: false,
 	}
 }
 
-func (m *mockWaveformRepository) GetByEpisodeID(ctx context.Context, episodeID uint) (*models.Waveform, error) {
+func (m *mockWaveformRepository) GetByPodcastIndexEpisodeID(ctx context.Context, podcastIndexEpisodeID int64) (*models.Waveform, error) {
 	if m.shouldErr {
 		return nil, errors.New("mock database error")
 	}
 
-	waveform, exists := m.waveforms[episodeID]
+	waveform, exists := m.waveforms[podcastIndexEpisodeID]
 	if !exists {
 		return nil, ErrWaveformNotFound
 	}
@@ -39,7 +39,7 @@ func (m *mockWaveformRepository) Create(ctx context.Context, waveform *models.Wa
 		return errors.New("mock database error")
 	}
 
-	m.waveforms[waveform.EpisodeID] = waveform
+	m.waveforms[waveform.PodcastIndexEpisodeID] = waveform
 	return nil
 }
 
@@ -48,30 +48,30 @@ func (m *mockWaveformRepository) Update(ctx context.Context, waveform *models.Wa
 		return errors.New("mock database error")
 	}
 
-	m.waveforms[waveform.EpisodeID] = waveform
+	m.waveforms[waveform.PodcastIndexEpisodeID] = waveform
 	return nil
 }
 
-func (m *mockWaveformRepository) Delete(ctx context.Context, episodeID uint) error {
+func (m *mockWaveformRepository) Delete(ctx context.Context, podcastIndexEpisodeID int64) error {
 	if m.shouldErr {
 		return errors.New("mock database error")
 	}
 
-	_, exists := m.waveforms[episodeID]
+	_, exists := m.waveforms[podcastIndexEpisodeID]
 	if !exists {
 		return ErrWaveformNotFound
 	}
 
-	delete(m.waveforms, episodeID)
+	delete(m.waveforms, podcastIndexEpisodeID)
 	return nil
 }
 
-func (m *mockWaveformRepository) Exists(ctx context.Context, episodeID uint) (bool, error) {
+func (m *mockWaveformRepository) Exists(ctx context.Context, podcastIndexEpisodeID int64) (bool, error) {
 	if m.shouldErr {
 		return false, errors.New("mock database error")
 	}
 
-	_, exists := m.waveforms[episodeID]
+	_, exists := m.waveforms[podcastIndexEpisodeID]
 	return exists, nil
 }
 
@@ -87,7 +87,7 @@ func TestNewService(t *testing.T) {
 func TestService_GetWaveform(t *testing.T) {
 	tests := []struct {
 		name        string
-		episodeID   uint
+		episodeID   int64
 		setupRepo   func(*mockWaveformRepository)
 		wantErr     bool
 		expectedErr error
@@ -97,10 +97,10 @@ func TestService_GetWaveform(t *testing.T) {
 			episodeID: 123,
 			setupRepo: func(repo *mockWaveformRepository) {
 				waveform := &models.Waveform{
-					EpisodeID:  123,
-					Duration:   300.0,
-					Resolution: 1000,
-					SampleRate: 44100,
+					PodcastIndexEpisodeID: 123,
+					Duration:              300.0,
+					Resolution:            1000,
+					SampleRate:            44100,
 				}
 				if err := waveform.SetPeaks([]float32{0.1, 0.5, 0.8}); err != nil {
 					t.Fatalf("SetPeaks() error = %v", err)
@@ -165,8 +165,8 @@ func TestService_GetWaveform(t *testing.T) {
 				return
 			}
 
-			if waveform.EpisodeID != tt.episodeID {
-				t.Errorf("GetWaveform() EpisodeID = %v, want %v", waveform.EpisodeID, tt.episodeID)
+			if waveform.PodcastIndexEpisodeID != tt.episodeID {
+				t.Errorf("GetWaveform() PodcastIndexEpisodeID = %v, want %v", waveform.PodcastIndexEpisodeID, tt.episodeID)
 			}
 		})
 	}
@@ -183,10 +183,10 @@ func TestService_SaveWaveform(t *testing.T) {
 		{
 			name: "successful create",
 			waveform: &models.Waveform{
-				EpisodeID:  123,
-				Duration:   300.0,
-				Resolution: 3,
-				SampleRate: 44100,
+				PodcastIndexEpisodeID: 123,
+				Duration:              300.0,
+				Resolution:            3,
+				SampleRate:            44100,
 			},
 			setupRepo: func(repo *mockWaveformRepository) {
 				// Waveform doesn't exist yet
@@ -196,14 +196,14 @@ func TestService_SaveWaveform(t *testing.T) {
 		{
 			name: "successful update",
 			waveform: &models.Waveform{
-				EpisodeID:  123,
-				Duration:   400.0,
-				Resolution: 3,
-				SampleRate: 48000,
+				PodcastIndexEpisodeID: 123,
+				Duration:              400.0,
+				Resolution:            3,
+				SampleRate:            48000,
 			},
 			setupRepo: func(repo *mockWaveformRepository) {
 				// Existing waveform
-				existing := &models.Waveform{EpisodeID: 123, Duration: 300.0}
+				existing := &models.Waveform{PodcastIndexEpisodeID: 123, Duration: 300.0}
 				err := existing.SetPeaks([]float32{0.1, 0.2, 0.3})
 				if err != nil {
 					t.Fatalf("SetPeaks() error = %v", err)
@@ -215,7 +215,7 @@ func TestService_SaveWaveform(t *testing.T) {
 		{
 			name: "invalid episode ID",
 			waveform: &models.Waveform{
-				EpisodeID: 0,
+				PodcastIndexEpisodeID: 0,
 			},
 			setupRepo:   func(repo *mockWaveformRepository) {},
 			wantErr:     true,
@@ -224,8 +224,8 @@ func TestService_SaveWaveform(t *testing.T) {
 		{
 			name: "invalid peaks data",
 			waveform: &models.Waveform{
-				EpisodeID: 123,
-				PeaksData: []byte{}, // Empty peaks data
+				PodcastIndexEpisodeID: 123,
+				PeaksData:             []byte{}, // Empty peaks data
 			},
 			setupRepo:   func(repo *mockWaveformRepository) {},
 			wantErr:     true,
@@ -267,7 +267,7 @@ func TestService_SaveWaveform(t *testing.T) {
 			}
 
 			// Verify waveform was saved
-			saved, exists := repo.waveforms[tt.waveform.EpisodeID]
+			saved, exists := repo.waveforms[tt.waveform.PodcastIndexEpisodeID]
 			if !exists {
 				t.Error("SaveWaveform() waveform not found in repository")
 				return
@@ -283,7 +283,7 @@ func TestService_SaveWaveform(t *testing.T) {
 func TestService_DeleteWaveform(t *testing.T) {
 	tests := []struct {
 		name        string
-		episodeID   uint
+		episodeID   int64
 		setupRepo   func(*mockWaveformRepository)
 		wantErr     bool
 		expectedErr error
@@ -292,7 +292,7 @@ func TestService_DeleteWaveform(t *testing.T) {
 			name:      "successful delete",
 			episodeID: 123,
 			setupRepo: func(repo *mockWaveformRepository) {
-				waveform := &models.Waveform{EpisodeID: 123}
+				waveform := &models.Waveform{PodcastIndexEpisodeID: 123}
 				if err := waveform.SetPeaks([]float32{0.1, 0.5, 0.8}); err != nil {
 					t.Fatalf("SetPeaks() error = %v", err)
 				}
@@ -353,7 +353,7 @@ func TestService_DeleteWaveform(t *testing.T) {
 func TestService_WaveformExists(t *testing.T) {
 	tests := []struct {
 		name        string
-		episodeID   uint
+		episodeID   int64
 		setupRepo   func(*mockWaveformRepository)
 		wantExists  bool
 		wantErr     bool
@@ -363,7 +363,7 @@ func TestService_WaveformExists(t *testing.T) {
 			name:      "waveform exists",
 			episodeID: 123,
 			setupRepo: func(repo *mockWaveformRepository) {
-				waveform := &models.Waveform{EpisodeID: 123}
+				waveform := &models.Waveform{PodcastIndexEpisodeID: 123}
 				if err := waveform.SetPeaks([]float32{0.1, 0.5, 0.8}); err != nil {
 					t.Fatalf("SetPeaks() error = %v", err)
 				}

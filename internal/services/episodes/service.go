@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -225,11 +226,65 @@ func (s *Service) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID
 	episode, err := s.repository.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
 	if err != nil {
 		if IsNotFound(err) {
-			// Episode not in database - could fetch from Podcast Index API here
-			// For now, return not found
+			// Episode not in database - try fetching from Podcast Index API
+			log.Printf("[DEBUG] Service.GetEpisodeByPodcastIndexID: Episode %d not in database, attempting to fetch from Podcast Index API", podcastIndexID)
+
+			// Check if fetcher is available
+			if s.fetcher == nil {
+				log.Printf("[ERROR] Service.GetEpisodeByPodcastIndexID: Podcast API client not available")
+				return nil, err // Return original not found error
+			}
+
+			// Fetch single episode from Podcast Index API
+			apiEpisode, fetchErr := s.fetcher.GetEpisodeByID(ctx, podcastIndexID)
+			if fetchErr != nil {
+				// Check if it's a "not found" error from the API
+				if strings.Contains(fetchErr.Error(), "not found") || strings.Contains(fetchErr.Error(), "404") {
+					log.Printf("[ERROR] Service.GetEpisodeByPodcastIndexID: Episode %d does not exist in Podcast Index API", podcastIndexID)
+					// Return a permanent error indicating the episode doesn't exist
+					return nil, fmt.Errorf("episode %d does not exist in Podcast Index", podcastIndexID)
+				}
+				log.Printf("[ERROR] Service.GetEpisodeByPodcastIndexID: Failed to fetch episode %d from API: %v", podcastIndexID, fetchErr)
+				return nil, err // Return original not found error if API fetch fails
+			}
+
+			// We have the episode from the API, now sync it to the database
+			// We need a podcast ID - use the FeedID from the API episode
+			var podcastID uint
+			if apiEpisode.FeedID > 0 {
+				// Try to find the podcast in our database
+				// For now, we'll use the FeedID as the podcast ID (this may need adjustment based on your schema)
+				podcastID = uint(apiEpisode.FeedID)
+			} else {
+				// If no FeedID, we can't properly associate the episode
+				log.Printf("[WARN] Service.GetEpisodeByPodcastIndexID: Episode %d has no FeedID, using 0 as podcast ID", podcastIndexID)
+				podcastID = 0
+			}
+
+			// Sync this single episode to the database
+			syncedCount, syncErr := s.SyncEpisodesToDatabase(ctx, []PodcastIndexEpisode{*apiEpisode}, podcastID)
+			if syncErr != nil {
+				log.Printf("[ERROR] Service.GetEpisodeByPodcastIndexID: Failed to sync episode %d to database: %v", podcastIndexID, syncErr)
+				return nil, fmt.Errorf("failed to sync episode from API: %w", syncErr)
+			}
+
+			if syncedCount == 0 {
+				log.Printf("[ERROR] Service.GetEpisodeByPodcastIndexID: Episode %d sync returned 0 synced episodes", podcastIndexID)
+				return nil, fmt.Errorf("failed to sync episode from API")
+			}
+
+			// Now try to fetch from repository again
+			episode, err = s.repository.GetEpisodeByPodcastIndexID(ctx, podcastIndexID)
+			if err != nil {
+				log.Printf("[ERROR] Service.GetEpisodeByPodcastIndexID: Failed to retrieve episode %d after sync: %v", podcastIndexID, err)
+				return nil, fmt.Errorf("episode synced but not retrievable: %w", err)
+			}
+
+			log.Printf("[INFO] Service.GetEpisodeByPodcastIndexID: Successfully fetched and synced episode %d from Podcast Index API", podcastIndexID)
+		} else {
+			// Some other database error
 			return nil, err
 		}
-		return nil, err
 	}
 
 	log.Printf("[DEBUG] Service.GetEpisodeByPodcastIndexID: Repository returned episode with ID=%d for PodcastIndexID=%d",

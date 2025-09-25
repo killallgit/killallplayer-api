@@ -569,7 +569,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid episode ID",
+                        "description": "Invalid Podcast Index Episode ID",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -624,7 +624,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid episode ID",
+                        "description": "Invalid Podcast Index Episode ID",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -669,7 +669,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid episode ID",
+                        "description": "Invalid Podcast Index Episode ID",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -726,7 +726,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid episode ID",
+                        "description": "Invalid Podcast Index Episode ID",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }

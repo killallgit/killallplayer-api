@@ -126,14 +126,14 @@ func TestWaveform_SetPeaksWithFloatEdgeCases(t *testing.T) {
 
 func TestWaveform_ModelFields(t *testing.T) {
 	wf := &Waveform{
-		EpisodeID:  123,
-		Duration:   300.5,
-		Resolution: 1000,
-		SampleRate: 44100,
+		PodcastIndexEpisodeID: 123,
+		Duration:              300.5,
+		Resolution:            1000,
+		SampleRate:            44100,
 	}
 
-	if wf.EpisodeID != 123 {
-		t.Errorf("Waveform.EpisodeID = %v, want 123", wf.EpisodeID)
+	if wf.PodcastIndexEpisodeID != 123 {
+		t.Errorf("Waveform.PodcastIndexEpisodeID = %v, want 123", wf.PodcastIndexEpisodeID)
 	}
 
 	if wf.Duration != 300.5 {

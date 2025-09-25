@@ -178,12 +178,12 @@ func (suite *APITestSuite) createTestEpisode(id uint) *models.Episode {
 	return episode
 }
 
-func (suite *APITestSuite) createTestWaveform(episodeID uint, peaks []float32) *models.Waveform {
+func (suite *APITestSuite) createTestWaveform(episodeID int64, peaks []float32) *models.Waveform {
 	waveform := &models.Waveform{
-		EpisodeID:  episodeID,
-		Duration:   300.0,
-		Resolution: len(peaks),
-		SampleRate: 44100,
+		PodcastIndexEpisodeID: episodeID,
+		Duration:              300.0,
+		Resolution:            len(peaks),
+		SampleRate:            44100,
 	}
 
 	err := waveform.SetPeaks(peaks)
@@ -256,7 +256,7 @@ func TestWaveformAPI_GetWaveform_Success(t *testing.T) {
 	// Create test episode and waveform
 	episode := suite.createTestEpisode(123)
 	expectedPeaks := []float32{0.1, 0.5, 0.8, 0.3, 0.9, 0.2}
-	suite.createTestWaveform(uint(episode.PodcastIndexID), expectedPeaks)
+	suite.createTestWaveform(int64(episode.PodcastIndexID), expectedPeaks)
 
 	// Make request using PodcastIndexID (not database ID)
 	req, err := http.NewRequest("GET", fmt.Sprintf("/api/v1/episodes/%d/waveform", episode.PodcastIndexID), nil)
@@ -371,8 +371,8 @@ func TestWaveformAPI_InvalidEpisodeID(t *testing.T) {
 				t.Fatalf("Failed to unmarshal response: %v", err)
 			}
 
-			if response["message"] != "Invalid episode ID" {
-				t.Errorf("Expected message 'Invalid episode ID', got %v", response["message"])
+			if response["message"] != "Invalid Podcast Index Episode ID" {
+				t.Errorf("Expected message 'Invalid Podcast Index Episode ID', got %v", response["message"])
 			}
 		})
 	}
@@ -389,7 +389,7 @@ func TestWaveformAPI_DatabaseIntegration(t *testing.T) {
 		for j := 0; j < 5; j++ {
 			peaks[j] = float32(i+1) * 0.1 * float32(j+1) // Different patterns for each episode
 		}
-		suite.createTestWaveform(uint(episodes[i].PodcastIndexID), peaks)
+		suite.createTestWaveform(int64(episodes[i].PodcastIndexID), peaks)
 	}
 
 	// Test that each episode returns its own waveform
@@ -476,10 +476,10 @@ func TestWaveformAPI_WithRealAudioFile(t *testing.T) {
 	}
 
 	waveform := &models.Waveform{
-		EpisodeID:  uint(episode.PodcastIndexID), // Use Podcast Index ID for consistency
-		Duration:   10.0,                         // 10 seconds
-		Resolution: len(realPeaks),
-		SampleRate: 44100,
+		PodcastIndexEpisodeID: int64(episode.PodcastIndexID), // Use Podcast Index ID for consistency
+		Duration:              10.0,                          // 10 seconds
+		Resolution:            len(realPeaks),
+		SampleRate:            44100,
 	}
 
 	err = waveform.SetPeaks(realPeaks)
@@ -636,10 +636,10 @@ func TestEndToEndWaveformWorkflow(t *testing.T) {
 
 	// Convert the FFmpeg waveform result to our database model
 	waveformModel := &models.Waveform{
-		EpisodeID:  uint(episode.PodcastIndexID),
-		Duration:   generatedWaveform.Duration,
-		Resolution: generatedWaveform.Resolution,
-		SampleRate: generatedWaveform.SampleRate,
+		PodcastIndexEpisodeID: int64(episode.PodcastIndexID),
+		Duration:              generatedWaveform.Duration,
+		Resolution:            generatedWaveform.Resolution,
+		SampleRate:            generatedWaveform.SampleRate,
 	}
 
 	if err := waveformModel.SetPeaks(generatedWaveform.Peaks); err != nil {

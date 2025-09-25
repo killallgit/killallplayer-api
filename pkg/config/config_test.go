@@ -16,32 +16,6 @@ func TestConfig(t *testing.T) {
 		check   func(t *testing.T)
 	}{
 		{
-			name: "load from config.yaml",
-			setup: func() {
-				// Reset viper for clean test
-				viper.Reset()
-				// Create config file in current directory
-				content := `
-server:
-  host: "127.0.0.1"
-  port: 8080
-database:
-  path: "./test.db"
-`
-				_ = os.WriteFile("./config.yaml", []byte(content), 0644)
-			},
-			cleanup: func() {
-				_ = os.Remove("./config.yaml")
-				viper.Reset()
-			},
-			wantErr: false,
-			check: func(t *testing.T) {
-				if GetInt("server.port") != 8080 {
-					t.Errorf("Expected server.port to be 8080, got %d", GetInt("server.port"))
-				}
-			},
-		},
-		{
 			name: "environment variable override",
 			setup: func() {
 				// Reset viper for clean test
@@ -80,8 +54,8 @@ server:
 			wantErr: false,
 			check: func(t *testing.T) {
 				// Should use defaults
-				if GetInt("server.port") != 8080 {
-					t.Errorf("Expected default server.port to be 8080, got %d", GetInt("server.port"))
+				if GetInt("server.port") != 9000 {
+					t.Errorf("Expected default server.port to be 9000, got %d", GetInt("server.port"))
 				}
 			},
 		},

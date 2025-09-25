@@ -31,6 +31,7 @@ type EpisodeRepository interface {
 type EpisodeFetcher interface {
 	GetEpisodesByPodcastID(ctx context.Context, podcastID int64, limit int) (*PodcastIndexResponse, error)
 	GetEpisodeByGUID(ctx context.Context, guid string) (*EpisodeByGUIDResponse, error)
+	GetEpisodeByID(ctx context.Context, episodeID int64) (*PodcastIndexEpisode, error)
 	GetEpisodeMetadata(ctx context.Context, episodeURL string) (*EpisodeMetadata, error)
 }
 

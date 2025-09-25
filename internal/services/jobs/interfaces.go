@@ -15,8 +15,8 @@ type Service interface {
 	// Status and retrieval
 	GetJob(ctx context.Context, jobID uint) (*models.Job, error)
 	GetJobStatus(ctx context.Context, jobID uint) (models.JobStatus, error)
-	GetJobForWaveform(ctx context.Context, episodeID uint) (*models.Job, error)
-	GetJobForTranscription(ctx context.Context, episodeID uint) (*models.Job, error)
+	GetJobForWaveform(ctx context.Context, podcastIndexEpisodeID int64) (*models.Job, error)
+	GetJobForTranscription(ctx context.Context, podcastIndexEpisodeID int64) (*models.Job, error)
 
 	// Worker operations (used by worker pool)
 	ClaimNextJob(ctx context.Context, workerID string, jobTypes []models.JobType) (*models.Job, error)

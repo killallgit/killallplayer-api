@@ -38,6 +38,7 @@ const (
 	ErrorTypeDownload   JobErrorType = "download"   // Audio file download failed
 	ErrorTypeProcessing JobErrorType = "processing" // FFmpeg/audio processing failed
 	ErrorTypeSystem     JobErrorType = "system"     // Database, worker, or other system error
+	ErrorTypeNotFound   JobErrorType = "not_found"  // Resource permanently not found
 )
 
 // StructuredJobError represents a structured error with classification information
@@ -79,6 +80,17 @@ func NewProcessingError(code, message, details string, originalErr error) *Struc
 func NewSystemError(code, message, details string, originalErr error) *StructuredJobError {
 	return &StructuredJobError{
 		Type:     ErrorTypeSystem,
+		Code:     code,
+		Message:  message,
+		Details:  details,
+		Original: originalErr,
+	}
+}
+
+// NewNotFoundError creates a not-found error that should result in permanent failure
+func NewNotFoundError(code, message, details string, originalErr error) *StructuredJobError {
+	return &StructuredJobError{
+		Type:     ErrorTypeNotFound,
 		Code:     code,
 		Message:  message,
 		Details:  details,

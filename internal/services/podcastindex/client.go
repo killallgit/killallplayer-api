@@ -560,3 +560,55 @@ func (c *Client) GetRecentFeeds(ctx context.Context, limit int) (*RecentFeedsRes
 
 	return &feedsResp, nil
 }
+
+// GetEpisodeByID fetches a single episode by its Podcast Index ID
+func (c *Client) GetEpisodeByID(ctx context.Context, episodeID int64) (*Episode, error) {
+	if episodeID <= 0 {
+		return nil, fmt.Errorf("invalid episode ID: %d", episodeID)
+	}
+
+	params := url.Values{}
+	params.Set("id", fmt.Sprintf("%d", episodeID))
+
+	endpoint := fmt.Sprintf("episodes/byid?%s", params.Encode())
+
+	// Create a struct matching the API response structure for a single episode
+	var episodeResp struct {
+		Status      string  `json:"status"`
+		ID          int64   `json:"id"`
+		Episode     Episode `json:"episode"`
+		Description string  `json:"description"`
+	}
+
+	if err := c.makeAPIRequest(ctx, endpoint, &episodeResp); err != nil {
+		// Check if it's a 404 error
+		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
+			return nil, fmt.Errorf("episode not found: ID %d", episodeID)
+		}
+		return nil, fmt.Errorf("fetching episode by ID: %w", err)
+	}
+
+	if episodeResp.Status != "true" {
+		// Handle case where episode doesn't exist
+		if strings.Contains(strings.ToLower(episodeResp.Description), "not found") ||
+			strings.Contains(strings.ToLower(episodeResp.Description), "no episode") {
+			return nil, fmt.Errorf("episode not found: ID %d", episodeID)
+		}
+		return nil, fmt.Errorf("API error: %s", episodeResp.Description)
+	}
+
+	// Some responses might have the episode data at the top level or nested
+	if episodeResp.Episode.ID != 0 {
+		return &episodeResp.Episode, nil
+	}
+
+	// If the data is at the top level, construct the episode
+	if episodeResp.ID != 0 {
+		episode := Episode{ID: episodeResp.ID}
+		// The API might return the full episode data at the top level
+		// For now, return what we have
+		return &episode, nil
+	}
+
+	return nil, fmt.Errorf("unexpected response structure for episode ID %d", episodeID)
+}

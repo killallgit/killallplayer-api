@@ -50,6 +50,19 @@ func (a *PodcastIndexAdapter) GetEpisodeByGUID(ctx context.Context, guid string)
 	return a.convertEpisodeByGUIDResponse(resp), nil
 }
 
+// GetEpisodeByID fetches a single episode by its Podcast Index ID
+func (a *PodcastIndexAdapter) GetEpisodeByID(ctx context.Context, episodeID int64) (*PodcastIndexEpisode, error) {
+	// Call the podcastindex client
+	resp, err := a.client.GetEpisodeByID(ctx, episodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert from podcastindex.Episode to PodcastIndexEpisode
+	episode := a.convertEpisode(*resp)
+	return &episode, nil
+}
+
 // GetEpisodeMetadata fetches metadata for an episode URL
 func (a *PodcastIndexAdapter) GetEpisodeMetadata(ctx context.Context, episodeURL string) (*EpisodeMetadata, error) {
 	// Parse URL to validate it

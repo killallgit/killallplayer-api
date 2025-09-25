@@ -920,7 +920,7 @@ paths:
           schema:
             $ref: '#/definitions/types.TranscriptionData'
         "400":
-          description: Invalid episode ID
+          description: Invalid Podcast Index Episode ID
           schema:
             $ref: '#/definitions/types.ErrorResponse'
         "404":
@@ -959,7 +959,7 @@ paths:
           schema:
             $ref: '#/definitions/types.JobStatusResponse'
         "400":
-          description: Invalid episode ID
+          description: Invalid Podcast Index Episode ID
           schema:
             $ref: '#/definitions/types.ErrorResponse'
         "500":
@@ -989,7 +989,7 @@ paths:
           schema:
             $ref: '#/definitions/types.JobStatusResponse'
         "400":
-          description: Invalid episode ID
+          description: Invalid Podcast Index Episode ID
           schema:
             $ref: '#/definitions/types.ErrorResponse'
         "404":
@@ -1029,7 +1029,7 @@ paths:
           schema:
             $ref: '#/definitions/types.WaveformResponse'
         "400":
-          description: Invalid episode ID
+          description: Invalid Podcast Index Episode ID
           schema:
             $ref: '#/definitions/types.ErrorResponse'
         "500":

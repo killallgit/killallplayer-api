@@ -9,14 +9,11 @@ import (
 // Waveform represents audio waveform data for an episode
 type Waveform struct {
 	gorm.Model
-	EpisodeID  uint    `json:"episode_id" gorm:"not null;uniqueIndex"`
-	PeaksData  []byte  `json:"-" gorm:"type:blob;not null"`                // JSON-encoded []float32
-	Duration   float64 `json:"duration" gorm:"not null"`                   // Duration in seconds
-	Resolution int     `json:"resolution" gorm:"not null"`                 // Number of peaks
-	SampleRate int     `json:"sample_rate,omitempty" gorm:"default:44100"` // Sample rate of original audio
-
-	// Relationship
-	Episode Episode `json:"episode,omitempty" gorm:"foreignKey:EpisodeID"`
+	PodcastIndexEpisodeID int64   `json:"podcast_index_episode_id" gorm:"not null;uniqueIndex"`
+	PeaksData             []byte  `json:"-" gorm:"type:blob;not null"`                // JSON-encoded []float32
+	Duration              float64 `json:"duration" gorm:"not null"`                   // Duration in seconds
+	Resolution            int     `json:"resolution" gorm:"not null"`                 // Number of peaks
+	SampleRate            int     `json:"sample_rate,omitempty" gorm:"default:44100"` // Sample rate of original audio
 }
 
 // Peaks returns the decoded peaks data

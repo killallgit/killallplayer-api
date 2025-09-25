@@ -29,8 +29,8 @@ func (m *MockRepository) GetAnnotationByID(ctx context.Context, id uint) (*model
 	return args.Get(0).(*models.Annotation), args.Error(1)
 }
 
-func (m *MockRepository) GetAnnotationsByPodcastIndexEpisodeID(ctx context.Context, episodeID int64) ([]models.Annotation, error) {
-	args := m.Called(ctx, episodeID)
+func (m *MockRepository) GetAnnotationsByPodcastIndexEpisodeID(ctx context.Context, podcastIndexEpisodeID int64) ([]models.Annotation, error) {
+	args := m.Called(ctx, podcastIndexEpisodeID)
 	return args.Get(0).([]models.Annotation), args.Error(1)
 }
 
@@ -52,13 +52,13 @@ func (m *MockRepository) GetAnnotationByUUID(ctx context.Context, uuid string) (
 	return args.Get(0).(*models.Annotation), args.Error(1)
 }
 
-func (m *MockRepository) CheckOverlappingAnnotation(ctx context.Context, episodeID int64, startTime, endTime float64) (bool, error) {
-	args := m.Called(ctx, episodeID, startTime, endTime)
+func (m *MockRepository) CheckOverlappingAnnotation(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64) (bool, error) {
+	args := m.Called(ctx, podcastIndexEpisodeID, startTime, endTime)
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockRepository) CheckOverlappingAnnotationExcluding(ctx context.Context, episodeID int64, startTime, endTime float64, excludeID uint) (bool, error) {
-	args := m.Called(ctx, episodeID, startTime, endTime, excludeID)
+func (m *MockRepository) CheckOverlappingAnnotationExcluding(ctx context.Context, podcastIndexEpisodeID int64, startTime, endTime float64, excludeID uint) (bool, error) {
+	args := m.Called(ctx, podcastIndexEpisodeID, startTime, endTime, excludeID)
 	return args.Bool(0), args.Error(1)
 }
 

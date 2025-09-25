@@ -299,7 +299,7 @@ func (r *repository) FailJobWithDetails(ctx context.Context, jobID uint, errorTy
 
 	// Determine if job should be permanently failed
 	var status models.JobStatus
-	if newRetryCount >= job.MaxRetries {
+	if newRetryCount >= job.MaxRetries || errorType == models.ErrorTypeNotFound {
 		status = models.JobStatusPermanentlyFailed
 	} else {
 		status = models.JobStatusFailed

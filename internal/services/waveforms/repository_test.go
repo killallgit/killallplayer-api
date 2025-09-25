@@ -64,10 +64,10 @@ func TestRepository_Create(t *testing.T) {
 	episode := createTestEpisode(t, db, 1)
 
 	waveform := &models.Waveform{
-		EpisodeID:  episode.ID,
-		Duration:   300.0,
-		Resolution: 1000,
-		SampleRate: 44100,
+		PodcastIndexEpisodeID: int64(episode.ID),
+		Duration:              300.0,
+		Resolution:            1000,
+		SampleRate:            44100,
 	}
 	err := waveform.SetPeaks([]float32{0.1, 0.5, 0.8, 0.3, 0.9})
 	if err != nil {
@@ -86,14 +86,14 @@ func TestRepository_Create(t *testing.T) {
 	}
 
 	// Verify we can retrieve it
-	retrieved, err := repo.GetByEpisodeID(ctx, episode.ID)
+	retrieved, err := repo.GetByPodcastIndexEpisodeID(ctx, int64(episode.ID))
 	if err != nil {
-		t.Errorf("GetByEpisodeID() after Create() error = %v", err)
+		t.Errorf("GetByPodcastIndexEpisodeID() after Create() error = %v", err)
 		return
 	}
 
-	if retrieved.EpisodeID != episode.ID {
-		t.Errorf("Retrieved waveform EpisodeID = %v, want %v", retrieved.EpisodeID, episode.ID)
+	if retrieved.PodcastIndexEpisodeID != int64(episode.ID) {
+		t.Errorf("Retrieved waveform EpisodeID = %v, want %v", retrieved.PodcastIndexEpisodeID, episode.ID)
 	}
 
 	if retrieved.Duration != 300.0 {
@@ -120,7 +120,7 @@ func TestRepository_Create(t *testing.T) {
 	}
 }
 
-func TestRepository_GetByEpisodeID(t *testing.T) {
+func TestRepository_GetByPodcastIndexEpisodeID(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewRepository(db)
 	ctx := context.Background()
@@ -129,20 +129,20 @@ func TestRepository_GetByEpisodeID(t *testing.T) {
 	episode := createTestEpisode(t, db, 1)
 
 	// Test getting non-existent waveform
-	_, err := repo.GetByEpisodeID(ctx, episode.ID)
+	_, err := repo.GetByPodcastIndexEpisodeID(ctx, int64(episode.ID))
 	if err == nil {
-		t.Error("GetByEpisodeID() expected error for non-existent waveform, got nil")
+		t.Error("GetByPodcastIndexEpisodeID() expected error for non-existent waveform, got nil")
 	}
 	if !errors.Is(err, ErrWaveformNotFound) {
-		t.Errorf("GetByEpisodeID() error = %v, want %v", err, ErrWaveformNotFound)
+		t.Errorf("GetByPodcastIndexEpisodeID() error = %v, want %v", err, ErrWaveformNotFound)
 	}
 
 	// Create a waveform
 	waveform := &models.Waveform{
-		EpisodeID:  episode.ID,
-		Duration:   300.0,
-		Resolution: 3,
-		SampleRate: 44100,
+		PodcastIndexEpisodeID: int64(episode.ID),
+		Duration:              300.0,
+		Resolution:            3,
+		SampleRate:            44100,
 	}
 	err = waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
 	if err != nil {
@@ -155,18 +155,18 @@ func TestRepository_GetByEpisodeID(t *testing.T) {
 	}
 
 	// Test getting existing waveform
-	retrieved, err := repo.GetByEpisodeID(ctx, episode.ID)
+	retrieved, err := repo.GetByPodcastIndexEpisodeID(ctx, int64(episode.ID))
 	if err != nil {
-		t.Errorf("GetByEpisodeID() error = %v", err)
+		t.Errorf("GetByPodcastIndexEpisodeID() error = %v", err)
 		return
 	}
 
-	if retrieved.EpisodeID != episode.ID {
-		t.Errorf("GetByEpisodeID() EpisodeID = %v, want %v", retrieved.EpisodeID, episode.ID)
+	if retrieved.PodcastIndexEpisodeID != int64(episode.ID) {
+		t.Errorf("GetByPodcastIndexEpisodeID() EpisodeID = %v, want %v", retrieved.PodcastIndexEpisodeID, episode.ID)
 	}
 
 	if retrieved.Duration != 300.0 {
-		t.Errorf("GetByEpisodeID() Duration = %v, want %v", retrieved.Duration, 300.0)
+		t.Errorf("GetByPodcastIndexEpisodeID() Duration = %v, want %v", retrieved.Duration, 300.0)
 	}
 }
 
@@ -180,10 +180,10 @@ func TestRepository_Update(t *testing.T) {
 
 	// Create a waveform
 	waveform := &models.Waveform{
-		EpisodeID:  episode.ID,
-		Duration:   300.0,
-		Resolution: 3,
-		SampleRate: 44100,
+		PodcastIndexEpisodeID: int64(episode.ID),
+		Duration:              300.0,
+		Resolution:            3,
+		SampleRate:            44100,
 	}
 	err := waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
 	if err != nil {
@@ -210,9 +210,9 @@ func TestRepository_Update(t *testing.T) {
 	}
 
 	// Verify the update
-	retrieved, err := repo.GetByEpisodeID(ctx, episode.ID)
+	retrieved, err := repo.GetByPodcastIndexEpisodeID(ctx, int64(episode.ID))
 	if err != nil {
-		t.Errorf("GetByEpisodeID() after Update() error = %v", err)
+		t.Errorf("GetByPodcastIndexEpisodeID() after Update() error = %v", err)
 		return
 	}
 
@@ -253,7 +253,7 @@ func TestRepository_Delete(t *testing.T) {
 	episode := createTestEpisode(t, db, 1)
 
 	// Test deleting non-existent waveform
-	err := repo.Delete(ctx, episode.ID)
+	err := repo.Delete(ctx, int64(episode.ID))
 	if err == nil {
 		t.Error("Delete() expected error for non-existent waveform, got nil")
 	}
@@ -263,10 +263,10 @@ func TestRepository_Delete(t *testing.T) {
 
 	// Create a waveform
 	waveform := &models.Waveform{
-		EpisodeID:  episode.ID,
-		Duration:   300.0,
-		Resolution: 3,
-		SampleRate: 44100,
+		PodcastIndexEpisodeID: int64(episode.ID),
+		Duration:              300.0,
+		Resolution:            3,
+		SampleRate:            44100,
 	}
 	err = waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
 	if err != nil {
@@ -279,19 +279,19 @@ func TestRepository_Delete(t *testing.T) {
 	}
 
 	// Delete the waveform
-	err = repo.Delete(ctx, episode.ID)
+	err = repo.Delete(ctx, int64(episode.ID))
 	if err != nil {
 		t.Errorf("Delete() error = %v", err)
 		return
 	}
 
 	// Verify it was deleted
-	_, err = repo.GetByEpisodeID(ctx, episode.ID)
+	_, err = repo.GetByPodcastIndexEpisodeID(ctx, int64(episode.ID))
 	if err == nil {
-		t.Error("GetByEpisodeID() after Delete() expected error, got nil")
+		t.Error("GetByPodcastIndexEpisodeID() after Delete() expected error, got nil")
 	}
 	if !errors.Is(err, ErrWaveformNotFound) {
-		t.Errorf("GetByEpisodeID() after Delete() error = %v, want %v", err, ErrWaveformNotFound)
+		t.Errorf("GetByPodcastIndexEpisodeID() after Delete() error = %v, want %v", err, ErrWaveformNotFound)
 	}
 }
 
@@ -304,7 +304,7 @@ func TestRepository_Exists(t *testing.T) {
 	episode := createTestEpisode(t, db, 1)
 
 	// Test non-existent waveform
-	exists, err := repo.Exists(ctx, episode.ID)
+	exists, err := repo.Exists(ctx, int64(episode.ID))
 	if err != nil {
 		t.Errorf("Exists() error = %v", err)
 		return
@@ -315,10 +315,10 @@ func TestRepository_Exists(t *testing.T) {
 
 	// Create a waveform
 	waveform := &models.Waveform{
-		EpisodeID:  episode.ID,
-		Duration:   300.0,
-		Resolution: 3,
-		SampleRate: 44100,
+		PodcastIndexEpisodeID: int64(episode.ID),
+		Duration:              300.0,
+		Resolution:            3,
+		SampleRate:            44100,
 	}
 	err = waveform.SetPeaks([]float32{0.1, 0.5, 0.8})
 	if err != nil {
@@ -331,7 +331,7 @@ func TestRepository_Exists(t *testing.T) {
 	}
 
 	// Test existing waveform
-	exists, err = repo.Exists(ctx, episode.ID)
+	exists, err = repo.Exists(ctx, int64(episode.ID))
 	if err != nil {
 		t.Errorf("Exists() error = %v", err)
 		return
@@ -341,12 +341,12 @@ func TestRepository_Exists(t *testing.T) {
 	}
 
 	// Delete and test again
-	err = repo.Delete(ctx, episode.ID)
+	err = repo.Delete(ctx, int64(episode.ID))
 	if err != nil {
 		t.Fatalf("Delete() error = %v", err)
 	}
 
-	exists, err = repo.Exists(ctx, episode.ID)
+	exists, err = repo.Exists(ctx, int64(episode.ID))
 	if err != nil {
 		t.Errorf("Exists() after Delete() error = %v", err)
 		return
@@ -366,10 +366,10 @@ func TestRepository_UniqueConstraint(t *testing.T) {
 
 	// Create first waveform
 	waveform1 := &models.Waveform{
-		EpisodeID:  episode.ID,
-		Duration:   300.0,
-		Resolution: 3,
-		SampleRate: 44100,
+		PodcastIndexEpisodeID: int64(episode.ID),
+		Duration:              300.0,
+		Resolution:            3,
+		SampleRate:            44100,
 	}
 	err := waveform1.SetPeaks([]float32{0.1, 0.5, 0.8})
 	if err != nil {
@@ -383,10 +383,10 @@ func TestRepository_UniqueConstraint(t *testing.T) {
 
 	// Try to create second waveform with same episode ID
 	waveform2 := &models.Waveform{
-		EpisodeID:  episode.ID,
-		Duration:   400.0,
-		Resolution: 3,
-		SampleRate: 48000,
+		PodcastIndexEpisodeID: int64(episode.ID),
+		Duration:              400.0,
+		Resolution:            3,
+		SampleRate:            48000,
 	}
 	err = waveform2.SetPeaks([]float32{0.2, 0.6, 0.9})
 	if err != nil {
@@ -399,9 +399,9 @@ func TestRepository_UniqueConstraint(t *testing.T) {
 	}
 
 	// Verify only the first waveform exists
-	retrieved, err := repo.GetByEpisodeID(ctx, episode.ID)
+	retrieved, err := repo.GetByPodcastIndexEpisodeID(ctx, int64(episode.ID))
 	if err != nil {
-		t.Errorf("GetByEpisodeID() error = %v", err)
+		t.Errorf("GetByPodcastIndexEpisodeID() error = %v", err)
 		return
 	}
 

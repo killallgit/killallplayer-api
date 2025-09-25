@@ -33,6 +33,14 @@ func (m *MockFetcher) GetEpisodeByGUID(ctx context.Context, guid string) (*Episo
 	return args.Get(0).(*EpisodeByGUIDResponse), args.Error(1)
 }
 
+func (m *MockFetcher) GetEpisodeByID(ctx context.Context, episodeID int64) (*PodcastIndexEpisode, error) {
+	args := m.Called(ctx, episodeID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*PodcastIndexEpisode), args.Error(1)
+}
+
 func (m *MockFetcher) GetEpisodeMetadata(ctx context.Context, episodeURL string) (*EpisodeMetadata, error) {
 	args := m.Called(ctx, episodeURL)
 	if args.Get(0) == nil {

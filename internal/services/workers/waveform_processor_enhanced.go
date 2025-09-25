@@ -90,14 +90,28 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 	// Get episode details using Podcast Index ID
 	episode, err := p.episodeService.GetEpisodeByPodcastIndexID(ctx, int64(podcastIndexID))
 	if err != nil {
-		// This is expected - episodes need to be synced before waveforms can be generated
-		log.Printf("[INFO] Episode %d not yet synced to database. Please fetch podcast episodes via /api/v1/podcasts/{podcastId}/episodes first", podcastIndexID)
-		// Return a specific error that indicates this is expected and shouldn't trigger aggressive retries
-		return fmt.Errorf("episode %d not yet available - sync in progress or needs to be initiated", podcastIndexID)
+		// Check if this is a permanent "not found in Podcast Index" error
+		if strings.Contains(err.Error(), "does not exist in Podcast Index") {
+			// This episode doesn't exist in the Podcast Index API - permanent failure
+			log.Printf("[ERROR] Episode %d does not exist in Podcast Index API - marking job as permanently failed", podcastIndexID)
+
+			// Return a structured error that indicates permanent failure
+			return models.NewNotFoundError(
+				"episode_not_found",
+				fmt.Sprintf("Episode %d does not exist in Podcast Index", podcastIndexID),
+				fmt.Sprintf("The episode ID %d was not found in the Podcast Index API. This is a permanent error and the job will not be retried.", podcastIndexID),
+				err,
+			)
+		}
+
+		// For other errors, it might be temporary
+		log.Printf("[WARN] Failed to get episode %d: %v", podcastIndexID, err)
+		// Return the error which will cause a retry
+		return fmt.Errorf("failed to get episode %d: %w", podcastIndexID, err)
 	}
 
 	// Check if waveform already exists for this episode
-	existingWaveform, err := p.waveformService.GetWaveform(ctx, podcastIndexID)
+	existingWaveform, err := p.waveformService.GetWaveform(ctx, int64(podcastIndexID))
 	if err == nil && existingWaveform != nil {
 		log.Printf("[DEBUG] Waveform already exists for Podcast Index Episode %d, skipping generation", podcastIndexID)
 
@@ -213,10 +227,10 @@ func (p *EnhancedWaveformProcessor) ProcessJob(ctx context.Context, job *models.
 
 	// Create waveform model - Use Podcast Index Episode ID for API consistency
 	waveformModel := &models.Waveform{
-		EpisodeID:  podcastIndexID, // Use Podcast Index Episode ID, not database ID
-		Duration:   waveformData.Duration,
-		Resolution: waveformData.Resolution,
-		SampleRate: waveformData.SampleRate,
+		PodcastIndexEpisodeID: int64(podcastIndexID), // Use Podcast Index Episode ID, not database ID
+		Duration:              waveformData.Duration,
+		Resolution:            waveformData.Resolution,
+		SampleRate:            waveformData.SampleRate,
 	}
 
 	// Set peaks data

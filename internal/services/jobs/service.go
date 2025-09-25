@@ -103,8 +103,8 @@ func (s *service) GetJobStatus(ctx context.Context, jobID uint) (models.JobStatu
 }
 
 // GetJobForWaveform finds a waveform generation job for an episode
-func (s *service) GetJobForWaveform(ctx context.Context, episodeID uint) (*models.Job, error) {
-	job, err := s.repo.GetJobByTypeAndPayload(ctx, models.JobTypeWaveformGeneration, "episode_id", fmt.Sprintf("%d", episodeID))
+func (s *service) GetJobForWaveform(ctx context.Context, podcastIndexEpisodeID int64) (*models.Job, error) {
+	job, err := s.repo.GetJobByTypeAndPayload(ctx, models.JobTypeWaveformGeneration, "episode_id", fmt.Sprintf("%d", podcastIndexEpisodeID))
 	if err != nil {
 		if errors.Is(err, ErrJobNotFound) {
 			return nil, err
@@ -115,8 +115,8 @@ func (s *service) GetJobForWaveform(ctx context.Context, episodeID uint) (*model
 }
 
 // GetJobForTranscription finds a transcription generation job for an episode
-func (s *service) GetJobForTranscription(ctx context.Context, episodeID uint) (*models.Job, error) {
-	job, err := s.repo.GetJobByTypeAndPayload(ctx, models.JobTypeTranscriptionGeneration, "episode_id", fmt.Sprintf("%d", episodeID))
+func (s *service) GetJobForTranscription(ctx context.Context, podcastIndexEpisodeID int64) (*models.Job, error) {
+	job, err := s.repo.GetJobByTypeAndPayload(ctx, models.JobTypeTranscriptionGeneration, "episode_id", fmt.Sprintf("%d", podcastIndexEpisodeID))
 	if err != nil {
 		if errors.Is(err, ErrJobNotFound) {
 			return nil, err

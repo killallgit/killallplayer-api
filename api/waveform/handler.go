@@ -24,7 +24,7 @@ import (
 // @Param        id path int64 true "Episode ID (Podcast Index ID)"
 // @Success      200 {object} types.WaveformResponse "Waveform data retrieved successfully"
 // @Success      202 {object} types.WaveformResponse "Waveform generation in progress or queued"
-// @Failure      400 {object} types.ErrorResponse "Invalid episode ID"
+// @Failure      400 {object} types.ErrorResponse "Invalid Podcast Index Episode ID"
 // @Failure      500 {object} types.ErrorResponse "Internal server error"
 // @Failure      503 {object} types.WaveformResponse "Waveform generation failed, retry pending"
 // @Router       /api/v1/episodes/{id}/waveform [get]
@@ -37,7 +37,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 		if err != nil || podcastIndexID < 0 {
 			c.JSON(http.StatusBadRequest, types.ErrorResponse{
 				Status:  types.StatusError,
-				Message: "Invalid episode ID",
+				Message: "Invalid Podcast Index Episode ID",
 			})
 			return
 		}
@@ -68,12 +68,12 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 		log.Printf("[DEBUG] GetWaveform: PodcastIndexID=%d", podcastIndexID)
 
 		// Get waveform directly using Podcast Index Episode ID
-		waveformModel, err := deps.WaveformService.GetWaveform(ctx, uint(podcastIndexID))
+		waveformModel, err := deps.WaveformService.GetWaveform(ctx, podcastIndexID)
 		if err != nil {
 			if errors.Is(err, waveforms.ErrWaveformNotFound) {
 				// Check if there's already a job for this episode (using Podcast Index ID)
 				if deps.JobService != nil {
-					existingJob, jobErr := deps.JobService.GetJobForWaveform(ctx, uint(podcastIndexID))
+					existingJob, jobErr := deps.JobService.GetJobForWaveform(ctx, podcastIndexID)
 					if jobErr == nil && existingJob != nil {
 						// Job already exists, return status based on job state
 						switch existingJob.Status {
@@ -109,7 +109,7 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 						case models.JobStatusCompleted:
 							// Job completed but waveform not found? Try to check again
 							// This might happen if the job just completed
-							waveformModel, err = deps.WaveformService.GetWaveform(ctx, uint(podcastIndexID))
+							waveformModel, err = deps.WaveformService.GetWaveform(ctx, podcastIndexID)
 							if err == nil {
 								// Found it! Continue to return the waveform
 								goto returnWaveform
@@ -146,17 +146,23 @@ func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 					}
 
 					// No existing job or cleaned up permanently failed job - create a new one
-					// Note: Duration check is done in the worker to avoid requiring episode in database
-
+					// Use atomic job creation to handle race conditions
 					payload := models.JobPayload{
 						"episode_id": podcastIndexID, // Use Podcast Index ID in the job payload
 					}
 
-					job, jobErr := deps.JobService.EnqueueJob(ctx, models.JobTypeWaveformGeneration, payload)
+					job, jobErr := deps.JobService.EnqueueUniqueJob(ctx, models.JobTypeWaveformGeneration, payload, "episode_id")
 					if jobErr != nil {
 						log.Printf("Failed to enqueue waveform job for episode %d: %v", podcastIndexID, jobErr)
 					} else {
-						log.Printf("Enqueued waveform generation job %d for Podcast Index Episode %d", job.ID, podcastIndexID)
+						if job.ID > 0 {
+							// Check if this is a new job or existing job returned by EnqueueUniqueJob
+							if job.Status == models.JobStatusPending {
+								log.Printf("Enqueued waveform generation job %d for Podcast Index Episode %d", job.ID, podcastIndexID)
+							} else {
+								log.Printf("Existing waveform job %d found for episode %d (Status: %s)", job.ID, podcastIndexID, job.Status)
+							}
+						}
 					}
 				}
 
