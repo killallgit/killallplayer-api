@@ -13,16 +13,19 @@ import (
 )
 
 // TriggerTranscription manually triggers transcription generation for an episode
-// @Summary      Trigger transcription generation
-// @Description Manually trigger transcription generation for a specific episode. Will first check for existing transcripts at the episode's transcriptURL before using Whisper.
+// @Summary      Generate or fetch episode transcription
+// @Description  Trigger transcription for a podcast episode. The system first checks if a transcript is available
+// @Description  at the episode's transcriptURL (from RSS feed). If found, it fetches and stores it. Otherwise, if
+// @Description  Whisper is configured, it generates a transcription using speech-to-text. Transcription is an async
+// @Description  process that may take several minutes depending on episode duration. Use the job_id to track progress.
 // @Tags         transcription
 // @Accept       json
 // @Produce      json
-// @Param        id path int64 true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} types.JobStatusResponse "Transcription already exists (source: 'fetched' or 'generated')"
-// @Success      202 {object} types.JobStatusResponse "Transcription generation triggered"
-// @Failure      400 {object} types.ErrorResponse "Invalid Podcast Index Episode ID"
-// @Failure      500 {object} types.ErrorResponse "Internal server error"
+// @Param        id path int64 true "Episode's Podcast Index ID" minimum(1)
+// @Success      200 {object} types.JobStatusResponse "Transcription already exists (check 'source' field for origin)"
+// @Success      202 {object} types.JobStatusResponse "Transcription job queued (includes job_id for tracking)"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID format"
+// @Failure      500 {object} types.ErrorResponse "Service unavailable or configuration error"
 // @Router       /api/v1/episodes/{id}/transcribe [post]
 func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -126,16 +129,19 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 }
 
 // GetTranscription returns transcription data for an episode
-// @Summary      Get transcription data
-// @Description Retrieve the transcription text and metadata for an episode. Returns transcriptions that were either fetched from external URLs or generated via Whisper.
+// @Summary      Get episode transcription text
+// @Description  Retrieve the full transcription text for a podcast episode if available. Transcriptions may come
+// @Description  from two sources: 'fetched' (downloaded from podcast RSS feed transcriptURL) or 'generated' (created
+// @Description  using Whisper speech-to-text). The response includes the full text, source type, language, and timestamps.
+// @Description  Use POST /episodes/{id}/transcribe first to trigger generation if transcription doesn't exist.
 // @Tags         transcription
 // @Accept       json
 // @Produce      json
-// @Param        id path int64 true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} types.TranscriptionData "Transcription data (includes source: 'fetched' or 'generated')"
-// @Failure      400 {object} types.ErrorResponse "Invalid Podcast Index Episode ID"
-// @Failure      404 {object} types.ErrorResponse "Transcription not found"
-// @Failure      500 {object} types.ErrorResponse "Internal server error"
+// @Param        id path int64 true "Episode's Podcast Index ID" minimum(1)
+// @Success      200 {object} types.TranscriptionData "Full transcription text with metadata"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID format"
+// @Failure      404 {object} types.ErrorResponse "No transcription available for this episode"
+// @Failure      500 {object} types.ErrorResponse "Database or service error"
 // @Router       /api/v1/episodes/{id}/transcribe [get]
 func GetTranscription(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

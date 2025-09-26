@@ -11,16 +11,20 @@ import (
 )
 
 // GetEpisodesForPodcast returns episodes for a specific podcast
-// @Summary      Get episodes for a podcast
-// @Description  Retrieve all episodes for a specific podcast by its Podcast Index ID. This is the correct endpoint to use after getting podcast IDs from /trending.
+// @Summary      Get all episodes for a podcast
+// @Description  Retrieve a list of episodes for a specific podcast using its Podcast Index ID (feedId).
+// @Description  Episodes are returned in reverse chronological order (newest first). This endpoint
+// @Description  automatically syncs with the Podcast Index API to ensure fresh data, then caches results.
+// @Description  Use the podcast ID obtained from /search, /trending, or other podcast discovery endpoints.
 // @Tags         podcasts
 // @Accept       json
 // @Produce      json
-// @Param        id path int64 true "Podcast ID from trending or search results" minimum(1) example(6780065)
-// @Param        max query int false "Maximum number of episodes to return (1-1000)" minimum(1) maximum(1000) default(20)
-// @Success      200 {object} types.EpisodesResponse "List of episodes for the podcast"
-// @Failure      400 {object} types.ErrorResponse "Bad request - invalid podcast ID"
-// @Failure      500 {object} types.ErrorResponse "Internal server error"
+// @Param        id path int64 true "Podcast's Podcast Index ID (feedId from search/trending results)" minimum(1) example(6780065)
+// @Param        max query int false "Maximum episodes to return. Higher values may increase response time" minimum(1) maximum(1000) default(20)
+// @Success      200 {object} types.EpisodesResponse "List of episodes with full metadata including audio URLs"
+// @Failure      400 {object} types.ErrorResponse "Invalid podcast ID format or out of range"
+// @Failure      500 {object} types.ErrorResponse "Failed to fetch episodes from Podcast Index API"
+// @Failure      503 {object} types.ErrorResponse "Podcast Index API credentials not configured"
 // @Router       /api/v1/podcasts/{id}/episodes [get]
 func GetEpisodesForPodcast(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

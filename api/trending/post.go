@@ -16,16 +16,19 @@ type PodcastTrending interface {
 }
 
 // Post handles trending podcasts requests with filters
-// @Summary      Get trending podcasts with filters
-// @Description  Get trending podcasts with optional category filtering and other parameters
+// @Summary      Get trending podcasts with optional filters
+// @Description  Retrieve currently trending podcasts from Podcast Index based on recent activity and popularity.
+// @Description  Results can be filtered by time period, categories, and language. Trending podcasts are determined
+// @Description  by Podcast Index's algorithm which considers factors like new episodes, subscriber growth, and
+// @Description  social media mentions. Use the returned podcast IDs (feedId) with /podcasts/{id}/episodes to get episodes.
 // @Tags         trending
 // @Accept       json
 // @Produce      json
-// @Param        request body types.TrendingRequest true "Trending parameters"
-// @Success      200 {object} types.TrendingPodcastsResponse "Trending podcasts"
-// @Failure      400 {object} types.ErrorResponse "Bad request - invalid parameters"
-// @Failure      500 {object} types.ErrorResponse "Internal server error"
-// @Failure      504 {object} types.ErrorResponse "Gateway timeout - trending request timed out"
+// @Param        request body types.TrendingRequest true "Filter parameters (all optional - defaults to 10 podcasts from last 24 hours)"
+// @Success      200 {object} types.TrendingPodcastsResponse "List of trending podcasts with metadata"
+// @Failure      400 {object} types.ErrorResponse "Invalid request format or parameter values"
+// @Failure      500 {object} types.ErrorResponse "Failed to fetch trending data from Podcast Index API"
+// @Failure      504 {object} types.ErrorResponse "Request timeout (limited to 10 seconds)"
 // @Router       /api/v1/trending [post]
 func Post(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -60,154 +60,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/annotations/{uuid}": {
-            "get": {
-                "description": "Retrieve a specific annotation by its UUID, including clip status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "annotations"
-                ],
-                "summary": "Get annotation by UUID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Annotation UUID",
-                        "name": "uuid",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Annotation details",
-                        "schema": {
-                            "$ref": "#/definitions/types.SingleAnnotationResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Annotation not found",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "put": {
-                "description": "Update an existing annotation's label, start time, or end time using UUID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "annotations"
-                ],
-                "summary": "Update annotation by UUID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Annotation UUID",
-                        "name": "uuid",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Updated annotation data (label, start_time, end_time)",
-                        "name": "annotation",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Annotation"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Updated annotation",
-                        "schema": {
-                            "$ref": "#/definitions/types.SingleAnnotationResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request or overlapping annotation",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Annotation not found",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Delete an existing annotation by UUID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "annotations"
-                ],
-                "summary": "Delete annotation by UUID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Annotation UUID",
-                        "name": "uuid",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Annotation deleted successfully",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Annotation not found",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/categories": {
             "get": {
                 "description": "Get a list of all available podcast categories from the Podcast Index API",
@@ -248,9 +100,72 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/episodes/annotations/{id}": {
-            "put": {
-                "description": "Update an existing annotation's label, start time, or end time",
+        "/api/v1/clips": {
+            "get": {
+                "description": "Retrieve a paginated list of clips with optional filtering by label and processing status.\nResults are ordered by creation time (newest first). Use this endpoint to monitor clip processing\nor to browse available training data by label.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clips"
+                ],
+                "summary": "List clips with optional filtering",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter clips by exact label match (e.g., 'advertisement')",
+                        "name": "label",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "processing",
+                            "ready",
+                            "failed"
+                        ],
+                        "type": "string",
+                        "description": "Filter by processing status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Maximum number of clips to return (1-1000)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of clips to skip for pagination",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of clips matching the filters",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/clips.ClipResponse"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Extract a labeled audio segment from a podcast episode for machine learning training datasets.\nThe clip will be automatically converted to 16kHz mono WAV format, padded or cropped to 15 seconds,\nand stored with the specified label. Processing is asynchronous - the clip status will be \"processing\"\ninitially and change to \"ready\" when extraction completes or \"failed\" if an error occurs.",
                 "consumes": [
                     "application/json"
                 ],
@@ -258,48 +173,194 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "annotations"
+                    "clips"
                 ],
-                "summary": "Update annotation",
+                "summary": "Create a new audio clip for ML training",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Annotation ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Updated annotation data (label, start_time, end_time)",
-                        "name": "annotation",
+                        "description": "Audio clip extraction parameters with source URL and time range in seconds",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.Annotation"
+                            "$ref": "#/definitions/clips.CreateClipRequest"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Updated annotation",
+                    "202": {
+                        "description": "Clip creation accepted and processing started",
                         "schema": {
-                            "$ref": "#/definitions/types.Annotation"
+                            "$ref": "#/definitions/clips.ClipResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid request parameters (e.g., end_time \u003c= start_time)",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
+                    "500": {
+                        "description": "Internal server error during clip creation",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clips/export": {
+            "get": {
+                "description": "Export all clips with status \"ready\" as a ZIP archive for machine learning training.\nThe archive contains audio files organized by label directories and a JSONL manifest file\nwith metadata for each clip. Audio files are in 16kHz mono WAV format, suitable for\ntraining models like Whisper or Wav2Vec2. The manifest includes clip UUID, label, duration,\nsource URL, and original time range for full traceability.",
+                "produces": [
+                    "application/zip"
+                ],
+                "tags": [
+                    "clips"
+                ],
+                "summary": "Export ML training dataset as ZIP",
+                "responses": {
+                    "200": {
+                        "description": "ZIP archive containing labeled audio clips and manifest.jsonl",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error during export",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clips/{uuid}": {
+            "get": {
+                "description": "Retrieve detailed information about a specific clip including its processing status,\naudio properties, and label. Check the 'status' field to determine if the clip is ready for use.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clips"
+                ],
+                "summary": "Get clip details by UUID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Unique clip identifier (UUID format)",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Clip details retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/clips.ClipResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Annotation not found",
+                        "description": "Clip with specified UUID not found",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Permanently delete a clip from the database and remove its associated audio file from storage.\nThis operation cannot be undone. If the clip is already deleted, returns success (idempotent).",
+                "tags": [
+                    "clips"
+                ],
+                "summary": "Delete a clip and its audio file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Unique clip identifier (UUID format)",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Clip deleted successfully (no content returned)"
+                    },
+                    "400": {
+                        "description": "Invalid UUID format",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error during deletion",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/clips/{uuid}/label": {
+            "put": {
+                "description": "Change the label of an existing clip to reorganize training datasets.\nThis operation moves the clip file to a new label directory in storage.\nLabels can be any string value for flexible categorization (e.g., \"advertisement\", \"music\", \"speech\").",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clips"
+                ],
+                "summary": "Update a clip's label for re-categorization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Unique clip identifier (UUID format)",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New label for categorization",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/clips.UpdateLabelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Label updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/clips.ClipResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request (empty label or malformed JSON)",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Clip with specified UUID not found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error or storage operation failed",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -309,7 +370,7 @@ const docTemplate = `{
         },
         "/api/v1/episodes/{id}": {
             "get": {
-                "description": "Retrieve a single episode by its Podcast Index ID",
+                "description": "Retrieve comprehensive episode information including title, description, audio URL, duration,\nand links to additional resources like transcripts and chapters. The episode data is fetched\nfrom the local database cache or Podcast Index API if not cached. Audio URLs are direct links\nsuitable for streaming or download.",
                 "consumes": [
                     "application/json"
                 ],
@@ -319,14 +380,14 @@ const docTemplate = `{
                 "tags": [
                     "episodes"
                 ],
-                "summary": "Get episode by ID",
+                "summary": "Get episode details by Podcast Index ID",
                 "parameters": [
                     {
                         "minimum": 1,
                         "type": "integer",
                         "format": "int64",
-                        "example": 123456789,
-                        "description": "Episode Podcast Index ID",
+                        "example": 16797088990,
+                        "description": "Episode's Podcast Index ID (unique identifier from Podcast Index API)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -334,142 +395,25 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Episode details",
+                        "description": "Episode details including audio URL and metadata",
                         "schema": {
                             "$ref": "#/definitions/types.SingleEpisodeResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad request - invalid ID",
+                        "description": "Invalid ID format (must be positive integer)",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Episode not found",
+                        "description": "Episode not found in database or Podcast Index API",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/episodes/{id}/annotations": {
-            "get": {
-                "description": "Retrieve all annotations (labeled time segments) for a specific episode, ordered by start time",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "annotations"
-                ],
-                "summary": "Get annotations for episode",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "format": "int64",
-                        "description": "Episode Podcast Index ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "List of annotations",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "annotations": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/types.Annotation"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid episode ID",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Episode not found",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Create a new annotation (labeled time segment) for ML training on a specific episode",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "annotations"
-                ],
-                "summary": "Create annotation for episode",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "format": "int64",
-                        "description": "Episode Podcast Index ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Annotation data (label, start_time, end_time)",
-                        "name": "annotation",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Annotation"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created annotation",
-                        "schema": {
-                            "$ref": "#/definitions/types.Annotation"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request or overlapping annotation",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Episode not found",
-                        "schema": {
-                            "$ref": "#/definitions/types.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Internal server error or API communication failure",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -479,7 +423,7 @@ const docTemplate = `{
         },
         "/api/v1/episodes/{id}/reviews": {
             "get": {
-                "description": "Fetch customer reviews from Apple Podcasts for the podcast that contains this episode",
+                "description": "Fetch customer reviews from Apple Podcasts/iTunes for the podcast that contains this episode.\nReturns aggregated review data including total count, average rating, rating distribution,\nand individual reviews. Reviews can be sorted by recency or helpfulness. Note that not all\npodcasts have iTunes IDs, and some may have no reviews available.",
                 "consumes": [
                     "application/json"
                 ],
@@ -489,20 +433,25 @@ const docTemplate = `{
                 "tags": [
                     "episodes"
                 ],
-                "summary": "Get podcast reviews",
+                "summary": "Get iTunes reviews for episode's podcast",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
                         "format": "int64",
-                        "description": "Episode Podcast Index ID",
+                        "description": "Episode's Podcast Index ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "enum": [
+                            "mostrecent",
+                            "mosthelpful"
+                        ],
                         "type": "string",
                         "default": "mostrecent",
-                        "description": "Sort order: mostrecent or mosthelpful",
+                        "description": "Sort order for reviews",
                         "name": "sort",
                         "in": "query"
                     },
@@ -511,26 +460,26 @@ const docTemplate = `{
                         "minimum": 1,
                         "type": "integer",
                         "default": 1,
-                        "description": "Page number (1-10)",
+                        "description": "Page number for pagination (iTunes limits to 10 pages max)",
                         "name": "page",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Reviews data",
+                        "description": "Reviews data with aggregated statistics and individual reviews",
                         "schema": {
                             "$ref": "#/definitions/episodes.ReviewsResponse"
                         }
                     },
                     "404": {
-                        "description": "Episode not found or no iTunes ID available",
+                        "description": "Episode not found or podcast has no iTunes ID",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal server error or iTunes API failure",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -540,7 +489,7 @@ const docTemplate = `{
         },
         "/api/v1/episodes/{id}/transcribe": {
             "get": {
-                "description": "Retrieve the transcription text and metadata for an episode. Returns transcriptions that were either fetched from external URLs or generated via Whisper.",
+                "description": "Retrieve the full transcription text for a podcast episode if available. Transcriptions may come\nfrom two sources: 'fetched' (downloaded from podcast RSS feed transcriptURL) or 'generated' (created\nusing Whisper speech-to-text). The response includes the full text, source type, language, and timestamps.\nUse POST /episodes/{id}/transcribe first to trigger generation if transcription doesn't exist.",
                 "consumes": [
                     "application/json"
                 ],
@@ -550,12 +499,13 @@ const docTemplate = `{
                 "tags": [
                     "transcription"
                 ],
-                "summary": "Get transcription data",
+                "summary": "Get episode transcription text",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
                         "format": "int64",
-                        "description": "Episode ID (Podcast Index ID)",
+                        "description": "Episode's Podcast Index ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -563,25 +513,25 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Transcription data (includes source: 'fetched' or 'generated')",
+                        "description": "Full transcription text with metadata",
                         "schema": {
                             "$ref": "#/definitions/types.TranscriptionData"
                         }
                     },
                     "400": {
-                        "description": "Invalid Podcast Index Episode ID",
+                        "description": "Invalid episode ID format",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Transcription not found",
+                        "description": "No transcription available for this episode",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Database or service error",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -589,7 +539,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Manually trigger transcription generation for a specific episode. Will first check for existing transcripts at the episode's transcriptURL before using Whisper.",
+                "description": "Trigger transcription for a podcast episode. The system first checks if a transcript is available\nat the episode's transcriptURL (from RSS feed). If found, it fetches and stores it. Otherwise, if\nWhisper is configured, it generates a transcription using speech-to-text. Transcription is an async\nprocess that may take several minutes depending on episode duration. Use the job_id to track progress.",
                 "consumes": [
                     "application/json"
                 ],
@@ -599,12 +549,13 @@ const docTemplate = `{
                 "tags": [
                     "transcription"
                 ],
-                "summary": "Trigger transcription generation",
+                "summary": "Generate or fetch episode transcription",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
                         "format": "int64",
-                        "description": "Episode ID (Podcast Index ID)",
+                        "description": "Episode's Podcast Index ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -612,25 +563,25 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Transcription already exists (source: 'fetched' or 'generated')",
+                        "description": "Transcription already exists (check 'source' field for origin)",
                         "schema": {
                             "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "202": {
-                        "description": "Transcription generation triggered",
+                        "description": "Transcription job queued (includes job_id for tracking)",
                         "schema": {
                             "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid Podcast Index Episode ID",
+                        "description": "Invalid episode ID format",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Service unavailable or configuration error",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -691,7 +642,7 @@ const docTemplate = `{
         },
         "/api/v1/episodes/{id}/waveform": {
             "get": {
-                "description": "Retrieve generated waveform data and status for a specific episode. If waveform doesn't exist, it will be queued for generation. Failed jobs are retried with exponential backoff.",
+                "description": "Retrieve waveform data for audio visualization of a podcast episode. Waveform data consists of\namplitude values (0-1 range) sampled at regular intervals, suitable for rendering audio waveform\nvisualizations. If waveform doesn't exist, it will be automatically queued for generation and the\nresponse will include status:\"pending\" or \"processing\". Generation typically takes 10-60 seconds\ndepending on episode duration. Poll this endpoint until status:\"ready\" to get the final data.",
                 "consumes": [
                     "application/json"
                 ],
@@ -701,12 +652,13 @@ const docTemplate = `{
                 "tags": [
                     "waveform"
                 ],
-                "summary": "Get waveform data and status for an episode",
+                "summary": "Get audio waveform visualization data",
                 "parameters": [
                     {
+                        "minimum": 1,
                         "type": "integer",
                         "format": "int64",
-                        "description": "Episode ID (Podcast Index ID)",
+                        "description": "Episode's Podcast Index ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -714,31 +666,31 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Waveform data retrieved successfully",
+                        "description": "Waveform ready with amplitude data array (status:ready)",
                         "schema": {
                             "$ref": "#/definitions/types.WaveformResponse"
                         }
                     },
                     "202": {
-                        "description": "Waveform generation in progress or queued",
+                        "description": "Generation in progress (status:processing or pending)",
                         "schema": {
                             "$ref": "#/definitions/types.WaveformResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid Podcast Index Episode ID",
+                        "description": "Invalid episode ID format",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Waveform service error or database failure",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "503": {
-                        "description": "Waveform generation failed, retry pending",
+                        "description": "Generation failed, automatic retry scheduled (status:failed)",
                         "schema": {
                             "$ref": "#/definitions/types.WaveformResponse"
                         }
@@ -782,7 +734,7 @@ const docTemplate = `{
         },
         "/api/v1/podcasts/{id}/episodes": {
             "get": {
-                "description": "Retrieve all episodes for a specific podcast by its Podcast Index ID. This is the correct endpoint to use after getting podcast IDs from /trending.",
+                "description": "Retrieve a list of episodes for a specific podcast using its Podcast Index ID (feedId).\nEpisodes are returned in reverse chronological order (newest first). This endpoint\nautomatically syncs with the Podcast Index API to ensure fresh data, then caches results.\nUse the podcast ID obtained from /search, /trending, or other podcast discovery endpoints.",
                 "consumes": [
                     "application/json"
                 ],
@@ -792,14 +744,14 @@ const docTemplate = `{
                 "tags": [
                     "podcasts"
                 ],
-                "summary": "Get episodes for a podcast",
+                "summary": "Get all episodes for a podcast",
                 "parameters": [
                     {
                         "minimum": 1,
                         "type": "integer",
                         "format": "int64",
                         "example": 6780065,
-                        "description": "Podcast ID from trending or search results",
+                        "description": "Podcast's Podcast Index ID (feedId from search/trending results)",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -809,26 +761,32 @@ const docTemplate = `{
                         "minimum": 1,
                         "type": "integer",
                         "default": 20,
-                        "description": "Maximum number of episodes to return (1-1000)",
+                        "description": "Maximum episodes to return. Higher values may increase response time",
                         "name": "max",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of episodes for the podcast",
+                        "description": "List of episodes with full metadata including audio URLs",
                         "schema": {
                             "$ref": "#/definitions/types.EpisodesResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad request - invalid podcast ID",
+                        "description": "Invalid podcast ID format or out of range",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Failed to fetch episodes from Podcast Index API",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Podcast Index API credentials not configured",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -892,7 +850,7 @@ const docTemplate = `{
         },
         "/api/v1/search": {
             "post": {
-                "description": "Search for podcasts by query string with optional filters for content type, iTunes presence, and explicit content",
+                "description": "Search the Podcast Index for podcasts matching the query string. Returns podcast metadata\nincluding titles, descriptions, feed URLs, and iTunes IDs. Results can be filtered by various\ncriteria such as value4value support, iTunes availability, and explicit content. Search uses\nthe Podcast Index API which indexes millions of podcasts from RSS feeds worldwide.",
                 "consumes": [
                     "application/json"
                 ],
@@ -902,10 +860,10 @@ const docTemplate = `{
                 "tags": [
                     "search"
                 ],
-                "summary": "Search for podcasts",
+                "summary": "Search for podcasts by keyword",
                 "parameters": [
                     {
-                        "description": "Search parameters",
+                        "description": "Search parameters with query and optional filters",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -916,25 +874,25 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Podcast search results",
+                        "description": "Matching podcasts with metadata (feedId can be used with /podcasts/{id}/episodes)",
                         "schema": {
                             "$ref": "#/definitions/types.PodcastSearchResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad request - invalid parameters",
+                        "description": "Invalid request format or missing required query field",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Search service error or API communication failure",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "504": {
-                        "description": "Gateway timeout - search request timed out",
+                        "description": "Request timeout (search limited to 10 seconds)",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -944,7 +902,7 @@ const docTemplate = `{
         },
         "/api/v1/trending": {
             "post": {
-                "description": "Get trending podcasts with optional category filtering and other parameters",
+                "description": "Retrieve currently trending podcasts from Podcast Index based on recent activity and popularity.\nResults can be filtered by time period, categories, and language. Trending podcasts are determined\nby Podcast Index's algorithm which considers factors like new episodes, subscriber growth, and\nsocial media mentions. Use the returned podcast IDs (feedId) with /podcasts/{id}/episodes to get episodes.",
                 "consumes": [
                     "application/json"
                 ],
@@ -954,10 +912,10 @@ const docTemplate = `{
                 "tags": [
                     "trending"
                 ],
-                "summary": "Get trending podcasts with filters",
+                "summary": "Get trending podcasts with optional filters",
                 "parameters": [
                     {
-                        "description": "Trending parameters",
+                        "description": "Filter parameters (all optional - defaults to 10 podcasts from last 24 hours)",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -968,25 +926,25 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Trending podcasts",
+                        "description": "List of trending podcasts with metadata",
                         "schema": {
                             "$ref": "#/definitions/types.TrendingPodcastsResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad request - invalid parameters",
+                        "description": "Invalid request format or parameter values",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Failed to fetch trending data from Podcast Index API",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "504": {
-                        "description": "Gateway timeout - trending request timed out",
+                        "description": "Request timeout (limited to 10 seconds)",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -1047,6 +1005,103 @@ const docTemplate = `{
                 },
                 "role": {
                     "type": "string"
+                }
+            }
+        },
+        "clips.ClipResponse": {
+            "description": "Complete information about an audio clip",
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-09-25T16:36:45Z"
+                },
+                "duration": {
+                    "type": "number",
+                    "example": 15
+                },
+                "error_message": {
+                    "type": "string",
+                    "example": "failed to download source audio: HTTP 403"
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "clip_052f3b9b-cc02-418c-a9ab-8f49534c01c8.wav"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "advertisement"
+                },
+                "original_end_time": {
+                    "type": "number",
+                    "example": 45
+                },
+                "original_start_time": {
+                    "type": "number",
+                    "example": 30
+                },
+                "size_bytes": {
+                    "type": "integer",
+                    "example": 480078
+                },
+                "source_episode_url": {
+                    "type": "string",
+                    "example": "https://example.com/episode.mp3"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ready"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2025-09-25T16:36:47Z"
+                },
+                "uuid": {
+                    "type": "string",
+                    "example": "052f3b9b-cc02-418c-a9ab-8f49534c01c8"
+                }
+            }
+        },
+        "clips.CreateClipRequest": {
+            "description": "Request body for creating a new audio clip",
+            "type": "object",
+            "required": [
+                "end_time",
+                "label",
+                "source_episode_url"
+            ],
+            "properties": {
+                "end_time": {
+                    "type": "number",
+                    "example": 45
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "advertisement"
+                },
+                "source_episode_url": {
+                    "type": "string",
+                    "example": "https://example.com/episode.mp3"
+                },
+                "start_time": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 30
+                }
+            }
+        },
+        "clips.UpdateLabelRequest": {
+            "description": "Request body for updating a clip's label",
+            "type": "object",
+            "required": [
+                "label"
+            ],
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "music"
                 }
             }
         },
@@ -1139,65 +1194,6 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "success"
-                }
-            }
-        },
-        "gorm.DeletedAt": {
-            "type": "object",
-            "properties": {
-                "time": {
-                    "type": "string"
-                },
-                "valid": {
-                    "description": "Valid is true if Time is not NULL",
-                    "type": "boolean"
-                }
-            }
-        },
-        "models.Annotation": {
-            "type": "object",
-            "properties": {
-                "clip_path": {
-                    "description": "Clip extraction fields",
-                    "type": "string"
-                },
-                "clip_size": {
-                    "description": "File size in bytes",
-                    "type": "integer"
-                },
-                "clip_status": {
-                    "description": "pending|processing|ready|failed",
-                    "type": "string"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "end_time": {
-                    "description": "Time in seconds",
-                    "type": "number"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "label": {
-                    "type": "string"
-                },
-                "podcast_index_episode_id": {
-                    "description": "Use Podcast Index ID for consistency",
-                    "type": "integer"
-                },
-                "start_time": {
-                    "description": "Time in seconds",
-                    "type": "number"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "uuid": {
-                    "type": "string"
                 }
             }
         },
@@ -1343,49 +1339,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "transcriptUrl": {
-                    "type": "string"
-                }
-            }
-        },
-        "types.Annotation": {
-            "type": "object",
-            "properties": {
-                "clipSize": {
-                    "description": "Size in bytes",
-                    "type": "integer"
-                },
-                "clipStatus": {
-                    "description": "Clip extraction fields",
-                    "type": "string"
-                },
-                "createdAt": {
-                    "description": "ISO 8601",
-                    "type": "string"
-                },
-                "endTime": {
-                    "description": "Seconds",
-                    "type": "number"
-                },
-                "episodeId": {
-                    "description": "Keep JSON field name for API compatibility",
-                    "type": "integer"
-                },
-                "id": {
-                    "description": "UUID for stable reference",
-                    "type": "string"
-                },
-                "label": {
-                    "type": "string"
-                },
-                "startTime": {
-                    "description": "Seconds",
-                    "type": "number"
-                },
-                "text": {
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "description": "ISO 8601",
                     "type": "string"
                 }
             }
@@ -1665,22 +1618,6 @@ const docTemplate = `{
                 }
             }
         },
-        "types.SingleAnnotationResponse": {
-            "type": "object",
-            "properties": {
-                "annotation": {
-                    "$ref": "#/definitions/types.Annotation"
-                },
-                "message": {
-                    "description": "Human-readable message",
-                    "type": "string"
-                },
-                "status": {
-                    "description": "One of the Status constants above",
-                    "type": "string"
-                }
-            }
-        },
         "types.SingleEpisodeResponse": {
             "type": "object",
             "properties": {
@@ -1875,8 +1812,8 @@ const docTemplate = `{
             "name": "waveform"
         },
         {
-            "description": "ML training annotations for audio segments",
-            "name": "annotations"
+            "description": "ML training audio clips extraction and management",
+            "name": "clips"
         }
     ]
 }`

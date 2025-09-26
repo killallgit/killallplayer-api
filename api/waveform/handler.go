@@ -16,17 +16,21 @@ import (
 )
 
 // GetWaveform returns waveform data with status for an episode
-// @Summary      Get waveform data and status for an episode
-// @Description Retrieve generated waveform data and status for a specific episode. If waveform doesn't exist, it will be queued for generation. Failed jobs are retried with exponential backoff.
+// @Summary      Get audio waveform visualization data
+// @Description  Retrieve waveform data for audio visualization of a podcast episode. Waveform data consists of
+// @Description  amplitude values (0-1 range) sampled at regular intervals, suitable for rendering audio waveform
+// @Description  visualizations. If waveform doesn't exist, it will be automatically queued for generation and the
+// @Description  response will include status:"pending" or "processing". Generation typically takes 10-60 seconds
+// @Description  depending on episode duration. Poll this endpoint until status:"ready" to get the final data.
 // @Tags         waveform
 // @Accept       json
 // @Produce      json
-// @Param        id path int64 true "Episode ID (Podcast Index ID)"
-// @Success      200 {object} types.WaveformResponse "Waveform data retrieved successfully"
-// @Success      202 {object} types.WaveformResponse "Waveform generation in progress or queued"
-// @Failure      400 {object} types.ErrorResponse "Invalid Podcast Index Episode ID"
-// @Failure      500 {object} types.ErrorResponse "Internal server error"
-// @Failure      503 {object} types.WaveformResponse "Waveform generation failed, retry pending"
+// @Param        id path int64 true "Episode's Podcast Index ID" minimum(1)
+// @Success      200 {object} types.WaveformResponse "Waveform ready with amplitude data array (status:ready)"
+// @Success      202 {object} types.WaveformResponse "Generation in progress (status:processing or pending)"
+// @Failure      400 {object} types.ErrorResponse "Invalid episode ID format"
+// @Failure      500 {object} types.ErrorResponse "Waveform service error or database failure"
+// @Failure      503 {object} types.WaveformResponse "Generation failed, automatic retry scheduled (status:failed)"
 // @Router       /api/v1/episodes/{id}/waveform [get]
 func GetWaveform(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

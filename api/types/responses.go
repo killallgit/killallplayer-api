@@ -75,19 +75,6 @@ type TranscriptionResponse struct {
 	Transcription *Transcription `json:"transcription"`
 }
 
-// AnnotationsResponse for annotation lists
-type AnnotationsResponse struct {
-	BaseResponse
-	Annotations []Annotation `json:"annotations"`
-	Count       int          `json:"count"` // Number of annotations
-}
-
-// SingleAnnotationResponse for a single annotation
-type SingleAnnotationResponse struct {
-	BaseResponse
-	Annotation *Annotation `json:"annotation"`
-}
-
 // ReviewsResponse for podcast reviews
 type ReviewsResponse struct {
 	BaseResponse

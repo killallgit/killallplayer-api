@@ -127,9 +127,9 @@ func InitializeWithMigrations() (*DB, error) {
 		&models.Waveform{},
 		&models.Transcription{},
 		&models.Job{},
-		&models.Annotation{},
 		&models.AudioCache{},
 		&models.Dataset{},
+		&models.Clip{}, // New simplified clip model
 	); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)

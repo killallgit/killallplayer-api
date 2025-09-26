@@ -16,16 +16,19 @@ type PodcastSearcher interface {
 }
 
 // Post handles podcast search requests
-// @Summary      Search for podcasts
-// @Description  Search for podcasts by query string with optional filters for content type, iTunes presence, and explicit content
+// @Summary      Search for podcasts by keyword
+// @Description  Search the Podcast Index for podcasts matching the query string. Returns podcast metadata
+// @Description  including titles, descriptions, feed URLs, and iTunes IDs. Results can be filtered by various
+// @Description  criteria such as value4value support, iTunes availability, and explicit content. Search uses
+// @Description  the Podcast Index API which indexes millions of podcasts from RSS feeds worldwide.
 // @Tags         search
 // @Accept       json
 // @Produce      json
-// @Param        request body types.SearchRequest true "Search parameters"
-// @Success      200 {object} types.PodcastSearchResponse "Podcast search results"
-// @Failure      400 {object} types.ErrorResponse "Bad request - invalid parameters"
-// @Failure      500 {object} types.ErrorResponse "Internal server error"
-// @Failure      504 {object} types.ErrorResponse "Gateway timeout - search request timed out"
+// @Param        request body types.SearchRequest true "Search parameters with query and optional filters"
+// @Success      200 {object} types.PodcastSearchResponse "Matching podcasts with metadata (feedId can be used with /podcasts/{id}/episodes)"
+// @Failure      400 {object} types.ErrorResponse "Invalid request format or missing required query field"
+// @Failure      500 {object} types.ErrorResponse "Search service error or API communication failure"
+// @Failure      504 {object} types.ErrorResponse "Request timeout (search limited to 10 seconds)"
 // @Router       /api/v1/search [post]
 func Post(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

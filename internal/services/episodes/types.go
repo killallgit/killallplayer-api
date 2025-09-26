@@ -49,7 +49,7 @@ type PodcastIndexEpisode struct {
 	Persons             []Person            `json:"persons,omitempty"`
 	SocialInteract      []SocialInteraction `json:"socialInteract,omitempty"`
 	Value               *Value              `json:"value,omitempty"`
-	// Annotations are now fetched separately via PodcastIndexEpisodeID
+	// Clips are managed separately via the clips service
 }
 
 // PodcastIndexResponse represents the standard response wrapper from Podcast Index API

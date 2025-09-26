@@ -123,7 +123,7 @@ func setupAPITestSuite(t *testing.T) *APITestSuite {
 	}
 
 	// Run migrations
-	err = db.AutoMigrate(&models.Podcast{}, &models.Episode{}, &models.Subscription{}, &models.Waveform{}, &models.Annotation{})
+	err = db.AutoMigrate(&models.Podcast{}, &models.Episode{}, &models.Subscription{}, &models.Waveform{})
 	if err != nil {
 		t.Fatalf("Failed to migrate test database: %v", err)
 	}
