@@ -15,17 +15,20 @@ import (
 )
 
 // GetReviews fetches podcast reviews for the podcast containing this episode
-// @Summary      Get podcast reviews
-// @Description  Fetch customer reviews from Apple Podcasts for the podcast that contains this episode
+// @Summary      Get iTunes reviews for episode's podcast
+// @Description  Fetch customer reviews from Apple Podcasts/iTunes for the podcast that contains this episode.
+// @Description  Returns aggregated review data including total count, average rating, rating distribution,
+// @Description  and individual reviews. Reviews can be sorted by recency or helpfulness. Note that not all
+// @Description  podcasts have iTunes IDs, and some may have no reviews available.
 // @Tags         episodes
 // @Accept       json
 // @Produce      json
-// @Param        id path int64 true "Episode Podcast Index ID"
-// @Param        sort query string false "Sort order: mostrecent or mosthelpful" default(mostrecent)
-// @Param        page query int false "Page number (1-10)" minimum(1) maximum(10) default(1)
-// @Success      200 {object} episodes.ReviewsResponse "Reviews data"
-// @Failure      404 {object} types.ErrorResponse "Episode not found or no iTunes ID available"
-// @Failure      500 {object} types.ErrorResponse "Internal server error"
+// @Param        id path int64 true "Episode's Podcast Index ID" minimum(1)
+// @Param        sort query string false "Sort order for reviews" Enums(mostrecent, mosthelpful) default(mostrecent)
+// @Param        page query int false "Page number for pagination (iTunes limits to 10 pages max)" minimum(1) maximum(10) default(1)
+// @Success      200 {object} episodes.ReviewsResponse "Reviews data with aggregated statistics and individual reviews"
+// @Failure      404 {object} types.ErrorResponse "Episode not found or podcast has no iTunes ID"
+// @Failure      500 {object} types.ErrorResponse "Internal server error or iTunes API failure"
 // @Router       /api/v1/episodes/{id}/reviews [get]
 func GetReviews(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

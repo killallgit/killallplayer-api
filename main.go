@@ -41,8 +41,8 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 // @tag.name			waveform
 // @tag.description	Audio waveform generation and retrieval
 
-// @tag.name			annotations
-// @tag.description	ML training annotations for audio segments
+// @tag.name			clips
+// @tag.description	ML training audio clips extraction and management
 
 package main
 

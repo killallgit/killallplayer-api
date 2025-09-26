@@ -10,9 +10,9 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	"github.com/killallgit/player-api/api/annotations"
 	authAPI "github.com/killallgit/player-api/api/auth"
 	"github.com/killallgit/player-api/api/categories"
+	"github.com/killallgit/player-api/api/clips"
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/middleware"
@@ -25,9 +25,9 @@ import (
 	"github.com/killallgit/player-api/api/version"
 	"github.com/killallgit/player-api/api/waveform"
 	_ "github.com/killallgit/player-api/docs"
-	annotationsService "github.com/killallgit/player-api/internal/services/annotations"
 	authService "github.com/killallgit/player-api/internal/services/auth"
 	"github.com/killallgit/player-api/internal/services/cache"
+	clipsService "github.com/killallgit/player-api/internal/services/clips"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/jobs"
@@ -226,7 +226,6 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		episodes.RegisterRoutes(episodeGroup, deps)
 		waveform.RegisterRoutes(episodeGroup, deps)         // Waveform generation may be CPU intensive
 		transcriptionAPI.RegisterRoutes(episodeGroup, deps) // Transcription generation may be CPU intensive
-		annotations.RegisterRoutes(episodeGroup, deps)
 
 		// Register podcast routes with rate limiting and caching
 		podcastGroup := v1.Group("/podcasts")
@@ -236,6 +235,11 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 			podcastGroup.Use(cacheMiddleware)
 		}
 		podcasts.RegisterRoutes(podcastGroup, deps, episodesMiddleware)
+
+		// Register clips routes with rate limiting
+		clipsGroup := v1.Group("/clips")
+		clipsGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
+		clips.RegisterRoutes(clipsGroup, deps)
 
 	}
 
@@ -259,9 +263,9 @@ func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
 		initializeTranscriptionService(deps)
 	}
 
-	// Initialize annotation service if not set
-	if deps.AnnotationService == nil {
-		initializeAnnotationService(deps)
+	// Initialize clip service if not set
+	if deps.ClipService == nil {
+		initializeClipService(deps)
 	}
 
 	// Initialize job service if not set
@@ -344,13 +348,41 @@ func initializeTranscriptionService(deps *types.Dependencies) {
 	deps.TranscriptionService = transcription.NewService(transcriptionRepo)
 }
 
-// initializeAnnotationService creates and configures the annotation service
-func initializeAnnotationService(deps *types.Dependencies) {
-	// Create dependencies
-	annotationRepo := annotationsService.NewRepository(deps.DB.DB)
+// initializeClipService creates and configures the clip service
+func initializeClipService(deps *types.Dependencies) {
+	// Get configuration for clips storage
+	clipsBasePath := viper.GetString("clips.storage_path")
+	if clipsBasePath == "" {
+		clipsBasePath = "./clips" // Default to local clips directory
+	}
+
+	tempDir := viper.GetString("clips.temp_dir")
+	if tempDir == "" {
+		tempDir = "/tmp/clips" // Default temp directory
+	}
+
+	targetDuration := viper.GetFloat64("clips.target_duration")
+	if targetDuration <= 0 {
+		targetDuration = 15.0 // Default to 15 seconds
+	}
+
+	// Create FFmpeg extractor
+	extractor, err := clipsService.NewFFmpegExtractor(tempDir, targetDuration)
+	if err != nil {
+		log.Printf("[ERROR] Failed to create FFmpeg extractor: %v", err)
+		return
+	}
+
+	// Create local storage
+	storage, err := clipsService.NewLocalClipStorage(clipsBasePath)
+	if err != nil {
+		log.Printf("[ERROR] Failed to create clip storage: %v", err)
+		return
+	}
 
 	// Create service
-	deps.AnnotationService = annotationsService.NewService(annotationRepo)
+	deps.ClipService = clipsService.NewService(deps.DB.DB, storage, extractor)
+	log.Printf("[INFO] Clip service initialized with storage at %s", clipsBasePath)
 }
 
 // initializeJobService creates and configures the job service

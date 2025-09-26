@@ -10,16 +10,19 @@ import (
 )
 
 // GetByID returns a single episode by Podcast Index ID
-// @Summary      Get episode by ID
-// @Description  Retrieve a single episode by its Podcast Index ID
+// @Summary      Get episode details by Podcast Index ID
+// @Description  Retrieve comprehensive episode information including title, description, audio URL, duration,
+// @Description  and links to additional resources like transcripts and chapters. The episode data is fetched
+// @Description  from the local database cache or Podcast Index API if not cached. Audio URLs are direct links
+// @Description  suitable for streaming or download.
 // @Tags         episodes
 // @Accept       json
 // @Produce      json
-// @Param        id path int64 true "Episode Podcast Index ID" minimum(1) example(123456789)
-// @Success      200 {object} types.SingleEpisodeResponse "Episode details"
-// @Failure      400 {object} types.ErrorResponse "Bad request - invalid ID"
-// @Failure      404 {object} types.ErrorResponse "Episode not found"
-// @Failure      500 {object} types.ErrorResponse "Internal server error"
+// @Param        id path int64 true "Episode's Podcast Index ID (unique identifier from Podcast Index API)" minimum(1) example(16797088990)
+// @Success      200 {object} types.SingleEpisodeResponse "Episode details including audio URL and metadata"
+// @Failure      400 {object} types.ErrorResponse "Invalid ID format (must be positive integer)"
+// @Failure      404 {object} types.ErrorResponse "Episode not found in database or Podcast Index API"
+// @Failure      500 {object} types.ErrorResponse "Internal server error or API communication failure"
 // @Router       /api/v1/episodes/{id} [get]
 func GetByID(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {

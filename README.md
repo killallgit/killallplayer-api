@@ -73,10 +73,12 @@ The OpenAPI specification is generated automatically from code annotations and a
 - `GET /api/v1/episodes/:id` - Get episode details (using Podcast Index ID)
 - `GET /api/v1/episodes/:id/reviews` - Get iTunes reviews for the podcast
 - `GET /api/v1/episodes/:id/waveform` - Generate/retrieve waveform data with status
-- `GET /api/v1/episodes/:id/annotations` - Get episode annotations
-- `POST /api/v1/episodes/:id/annotations` - Create episode annotation
-- `PUT /api/v1/episodes/annotations/:id` - Update episode annotation
-- `DELETE /api/v1/episodes/annotations/:id` - Delete episode annotation
+- `POST /api/v1/clips` - Create ML training audio clip
+- `GET /api/v1/clips` - List all clips with optional filters
+- `GET /api/v1/clips/:uuid` - Get specific clip details
+- `PUT /api/v1/clips/:uuid/label` - Update clip label
+- `DELETE /api/v1/clips/:uuid` - Delete a clip
+- `GET /api/v1/clips/export` - Export clips dataset as ZIP
 - `POST /api/v1/regions` - Save playback regions/bookmarks
 - `GET /api/v1/regions?episodeId=` - Get regions for an episode
 
@@ -185,7 +187,7 @@ The API uses a hierarchical permission system with the following scopes:
 | Permission | Description |
 |------------|-------------|
 | `podcasts:read` | Read access to podcast data, search, and episode information |
-| `podcasts:write` | Write access to create annotations, regions, and user data |
+| `podcasts:write` | Write access to create clips, regions, and user data |
 | `podcasts:admin` | Full administrative access to all endpoints and features |
 
 **Authorization Requirements:**
