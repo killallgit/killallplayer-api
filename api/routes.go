@@ -248,6 +248,11 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 
 // initializeAllServices creates and configures all services in one place
 func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
+	// Initialize job service FIRST - other services depend on it
+	if deps.JobService == nil {
+		initializeJobService(deps)
+	}
+
 	// Initialize episode service if not set
 	if deps.EpisodeService == nil || deps.EpisodeTransformer == nil {
 		initializeEpisodeService(deps, cfg)
@@ -263,14 +268,9 @@ func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
 		initializeTranscriptionService(deps)
 	}
 
-	// Initialize clip service if not set
+	// Initialize clip service if not set (depends on JobService)
 	if deps.ClipService == nil {
 		initializeClipService(deps)
-	}
-
-	// Initialize job service if not set
-	if deps.JobService == nil {
-		initializeJobService(deps)
 	}
 
 	// Initialize iTunes client if not set
@@ -380,8 +380,12 @@ func initializeClipService(deps *types.Dependencies) {
 		return
 	}
 
-	// Create service
-	deps.ClipService = clipsService.NewService(deps.DB.DB, storage, extractor)
+	// Create service (requires JobService for background processing)
+	if deps.JobService == nil {
+		log.Printf("[WARN] JobService not initialized, clip service will not be able to process clips")
+		return
+	}
+	deps.ClipService = clipsService.NewService(deps.DB.DB, storage, extractor, deps.JobService)
 	log.Printf("[INFO] Clip service initialized with storage at %s", clipsBasePath)
 }
 

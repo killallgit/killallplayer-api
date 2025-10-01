@@ -29,6 +29,8 @@ const (
 	JobTypeTranscription           JobType = "transcription"
 	JobTypeTranscriptionGeneration JobType = "transcription_generation"
 	JobTypePodcastSync             JobType = "podcast_sync"
+	JobTypeClipExtraction          JobType = "clip_extraction"
+	JobTypeAutoLabel               JobType = "autolabel"
 )
 
 // JobErrorType represents the category of error that occurred

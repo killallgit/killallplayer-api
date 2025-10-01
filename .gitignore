@@ -4,6 +4,8 @@ ___*
 ~*
 .env
 *.secret*
+# Test data directories (Go convention)
+**/testdata/
 # If you prefer the allow list template instead of the deny list, see community template:
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
@@ -46,3 +48,4 @@ data/*
 !data/tests/
 .devbox
 models
+clips/

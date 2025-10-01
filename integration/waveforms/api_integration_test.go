@@ -569,6 +569,9 @@ func TestWaveformAPI_WithRealAudioFile(t *testing.T) {
 // 3. Simulate job completion by saving waveform
 // 4. Request waveform again → Returns the generated waveform
 func TestEndToEndWaveformWorkflow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping FFmpeg integration test in short mode")
+	}
 	suite := setupAPITestSuite(t)
 
 	// Step 1: Create test episode with realistic audio file path

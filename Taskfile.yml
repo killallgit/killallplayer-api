@@ -55,12 +55,12 @@ tasks:
 
   # Testing tasks
   test:
-    desc: Run all tests (warnings suppressed)
+    desc: Run all tests (skips slow FFmpeg/transcription integration tests)
     cmds:
-      - go test -v -race -timeout {{.TEST_TIMEOUT}} ./... 
+      - go test -short -v -race -timeout {{.TEST_TIMEOUT}} ./...
 
-  test-verbose:
-    desc: Run all tests with full output including warnings
+  test-full:
+    desc: Run all tests including slow integration tests
     cmds:
       - go test -v -race -timeout {{.TEST_TIMEOUT}} ./...
 

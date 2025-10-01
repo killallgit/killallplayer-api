@@ -90,6 +90,8 @@ func (w *Worker) processNextJob(ctx context.Context) error {
 		models.JobTypeWaveformGeneration,
 		models.JobTypeTranscriptionGeneration,
 		models.JobTypePodcastSync,
+		models.JobTypeClipExtraction,
+		models.JobTypeAutoLabel,
 	}
 
 	for _, jobType := range allJobTypes {

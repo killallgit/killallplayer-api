@@ -85,6 +85,9 @@ func TestEnhancedWaveformProcessor_ParseEpisodeID(t *testing.T) {
 // TestFFmpegIntegrationWithWorkerSystem tests that FFmpeg can process our test audio
 // This validates the FFmpeg→waveform generation pipeline that the worker would use
 func TestFFmpegIntegrationWithWorkerSystem(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping FFmpeg integration test in short mode")
+	}
 	// Setup FFmpeg - skip if not available
 	ffmpegInstance := ffmpeg.New("ffmpeg", "ffprobe", 30*time.Second)
 	if err := ffmpegInstance.ValidateBinaries(); err != nil {

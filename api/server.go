@@ -10,7 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/killallgit/player-api/api/types"
 	"github.com/killallgit/player-api/internal/database"
+	"github.com/killallgit/player-api/internal/services/autolabel"
 	"github.com/killallgit/player-api/internal/services/cleanup"
+	"github.com/killallgit/player-api/internal/services/clips"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/workers"
 	"github.com/killallgit/player-api/pkg/ffmpeg"
@@ -189,6 +191,70 @@ func (s *Server) initializeWorkerPool() error {
 	// Register transcription processor if available
 	if transcriptionProcessor != nil {
 		s.workerPool.RegisterProcessor(transcriptionProcessor)
+	}
+
+	// Create clip extraction processor if clip service is available
+	var clipProcessor *workers.ClipExtractionProcessor
+	if s.dependencies.ClipService != nil {
+		// Processor needs its own extractor and storage instances
+		// to avoid shared state issues in concurrent processing
+		clipsBasePath := viper.GetString("clips.storage_path")
+		if clipsBasePath == "" {
+			clipsBasePath = "./clips"
+		}
+
+		tempDir := viper.GetString("clips.temp_dir")
+		if tempDir == "" {
+			tempDir = "/tmp/clips"
+		}
+
+		targetDuration := viper.GetFloat64("clips.target_duration")
+		if targetDuration <= 0 {
+			targetDuration = 15.0
+		}
+
+		// Import clips package at top of file to use these
+		extractor, err := clips.NewFFmpegExtractor(tempDir, targetDuration)
+		if err == nil {
+			storage, err := clips.NewLocalClipStorage(clipsBasePath)
+			if err == nil {
+				clipProcessor = workers.NewClipExtractionProcessor(
+					s.dependencies.JobService,
+					s.dependencies.DB.DB,
+					extractor,
+					storage,
+				)
+				s.workerPool.RegisterProcessor(clipProcessor)
+				log.Printf("[INFO] Registered clip extraction processor")
+			} else {
+				log.Printf("[WARN] Failed to create clip storage for processor: %v", err)
+			}
+		} else {
+			log.Printf("[WARN] Failed to create FFmpeg extractor for clip processor: %v", err)
+		}
+	}
+
+	// Register autolabel processor if clip service is available
+	if s.dependencies.ClipService != nil {
+		// Get clips storage path from config
+		clipsBasePath := viper.GetString("clips.storage_path")
+		if clipsBasePath == "" {
+			clipsBasePath = "./clips"
+		}
+
+		// Create autolabel service
+		peakDetector := autolabel.NewFFmpegPeakDetector("")
+		autolabelSvc := autolabel.NewService(s.dependencies.DB.DB, peakDetector)
+
+		// Create and register autolabel processor
+		autolabelProcessor := workers.NewAutoLabelProcessor(
+			s.dependencies.JobService,
+			s.dependencies.DB.DB,
+			autolabelSvc,
+			clipsBasePath,
+		)
+		s.workerPool.RegisterProcessor(autolabelProcessor)
+		log.Printf("[INFO] Registered autolabel processor")
 	}
 
 	// Start worker pool in background

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/killallgit/player-api/internal/models"
+	"github.com/killallgit/player-api/internal/services/jobs"
 	"gorm.io/gorm"
 )
 
@@ -51,17 +52,19 @@ type ListClipsFilters struct {
 
 // ServiceImpl implements the Service interface
 type ServiceImpl struct {
-	db        *gorm.DB
-	storage   ClipStorage
-	extractor AudioExtractor
+	db         *gorm.DB
+	storage    ClipStorage
+	extractor  AudioExtractor
+	jobService jobs.Service
 }
 
 // NewService creates a new clips service
-func NewService(db *gorm.DB, storage ClipStorage, extractor AudioExtractor) Service {
+func NewService(db *gorm.DB, storage ClipStorage, extractor AudioExtractor, jobService jobs.Service) Service {
 	return &ServiceImpl{
-		db:        db,
-		storage:   storage,
-		extractor: extractor,
+		db:         db,
+		storage:    storage,
+		extractor:  extractor,
+		jobService: jobService,
 	}
 }
 
@@ -80,7 +83,7 @@ func (s *ServiceImpl) CreateClip(ctx context.Context, params CreateClipParams) (
 	clipID := uuid.New().String()
 	filename := fmt.Sprintf("clip_%s.wav", clipID)
 
-	// Create clip record with processing status
+	// Create clip record with queued status (will be processed by job system)
 	clip := &models.Clip{
 		UUID:              clipID,
 		SourceEpisodeURL:  params.SourceEpisodeURL,
@@ -88,7 +91,7 @@ func (s *ServiceImpl) CreateClip(ctx context.Context, params CreateClipParams) (
 		OriginalEndTime:   params.OriginalEndTime,
 		Label:             params.Label,
 		ClipFilename:      filename,
-		Status:            "processing",
+		Status:            "queued",
 		ClipDuration:      0, // Will be updated after extraction
 		ClipSizeBytes:     0, // Will be updated after extraction
 		CreatedAt:         time.Now(),
@@ -100,75 +103,21 @@ func (s *ServiceImpl) CreateClip(ctx context.Context, params CreateClipParams) (
 		return nil, fmt.Errorf("failed to create clip record: %w", err)
 	}
 
-	// Extract and process the clip asynchronously
-	// In production, this could be a background job
-	go s.processClipAsync(context.Background(), clip)
+	// Enqueue job for background processing
+	payload := models.JobPayload{
+		"clip_uuid": clipID,
+	}
+
+	if _, err := s.jobService.EnqueueJob(ctx, models.JobTypeClipExtraction, payload); err != nil {
+		// Update clip status to failed if we can't enqueue the job
+		s.db.Model(clip).Updates(map[string]interface{}{
+			"status":        "failed",
+			"error_message": fmt.Sprintf("failed to enqueue extraction job: %v", err),
+		})
+		return nil, fmt.Errorf("failed to enqueue clip extraction job: %w", err)
+	}
 
 	return clip, nil
-}
-
-// processClipAsync processes a clip in the background
-func (s *ServiceImpl) processClipAsync(ctx context.Context, clip *models.Clip) {
-	// Set timeout for processing
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
-
-	// Use temp directory for extraction, then save to storage
-	tempPath := filepath.Join("/tmp", clip.ClipFilename)
-
-	// Extract the clip to temp location
-	result, err := s.extractor.ExtractClip(ctx, ExtractParams{
-		SourceURL:  clip.SourceEpisodeURL,
-		StartTime:  clip.OriginalStartTime,
-		EndTime:    clip.OriginalEndTime,
-		OutputPath: tempPath,
-	})
-
-	if err != nil {
-		// Update status to failed
-		s.db.Model(clip).Updates(map[string]interface{}{
-			"status":        "failed",
-			"error_message": err.Error(),
-			"updated_at":    time.Now(),
-		})
-		return
-	}
-
-	// Open the file for storage
-	file, err := os.Open(result.FilePath)
-	if err != nil {
-		s.db.Model(clip).Updates(map[string]interface{}{
-			"status":        "failed",
-			"error_message": fmt.Sprintf("failed to open extracted file: %v", err),
-			"updated_at":    time.Now(),
-		})
-		return
-	}
-	defer file.Close()
-
-	// Save to storage
-	if err := s.storage.SaveClip(ctx, clip.Label, clip.ClipFilename, file); err != nil {
-		s.db.Model(clip).Updates(map[string]interface{}{
-			"status":        "failed",
-			"error_message": fmt.Sprintf("failed to save clip: %v", err),
-			"updated_at":    time.Now(),
-		})
-		// Clean up temporary file
-		os.Remove(result.FilePath)
-		return
-	}
-
-	// Clean up temporary file
-	os.Remove(result.FilePath)
-
-	// Update clip record with success
-	s.db.Model(clip).Updates(map[string]interface{}{
-		"status":          "ready",
-		"clip_duration":   result.Duration,
-		"clip_size_bytes": result.SizeBytes,
-		"error_message":   nil,
-		"updated_at":      time.Now(),
-	})
 }
 
 // GetClip retrieves a clip by UUID
