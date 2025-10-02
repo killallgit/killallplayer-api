@@ -21,6 +21,9 @@ type Service interface {
 	// GetClip retrieves a clip by UUID
 	GetClip(ctx context.Context, uuid string) (*models.Clip, error)
 
+	// GetClipsByEpisodeID retrieves all clips for an episode
+	GetClipsByEpisodeID(ctx context.Context, episodeID int64) ([]*models.Clip, error)
+
 	// UpdateClipLabel updates the label of a clip
 	UpdateClipLabel(ctx context.Context, uuid, newLabel string) (*models.Clip, error)
 
@@ -36,10 +39,11 @@ type Service interface {
 
 // CreateClipParams contains parameters for creating a clip
 type CreateClipParams struct {
-	SourceEpisodeURL  string
-	OriginalStartTime float64
-	OriginalEndTime   float64
-	Label             string
+	PodcastIndexEpisodeID int64 // Podcast Index Episode ID for fast lookups
+	SourceEpisodeURL      string
+	OriginalStartTime     float64
+	OriginalEndTime       float64
+	Label                 string
 }
 
 // ListClipsFilters contains filters for listing clips
@@ -85,17 +89,17 @@ func (s *ServiceImpl) CreateClip(ctx context.Context, params CreateClipParams) (
 
 	// Create clip record with queued status (will be processed by job system)
 	clip := &models.Clip{
-		UUID:              clipID,
-		SourceEpisodeURL:  params.SourceEpisodeURL,
-		OriginalStartTime: params.OriginalStartTime,
-		OriginalEndTime:   params.OriginalEndTime,
-		Label:             params.Label,
-		ClipFilename:      filename,
-		Status:            "queued",
-		ClipDuration:      0, // Will be updated after extraction
-		ClipSizeBytes:     0, // Will be updated after extraction
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
+		UUID:                  clipID,
+		PodcastIndexEpisodeID: params.PodcastIndexEpisodeID,
+		SourceEpisodeURL:      params.SourceEpisodeURL,
+		OriginalStartTime:     params.OriginalStartTime,
+		OriginalEndTime:       params.OriginalEndTime,
+		Label:                 params.Label,
+		ClipFilename:          &filename,
+		Status:                "queued",
+		Extracted:             false, // Will be updated after extraction
+		CreatedAt:             time.Now(),
+		UpdatedAt:             time.Now(),
 	}
 
 	// Save to database first
@@ -132,6 +136,17 @@ func (s *ServiceImpl) GetClip(ctx context.Context, uuid string) (*models.Clip, e
 	return &clip, nil
 }
 
+// GetClipsByEpisodeID retrieves all clips for an episode
+func (s *ServiceImpl) GetClipsByEpisodeID(ctx context.Context, episodeID int64) ([]*models.Clip, error) {
+	var clips []*models.Clip
+	if err := s.db.Where("podcast_index_episode_id = ?", episodeID).
+		Order("original_start_time ASC").
+		Find(&clips).Error; err != nil {
+		return nil, fmt.Errorf("failed to get clips for episode: %w", err)
+	}
+	return clips, nil
+}
+
 // UpdateClipLabel updates the label of a clip
 func (s *ServiceImpl) UpdateClipLabel(ctx context.Context, uuid, newLabel string) (*models.Clip, error) {
 	if newLabel == "" {
@@ -154,9 +169,9 @@ func (s *ServiceImpl) UpdateClipLabel(ctx context.Context, uuid, newLabel string
 
 	oldLabel := clip.Label
 
-	// Move the file in storage (only if clip is ready)
-	if clip.Status == "ready" {
-		if err := s.storage.MoveClip(ctx, oldLabel, newLabel, clip.ClipFilename); err != nil {
+	// Move the file in storage (only if clip is ready and has a filename)
+	if clip.Status == "ready" && clip.ClipFilename != nil {
+		if err := s.storage.MoveClip(ctx, oldLabel, newLabel, *clip.ClipFilename); err != nil {
 			return nil, fmt.Errorf("failed to move clip file: %w", err)
 		}
 	}
@@ -167,8 +182,8 @@ func (s *ServiceImpl) UpdateClipLabel(ctx context.Context, uuid, newLabel string
 
 	if err := s.db.Save(&clip).Error; err != nil {
 		// Try to move file back if database update fails
-		if clip.Status == "ready" {
-			_ = s.storage.MoveClip(ctx, newLabel, oldLabel, clip.ClipFilename)
+		if clip.Status == "ready" && clip.ClipFilename != nil {
+			_ = s.storage.MoveClip(ctx, newLabel, oldLabel, *clip.ClipFilename)
 		}
 		return nil, fmt.Errorf("failed to update clip: %w", err)
 	}
@@ -187,9 +202,9 @@ func (s *ServiceImpl) DeleteClip(ctx context.Context, uuid string) error {
 		return fmt.Errorf("failed to get clip: %w", err)
 	}
 
-	// Delete from storage (only if clip is ready)
-	if clip.Status == "ready" {
-		if err := s.storage.DeleteClip(ctx, clip.Label, clip.ClipFilename); err != nil {
+	// Delete from storage (only if clip is ready and has a filename)
+	if clip.Status == "ready" && clip.ClipFilename != nil {
+		if err := s.storage.DeleteClip(ctx, clip.Label, *clip.ClipFilename); err != nil {
 			// Log but don't fail
 			fmt.Printf("Warning: failed to delete clip file: %v\n", err)
 		}

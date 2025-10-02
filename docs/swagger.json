@@ -419,6 +419,58 @@
                 }
             }
         },
+        "/api/v1/episodes/{id}/clips": {
+            "get": {
+                "description": "Retrieve time-based clips for an episode. Clips can be used for auto-skipping commercials or\ncreating ML training datasets. If clips don't exist, analysis will be automatically queued\nand the response will include status:\"processing\". Poll this endpoint until status:\"ok\" to get clips.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Get clips/skip regions for an episode",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Episode's Podcast Index ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Clips ready (status:ok)",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.ClipsResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "Analysis in progress (status:processing or queued)",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.ClipsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid episode ID format",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/episodes/{id}/reviews": {
             "get": {
                 "description": "Fetch customer reviews from Apple Podcasts/iTunes for the podcast that contains this episode.\nReturns aggregated review data including total count, average rating, rating distribution,\nand individual reviews. Reviews can be sorted by recency or helpfulness. Note that not all\npodcasts have iTunes IDs, and some may have no reviews available.",
@@ -1066,6 +1118,7 @@
             "required": [
                 "end_time",
                 "label",
+                "podcast_index_episode_id",
                 "source_episode_url"
             ],
             "properties": {
@@ -1077,6 +1130,11 @@
                     "type": "string",
                     "minLength": 1,
                     "example": "advertisement"
+                },
+                "podcast_index_episode_id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 12345
                 },
                 "source_episode_url": {
                     "type": "string",
@@ -1100,6 +1158,76 @@
                     "type": "string",
                     "minLength": 1,
                     "example": "music"
+                }
+            }
+        },
+        "episodes.ClipResponse": {
+            "description": "Audio clip time range for skipping or ML training",
+            "type": "object",
+            "properties": {
+                "auto_labeled": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "confidence": {
+                    "type": "number",
+                    "example": 0.85
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-10-01T12:00:00Z"
+                },
+                "end_time": {
+                    "type": "number",
+                    "example": 45.2
+                },
+                "extracted": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "label": {
+                    "type": "string",
+                    "example": "advertisement"
+                },
+                "start_time": {
+                    "type": "number",
+                    "example": 30.5
+                },
+                "user_confirmed": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "uuid": {
+                    "type": "string",
+                    "example": "052f3b9b-cc02-418c-a9ab-8f49534c01c8"
+                }
+            }
+        },
+        "episodes.ClipsResponse": {
+            "description": "Response containing clips for an episode",
+            "type": "object",
+            "properties": {
+                "clips": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/episodes.ClipResponse"
+                    }
+                },
+                "episode_id": {
+                    "type": "integer",
+                    "example": 123
+                },
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer",
+                    "example": 45
+                },
+                "status": {
+                    "description": "One of the Status constants above",
+                    "type": "string"
                 }
             }
         },

@@ -101,8 +101,18 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 	extractCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
+	// Verify clip has a filename (should always be set by CreateClip, but check defensively)
+	if clip.ClipFilename == nil || *clip.ClipFilename == "" {
+		return models.NewSystemError(
+			"invalid_clip",
+			"Clip filename is missing",
+			"Cannot extract clip without filename",
+			fmt.Errorf("clip filename is nil or empty"),
+		)
+	}
+
 	// Use temp directory for extraction
-	tempPath := fmt.Sprintf("/tmp/%s", clip.ClipFilename)
+	tempPath := fmt.Sprintf("/tmp/%s", *clip.ClipFilename)
 
 	// Extract the clip to temp location
 	log.Printf("[DEBUG] Extracting clip %s from %s (%.2fs - %.2fs)",
@@ -163,7 +173,15 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 
 	// Save to storage (uses label-based directory structure)
 	log.Printf("[DEBUG] Saving clip %s to storage (label: %s)", clipUUID, clip.Label)
-	if err := p.storage.SaveClip(ctx, clip.Label, clip.ClipFilename, file); err != nil {
+	if clip.ClipFilename == nil {
+		return models.NewSystemError(
+			"invalid_clip",
+			"Clip filename is missing",
+			"Cannot save clip without filename",
+			fmt.Errorf("clip filename is nil"),
+		)
+	}
+	if err := p.storage.SaveClip(ctx, clip.Label, *clip.ClipFilename, file); err != nil {
 		errMsg := fmt.Sprintf("failed to save clip: %v", err)
 		p.db.Model(&clip).Updates(map[string]interface{}{
 			"status":        "failed",
@@ -188,6 +206,7 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		"status":          "ready",
 		"clip_duration":   result.Duration,
 		"clip_size_bytes": result.SizeBytes,
+		"extracted":       true, // Mark as extracted
 		"error_message":   nil,
 		"updated_at":      time.Now(),
 	}).Error; err != nil {
@@ -206,6 +225,10 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 	}
 
 	// Create job result
+	var storagePath string
+	if clip.ClipFilename != nil {
+		storagePath = p.storage.GetClipPath(clip.Label, *clip.ClipFilename)
+	}
 	jobResult := map[string]interface{}{
 		"clip_uuid":      clipUUID,
 		"label":          clip.Label,
@@ -214,7 +237,7 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		"sample_rate":    result.SampleRate,
 		"channels":       result.Channels,
 		"source_url":     clip.SourceEpisodeURL,
-		"storage_path":   p.storage.GetClipPath(clip.Label, clip.ClipFilename),
+		"storage_path":   storagePath,
 		"original_range": fmt.Sprintf("%.2f-%.2f", clip.OriginalStartTime, clip.OriginalEndTime),
 	}
 
@@ -223,8 +246,12 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		return fmt.Errorf("failed to complete job: %w", err)
 	}
 
+	var filenameStr string
+	if clip.ClipFilename != nil {
+		filenameStr = *clip.ClipFilename
+	}
 	log.Printf("[INFO] Clip extraction completed for %s (%.2fs, %d bytes, stored in %s/%s)",
-		clipUUID, result.Duration, result.SizeBytes, clip.Label, clip.ClipFilename)
+		clipUUID, result.Duration, result.SizeBytes, clip.Label, filenameStr)
 
 	// TODO: Optionally enqueue autolabel job here
 	// if viper.GetBool("autolabel.enabled") && viper.GetBool("autolabel.on_create") {

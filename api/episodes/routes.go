@@ -12,4 +12,7 @@ func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
 
 	// GET /api/v1/episodes/:id/reviews - Get iTunes reviews for the podcast
 	router.GET("/:id/reviews", GetReviews(deps))
+
+	// GET /api/v1/episodes/:id/clips - Get clips/skip regions for episode
+	router.GET("/:id/clips", GetClips(deps))
 }

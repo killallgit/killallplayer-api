@@ -63,6 +63,10 @@ definitions:
         example: advertisement
         minLength: 1
         type: string
+      podcast_index_episode_id:
+        example: 12345
+        minimum: 1
+        type: integer
       source_episode_url:
         example: https://example.com/episode.mp3
         type: string
@@ -73,6 +77,7 @@ definitions:
     required:
     - end_time
     - label
+    - podcast_index_episode_id
     - source_episode_url
     type: object
   clips.UpdateLabelRequest:
@@ -84,6 +89,57 @@ definitions:
         type: string
     required:
     - label
+    type: object
+  episodes.ClipResponse:
+    description: Audio clip time range for skipping or ML training
+    properties:
+      auto_labeled:
+        example: true
+        type: boolean
+      confidence:
+        example: 0.85
+        type: number
+      created_at:
+        example: "2025-10-01T12:00:00Z"
+        type: string
+      end_time:
+        example: 45.2
+        type: number
+      extracted:
+        example: false
+        type: boolean
+      label:
+        example: advertisement
+        type: string
+      start_time:
+        example: 30.5
+        type: number
+      user_confirmed:
+        example: false
+        type: boolean
+      uuid:
+        example: 052f3b9b-cc02-418c-a9ab-8f49534c01c8
+        type: string
+    type: object
+  episodes.ClipsResponse:
+    description: Response containing clips for an episode
+    properties:
+      clips:
+        items:
+          $ref: '#/definitions/episodes.ClipResponse'
+        type: array
+      episode_id:
+        example: 123
+        type: integer
+      message:
+        description: Human-readable message
+        type: string
+      progress:
+        example: 45
+        type: integer
+      status:
+        description: One of the Status constants above
+        type: string
     type: object
   episodes.Review:
     properties:
@@ -867,6 +923,44 @@ paths:
           schema:
             $ref: '#/definitions/types.ErrorResponse'
       summary: Get episode details by Podcast Index ID
+      tags:
+      - episodes
+  /api/v1/episodes/{id}/clips:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Retrieve time-based clips for an episode. Clips can be used for auto-skipping commercials or
+        creating ML training datasets. If clips don't exist, analysis will be automatically queued
+        and the response will include status:"processing". Poll this endpoint until status:"ok" to get clips.
+      parameters:
+      - description: Episode's Podcast Index ID
+        format: int64
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Clips ready (status:ok)
+          schema:
+            $ref: '#/definitions/episodes.ClipsResponse'
+        "202":
+          description: Analysis in progress (status:processing or queued)
+          schema:
+            $ref: '#/definitions/episodes.ClipsResponse'
+        "400":
+          description: Invalid episode ID format
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Get clips/skip regions for an episode
       tags:
       - episodes
   /api/v1/episodes/{id}/reviews:

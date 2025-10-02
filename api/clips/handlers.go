@@ -18,27 +18,28 @@ import (
 // CreateClipRequest represents the request to create a clip
 // @Description Request body for creating a new audio clip
 type CreateClipRequest struct {
-	SourceEpisodeURL  string  `json:"source_episode_url" binding:"required" example:"https://example.com/episode.mp3" description:"URL or file path to the source audio"`
-	OriginalStartTime float64 `json:"start_time" binding:"min=0" example:"30" description:"Start time in seconds (can be 0)"`
-	OriginalEndTime   float64 `json:"end_time" binding:"required,gt=0" example:"45" description:"End time in seconds (must be > start_time)"`
-	Label             string  `json:"label" binding:"required,min=1" example:"advertisement" description:"Classification label for ML training"`
+	PodcastIndexEpisodeID int64   `json:"podcast_index_episode_id" binding:"required,min=1" example:"12345" description:"Podcast Index Episode ID for clip organization"`
+	SourceEpisodeURL      string  `json:"source_episode_url" binding:"required" example:"https://example.com/episode.mp3" description:"URL or file path to the source audio"`
+	OriginalStartTime     float64 `json:"start_time" binding:"min=0" example:"30" description:"Start time in seconds (can be 0)"`
+	OriginalEndTime       float64 `json:"end_time" binding:"required,gt=0" example:"45" description:"End time in seconds (must be > start_time)"`
+	Label                 string  `json:"label" binding:"required,min=1" example:"advertisement" description:"Classification label for ML training"`
 }
 
 // ClipResponse represents a clip in API responses
 // @Description Complete information about an audio clip
 type ClipResponse struct {
-	UUID              string  `json:"uuid" example:"052f3b9b-cc02-418c-a9ab-8f49534c01c8" description:"Unique identifier for the clip"`
-	Label             string  `json:"label" example:"advertisement" description:"ML training label"`
-	Status            string  `json:"status" example:"ready" description:"Processing status: processing, ready, or failed"`
-	ClipFilename      string  `json:"filename" example:"clip_052f3b9b-cc02-418c-a9ab-8f49534c01c8.wav" description:"Generated filename"`
-	ClipDuration      float64 `json:"duration" example:"15" description:"Duration in seconds (always 15 after processing)"`
-	ClipSizeBytes     int64   `json:"size_bytes" example:"480078" description:"File size in bytes (~480KB for 15s)"`
-	SourceEpisodeURL  string  `json:"source_episode_url" example:"https://example.com/episode.mp3" description:"Original audio source"`
-	OriginalStartTime float64 `json:"original_start_time" example:"30" description:"Original start time in source"`
-	OriginalEndTime   float64 `json:"original_end_time" example:"45" description:"Original end time in source"`
-	ErrorMessage      string  `json:"error_message,omitempty" example:"failed to download source audio: HTTP 403" description:"Error details if status is failed"`
-	CreatedAt         string  `json:"created_at" example:"2025-09-25T16:36:45Z" description:"Creation timestamp"`
-	UpdatedAt         string  `json:"updated_at" example:"2025-09-25T16:36:47Z" description:"Last update timestamp"`
+	UUID              string   `json:"uuid" example:"052f3b9b-cc02-418c-a9ab-8f49534c01c8" description:"Unique identifier for the clip"`
+	Label             string   `json:"label" example:"advertisement" description:"ML training label"`
+	Status            string   `json:"status" example:"ready" description:"Processing status: processing, ready, or failed"`
+	ClipFilename      *string  `json:"filename,omitempty" example:"clip_052f3b9b-cc02-418c-a9ab-8f49534c01c8.wav" description:"Generated filename (null for auto-detected clips)"`
+	ClipDuration      *float64 `json:"duration,omitempty" example:"15" description:"Duration in seconds (null for auto-detected clips)"`
+	ClipSizeBytes     *int64   `json:"size_bytes,omitempty" example:"480078" description:"File size in bytes (null for auto-detected clips)"`
+	SourceEpisodeURL  string   `json:"source_episode_url" example:"https://example.com/episode.mp3" description:"Original audio source"`
+	OriginalStartTime float64  `json:"original_start_time" example:"30" description:"Original start time in source"`
+	OriginalEndTime   float64  `json:"original_end_time" example:"45" description:"Original end time in source"`
+	ErrorMessage      string   `json:"error_message,omitempty" example:"failed to download source audio: HTTP 403" description:"Error details if status is failed"`
+	CreatedAt         string   `json:"created_at" example:"2025-09-25T16:36:45Z" description:"Creation timestamp"`
+	UpdatedAt         string   `json:"updated_at" example:"2025-09-25T16:36:47Z" description:"Last update timestamp"`
 }
 
 // UpdateLabelRequest represents the request to update a clip's label
@@ -77,10 +78,11 @@ func CreateClip(deps *types.Dependencies) gin.HandlerFunc {
 
 		// Create the clip
 		clip, err := deps.ClipService.CreateClip(c.Request.Context(), clips.CreateClipParams{
-			SourceEpisodeURL:  req.SourceEpisodeURL,
-			OriginalStartTime: req.OriginalStartTime,
-			OriginalEndTime:   req.OriginalEndTime,
-			Label:             req.Label,
+			PodcastIndexEpisodeID: req.PodcastIndexEpisodeID,
+			SourceEpisodeURL:      req.SourceEpisodeURL,
+			OriginalStartTime:     req.OriginalStartTime,
+			OriginalEndTime:       req.OriginalEndTime,
+			Label:                 req.Label,
 		})
 
 		if err != nil {

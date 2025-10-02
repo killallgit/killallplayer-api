@@ -216,12 +216,15 @@ func TestEndToEndClipProcessing(t *testing.T) {
 
 	// Verify clip properties
 	assert.Equal(t, "ready", processedClip.Status, "Clip should be ready")
-	assert.Equal(t, 15.0, processedClip.ClipDuration, "Clip should be 15 seconds (padded)")
-	assert.Greater(t, processedClip.ClipSizeBytes, int64(0), "Clip should have size")
-	assert.NotEmpty(t, processedClip.ClipFilename, "Clip should have filename")
+	require.NotNil(t, processedClip.ClipDuration, "Clip should have duration")
+	assert.Equal(t, 15.0, *processedClip.ClipDuration, "Clip should be 15 seconds (padded)")
+	require.NotNil(t, processedClip.ClipSizeBytes, "Clip should have size")
+	assert.Greater(t, *processedClip.ClipSizeBytes, int64(0), "Clip should have size")
+	require.NotNil(t, processedClip.ClipFilename, "Clip should have filename")
+	assert.NotEmpty(t, *processedClip.ClipFilename, "Clip should have filename")
 
 	// Verify physical file exists
-	expectedPath := filepath.Join(suite.clipsDir, "speech", processedClip.ClipFilename)
+	expectedPath := filepath.Join(suite.clipsDir, "speech", *processedClip.ClipFilename)
 	_, err = os.Stat(expectedPath)
 	assert.NoError(t, err, "Clip file should exist at %s", expectedPath)
 
@@ -351,8 +354,9 @@ func TestClipStorageOrganization(t *testing.T) {
 		require.NotNil(t, processedClip, "Clip with label %s should process", label)
 
 		// Verify file is in correct subdirectory
+		require.NotNil(t, processedClip.ClipFilename, "Clip should have filename")
 		expectedDir := filepath.Join(suite.clipsDir, label)
-		expectedPath := filepath.Join(expectedDir, processedClip.ClipFilename)
+		expectedPath := filepath.Join(expectedDir, *processedClip.ClipFilename)
 
 		_, err := os.Stat(expectedPath)
 		assert.NoError(t, err, "Clip should exist in %s directory", label)

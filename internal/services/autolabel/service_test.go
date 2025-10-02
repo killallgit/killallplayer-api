@@ -90,16 +90,20 @@ func TestAutoLabelService(t *testing.T) {
 		"Label should be one of the expected types")
 
 	// Test UpdateClipWithAutoLabel
+	filename := "test.wav"
+	duration := 5.0
+	sizeBytes := int64(12345)
 	clip := &models.Clip{
 		UUID:              "test-uuid-123",
 		SourceEpisodeURL:  "https://example.com/test.mp3",
 		OriginalStartTime: 0,
 		OriginalEndTime:   5,
 		Label:             "unlabeled",
-		ClipFilename:      "test.wav",
-		ClipDuration:      5.0,
-		ClipSizeBytes:     12345,
+		ClipFilename:      &filename,
+		ClipDuration:      &duration,
+		ClipSizeBytes:     &sizeBytes,
 		Status:            "ready",
+		Extracted:         true,
 	}
 	err = db.Create(clip).Error
 	require.NoError(t, err)
