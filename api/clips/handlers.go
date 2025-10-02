@@ -16,10 +16,10 @@ import (
 )
 
 // CreateClipRequest represents the request to create a clip
-// @Description Request body for creating a new audio clip
+// @Description Request body for creating a new audio clip. Audio URL is automatically retrieved from cached episode data.
+// @Description If episode not cached, it will be fetched from Podcast Index API and synced to database.
 type CreateClipRequest struct {
-	PodcastIndexEpisodeID int64   `json:"podcast_index_episode_id" binding:"required,min=1" example:"12345" description:"Podcast Index Episode ID for clip organization"`
-	SourceEpisodeURL      string  `json:"source_episode_url" binding:"required" example:"https://example.com/episode.mp3" description:"URL or file path to the source audio"`
+	PodcastIndexEpisodeID int64   `json:"podcast_index_episode_id" binding:"required,min=1" example:"12345" description:"Podcast Index Episode ID - audio URL will be looked up automatically"`
 	OriginalStartTime     float64 `json:"start_time" binding:"min=0" example:"30" description:"Start time in seconds (can be 0)"`
 	OriginalEndTime       float64 `json:"end_time" binding:"required,gt=0" example:"45" description:"End time in seconds (must be > start_time)"`
 	Label                 string  `json:"label" binding:"required,min=1" example:"advertisement" description:"Classification label for ML training"`
@@ -28,18 +28,23 @@ type CreateClipRequest struct {
 // ClipResponse represents a clip in API responses
 // @Description Complete information about an audio clip
 type ClipResponse struct {
-	UUID              string   `json:"uuid" example:"052f3b9b-cc02-418c-a9ab-8f49534c01c8" description:"Unique identifier for the clip"`
-	Label             string   `json:"label" example:"advertisement" description:"ML training label"`
-	Status            string   `json:"status" example:"ready" description:"Processing status: processing, ready, or failed"`
-	ClipFilename      *string  `json:"filename,omitempty" example:"clip_052f3b9b-cc02-418c-a9ab-8f49534c01c8.wav" description:"Generated filename (null for auto-detected clips)"`
-	ClipDuration      *float64 `json:"duration,omitempty" example:"15" description:"Duration in seconds (null for auto-detected clips)"`
-	ClipSizeBytes     *int64   `json:"size_bytes,omitempty" example:"480078" description:"File size in bytes (null for auto-detected clips)"`
-	SourceEpisodeURL  string   `json:"source_episode_url" example:"https://example.com/episode.mp3" description:"Original audio source"`
-	OriginalStartTime float64  `json:"original_start_time" example:"30" description:"Original start time in source"`
-	OriginalEndTime   float64  `json:"original_end_time" example:"45" description:"Original end time in source"`
-	ErrorMessage      string   `json:"error_message,omitempty" example:"failed to download source audio: HTTP 403" description:"Error details if status is failed"`
-	CreatedAt         string   `json:"created_at" example:"2025-09-25T16:36:45Z" description:"Creation timestamp"`
-	UpdatedAt         string   `json:"updated_at" example:"2025-09-25T16:36:47Z" description:"Last update timestamp"`
+	UUID                  string   `json:"uuid" example:"052f3b9b-cc02-418c-a9ab-8f49534c01c8" description:"Unique identifier for the clip"`
+	PodcastIndexEpisodeID int64    `json:"podcast_index_episode_id" example:"12345" description:"Podcast Index Episode ID for clip organization"`
+	Label                 string   `json:"label" example:"advertisement" description:"ML training label"`
+	Status                string   `json:"status" example:"ready" enums:"queued,processing,ready,failed" description:"Processing status: queued, processing, ready, or failed"`
+	Extracted             bool     `json:"extracted" example:"true" description:"Whether audio file has been extracted to storage"`
+	ClipFilename          *string  `json:"filename,omitempty" example:"clip_052f3b9b-cc02-418c-a9ab-8f49534c01c8.wav" description:"Generated filename (null if not extracted)"`
+	ClipDuration          *float64 `json:"duration,omitempty" example:"15" description:"Duration in seconds (null if not extracted)"`
+	ClipSizeBytes         *int64   `json:"size_bytes,omitempty" example:"480078" description:"File size in bytes (null if not extracted)"`
+	SourceEpisodeURL      string   `json:"source_episode_url" example:"https://example.com/episode.mp3" description:"Original audio source"`
+	OriginalStartTime     float64  `json:"original_start_time" example:"30" description:"Original start time in source"`
+	OriginalEndTime       float64  `json:"original_end_time" example:"45" description:"Original end time in source"`
+	AutoLabeled           bool     `json:"auto_labeled" example:"false" description:"Whether this clip was automatically labeled"`
+	LabelConfidence       *float64 `json:"label_confidence,omitempty" example:"0.85" description:"Confidence score (0.0-1.0) if auto-labeled"`
+	LabelMethod           string   `json:"label_method" example:"manual" description:"How it was labeled: manual, peak_detection, whisper, etc."`
+	ErrorMessage          string   `json:"error_message,omitempty" example:"failed to download source audio: HTTP 403" description:"Error details if status is failed"`
+	CreatedAt             string   `json:"created_at" example:"2025-09-25T16:36:45Z" description:"Creation timestamp"`
+	UpdatedAt             string   `json:"updated_at" example:"2025-09-25T16:36:47Z" description:"Last update timestamp"`
 }
 
 // UpdateLabelRequest represents the request to update a clip's label
@@ -52,8 +57,8 @@ type UpdateLabelRequest struct {
 // @Summary Create a new audio clip for ML training
 // @Description Extract a labeled audio segment from a podcast episode for machine learning training datasets.
 // @Description The clip will be automatically converted to 16kHz mono WAV format, padded or cropped to 15 seconds,
-// @Description and stored with the specified label. Processing is asynchronous - the clip status will be "processing"
-// @Description initially and change to "ready" when extraction completes or "failed" if an error occurs.
+// @Description and stored with the specified label. Processing is asynchronous - the clip status will be "queued"
+// @Description initially, then "processing" when a worker picks it up, and finally "ready" when extraction completes or "failed" if an error occurs.
 // @Tags clips
 // @Accept json
 // @Produce json
@@ -76,10 +81,9 @@ func CreateClip(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		// Create the clip
+		// Create the clip (audio URL will be looked up from episode cache)
 		clip, err := deps.ClipService.CreateClip(c.Request.Context(), clips.CreateClipParams{
 			PodcastIndexEpisodeID: req.PodcastIndexEpisodeID,
-			SourceEpisodeURL:      req.SourceEpisodeURL,
 			OriginalStartTime:     req.OriginalStartTime,
 			OriginalEndTime:       req.OriginalEndTime,
 			Label:                 req.Label,
@@ -92,18 +96,23 @@ func CreateClip(deps *types.Dependencies) gin.HandlerFunc {
 
 		// Return accepted status since processing is async
 		c.JSON(http.StatusAccepted, ClipResponse{
-			UUID:              clip.UUID,
-			Label:             clip.Label,
-			Status:            clip.Status,
-			ClipFilename:      clip.ClipFilename,
-			ClipDuration:      clip.ClipDuration,
-			ClipSizeBytes:     clip.ClipSizeBytes,
-			SourceEpisodeURL:  clip.SourceEpisodeURL,
-			OriginalStartTime: clip.OriginalStartTime,
-			OriginalEndTime:   clip.OriginalEndTime,
-			ErrorMessage:      clip.ErrorMessage,
-			CreatedAt:         clip.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:         clip.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			UUID:                  clip.UUID,
+			PodcastIndexEpisodeID: clip.PodcastIndexEpisodeID,
+			Label:                 clip.Label,
+			Status:                clip.Status,
+			Extracted:             clip.Extracted,
+			ClipFilename:          clip.ClipFilename,
+			ClipDuration:          clip.ClipDuration,
+			ClipSizeBytes:         clip.ClipSizeBytes,
+			SourceEpisodeURL:      clip.SourceEpisodeURL,
+			OriginalStartTime:     clip.OriginalStartTime,
+			OriginalEndTime:       clip.OriginalEndTime,
+			AutoLabeled:           clip.AutoLabeled,
+			LabelConfidence:       clip.LabelConfidence,
+			LabelMethod:           clip.LabelMethod,
+			ErrorMessage:          clip.ErrorMessage,
+			CreatedAt:             clip.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:             clip.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		})
 	}
 }
@@ -138,18 +147,23 @@ func GetClip(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, ClipResponse{
-			UUID:              clip.UUID,
-			Label:             clip.Label,
-			Status:            clip.Status,
-			ClipFilename:      clip.ClipFilename,
-			ClipDuration:      clip.ClipDuration,
-			ClipSizeBytes:     clip.ClipSizeBytes,
-			SourceEpisodeURL:  clip.SourceEpisodeURL,
-			OriginalStartTime: clip.OriginalStartTime,
-			OriginalEndTime:   clip.OriginalEndTime,
-			ErrorMessage:      clip.ErrorMessage,
-			CreatedAt:         clip.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:         clip.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			UUID:                  clip.UUID,
+			PodcastIndexEpisodeID: clip.PodcastIndexEpisodeID,
+			Label:                 clip.Label,
+			Status:                clip.Status,
+			Extracted:             clip.Extracted,
+			ClipFilename:          clip.ClipFilename,
+			ClipDuration:          clip.ClipDuration,
+			ClipSizeBytes:         clip.ClipSizeBytes,
+			SourceEpisodeURL:      clip.SourceEpisodeURL,
+			OriginalStartTime:     clip.OriginalStartTime,
+			OriginalEndTime:       clip.OriginalEndTime,
+			AutoLabeled:           clip.AutoLabeled,
+			LabelConfidence:       clip.LabelConfidence,
+			LabelMethod:           clip.LabelMethod,
+			ErrorMessage:          clip.ErrorMessage,
+			CreatedAt:             clip.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:             clip.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		})
 	}
 }
@@ -194,18 +208,23 @@ func UpdateClipLabel(deps *types.Dependencies) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, ClipResponse{
-			UUID:              clip.UUID,
-			Label:             clip.Label,
-			Status:            clip.Status,
-			ClipFilename:      clip.ClipFilename,
-			ClipDuration:      clip.ClipDuration,
-			ClipSizeBytes:     clip.ClipSizeBytes,
-			SourceEpisodeURL:  clip.SourceEpisodeURL,
-			OriginalStartTime: clip.OriginalStartTime,
-			OriginalEndTime:   clip.OriginalEndTime,
-			ErrorMessage:      clip.ErrorMessage,
-			CreatedAt:         clip.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:         clip.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+			UUID:                  clip.UUID,
+			PodcastIndexEpisodeID: clip.PodcastIndexEpisodeID,
+			Label:                 clip.Label,
+			Status:                clip.Status,
+			Extracted:             clip.Extracted,
+			ClipFilename:          clip.ClipFilename,
+			ClipDuration:          clip.ClipDuration,
+			ClipSizeBytes:         clip.ClipSizeBytes,
+			SourceEpisodeURL:      clip.SourceEpisodeURL,
+			OriginalStartTime:     clip.OriginalStartTime,
+			OriginalEndTime:       clip.OriginalEndTime,
+			AutoLabeled:           clip.AutoLabeled,
+			LabelConfidence:       clip.LabelConfidence,
+			LabelMethod:           clip.LabelMethod,
+			ErrorMessage:          clip.ErrorMessage,
+			CreatedAt:             clip.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:             clip.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		})
 	}
 }
@@ -245,7 +264,7 @@ func DeleteClip(deps *types.Dependencies) gin.HandlerFunc {
 // @Tags clips
 // @Produce json
 // @Param label query string false "Filter clips by exact label match (e.g., 'advertisement')"
-// @Param status query string false "Filter by processing status" Enums(processing, ready, failed)
+// @Param status query string false "Filter by processing status" Enums(queued, processing, ready, failed)
 // @Param limit query int false "Maximum number of clips to return (1-1000)" default(100) minimum(1) maximum(1000)
 // @Param offset query int false "Number of clips to skip for pagination" default(0) minimum(0)
 // @Success 200 {array} ClipResponse "List of clips matching the filters"
@@ -277,18 +296,23 @@ func ListClips(deps *types.Dependencies) gin.HandlerFunc {
 		response := make([]ClipResponse, len(clipsList))
 		for i, clip := range clipsList {
 			response[i] = ClipResponse{
-				UUID:              clip.UUID,
-				Label:             clip.Label,
-				Status:            clip.Status,
-				ClipFilename:      clip.ClipFilename,
-				ClipDuration:      clip.ClipDuration,
-				ClipSizeBytes:     clip.ClipSizeBytes,
-				SourceEpisodeURL:  clip.SourceEpisodeURL,
-				OriginalStartTime: clip.OriginalStartTime,
-				OriginalEndTime:   clip.OriginalEndTime,
-				ErrorMessage:      clip.ErrorMessage,
-				CreatedAt:         clip.CreatedAt.Format("2006-01-02T15:04:05Z"),
-				UpdatedAt:         clip.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+				UUID:                  clip.UUID,
+				PodcastIndexEpisodeID: clip.PodcastIndexEpisodeID,
+				Label:                 clip.Label,
+				Status:                clip.Status,
+				Extracted:             clip.Extracted,
+				ClipFilename:          clip.ClipFilename,
+				ClipDuration:          clip.ClipDuration,
+				ClipSizeBytes:         clip.ClipSizeBytes,
+				SourceEpisodeURL:      clip.SourceEpisodeURL,
+				OriginalStartTime:     clip.OriginalStartTime,
+				OriginalEndTime:       clip.OriginalEndTime,
+				AutoLabeled:           clip.AutoLabeled,
+				LabelConfidence:       clip.LabelConfidence,
+				LabelMethod:           clip.LabelMethod,
+				ErrorMessage:          clip.ErrorMessage,
+				CreatedAt:             clip.CreatedAt.Format("2006-01-02T15:04:05Z"),
+				UpdatedAt:             clip.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 			}
 		}
 

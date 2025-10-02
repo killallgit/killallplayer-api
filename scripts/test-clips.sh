@@ -16,16 +16,44 @@ echo -e "${YELLOW}Testing Clips API Endpoints${NC}"
 echo "API URL: $API_URL"
 echo ""
 
+# Step 0: Get a test episode from trending
+echo -e "${GREEN}0. Getting test episode from trending...${NC}"
+TRENDING_RESPONSE=$(curl -s -X POST "$API_URL/api/v1/trending" \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 1}')
+
+FEED_ID=$(echo "$TRENDING_RESPONSE" | jq -r '.[0].id // empty')
+echo "Got podcast feed ID: $FEED_ID"
+
+# Sync episodes for this podcast
+echo "Syncing episodes for podcast..."
+SYNC_RESPONSE=$(curl -s -X POST "$API_URL/api/v1/podcasts/$FEED_ID/episodes/sync")
+echo "Sync response: $SYNC_RESPONSE"
+
+# Get first episode
+sleep 2  # Give sync time to complete
+EPISODES_RESPONSE=$(curl -s -X GET "$API_URL/api/v1/podcasts/$FEED_ID/episodes?limit=1")
+EPISODE_ID=$(echo "$EPISODES_RESPONSE" | jq -r '.[0].podcast_index_episode_id // empty')
+
+if [ -z "$EPISODE_ID" ] || [ "$EPISODE_ID" = "null" ]; then
+  echo -e "${RED}✗ Failed to get episode ID${NC}"
+  echo "Episodes response: $EPISODES_RESPONSE"
+  exit 1
+fi
+
+echo -e "${GREEN}✓ Got test episode ID: $EPISODE_ID${NC}"
+echo ""
+
 # Test 1: Create a clip
 echo -e "${GREEN}1. Creating a new clip...${NC}"
 RESPONSE=$(curl -s -X POST "$API_URL/api/v1/clips" \
   -H "Content-Type: application/json" \
-  -d '{
-    "source_episode_url": "https://op3.dev/e/https://www.buzzsprout.com/1789435/episodes/16042809-the-economics-of-everyday-things-self-checkout.mp3",
-    "start_time": 30,
-    "end_time": 45,
-    "label": "advertisement"
-  }')
+  -d "{
+    \"podcast_index_episode_id\": $EPISODE_ID,
+    \"start_time\": 30,
+    \"end_time\": 45,
+    \"label\": \"advertisement\"
+  }")
 
 echo "Response: $RESPONSE"
 CLIP_UUID=$(echo "$RESPONSE" | jq -r '.uuid // empty')

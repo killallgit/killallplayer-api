@@ -3,6 +3,7 @@ package clips
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -39,36 +40,49 @@ type Service interface {
 
 // CreateClipParams contains parameters for creating a clip
 type CreateClipParams struct {
-	PodcastIndexEpisodeID int64 // Podcast Index Episode ID for fast lookups
-	SourceEpisodeURL      string
+	PodcastIndexEpisodeID int64 // Podcast Index Episode ID for fast lookups (audio URL will be resolved automatically)
 	OriginalStartTime     float64
 	OriginalEndTime       float64
 	Label                 string
+	Approved              bool // Whether clip is approved for extraction (false for analysis results)
 }
 
 // ListClipsFilters contains filters for listing clips
 type ListClipsFilters struct {
-	Label  string
-	Status string
-	Limit  int
-	Offset int
+	EpisodeID *int64 // Optional: filter by episode ID
+	Label     string
+	Status    string
+	Approved  *bool  // Optional: filter by approval status
+	Limit     int
+	Offset    int
 }
 
 // ServiceImpl implements the Service interface
 type ServiceImpl struct {
-	db         *gorm.DB
-	storage    ClipStorage
-	extractor  AudioExtractor
-	jobService jobs.Service
+	db                *gorm.DB
+	storage           ClipStorage
+	extractor         AudioExtractor
+	jobService        jobs.Service
+	episodeService    interface{ GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) }
+	audioCacheService interface{ GetCachedAudio(ctx context.Context, podcastIndexEpisodeID int64) (*models.AudioCache, error) }
 }
 
 // NewService creates a new clips service
-func NewService(db *gorm.DB, storage ClipStorage, extractor AudioExtractor, jobService jobs.Service) Service {
+func NewService(
+	db *gorm.DB,
+	storage ClipStorage,
+	extractor AudioExtractor,
+	jobService jobs.Service,
+	episodeService interface{ GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) },
+	audioCacheService interface{ GetCachedAudio(ctx context.Context, podcastIndexEpisodeID int64) (*models.AudioCache, error) },
+) Service {
 	return &ServiceImpl{
-		db:         db,
-		storage:    storage,
-		extractor:  extractor,
-		jobService: jobService,
+		db:                db,
+		storage:           storage,
+		extractor:         extractor,
+		jobService:        jobService,
+		episodeService:    episodeService,
+		audioCacheService: audioCacheService,
 	}
 }
 
@@ -83,21 +97,61 @@ func (s *ServiceImpl) CreateClip(ctx context.Context, params CreateClipParams) (
 		return nil, fmt.Errorf("label is required")
 	}
 
+	if params.PodcastIndexEpisodeID <= 0 {
+		return nil, fmt.Errorf("podcast_index_episode_id must be positive")
+	}
+
+	// 1. Get episode from service (auto-fetches from Podcast Index API if not in DB)
+	episode, err := s.episodeService.GetEpisodeByPodcastIndexID(ctx, params.PodcastIndexEpisodeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get episode %d: %w", params.PodcastIndexEpisodeID, err)
+	}
+
+	// 2. Validate episode has audio URL
+	if episode.AudioURL == "" {
+		return nil, fmt.Errorf("episode %d has no audio URL", params.PodcastIndexEpisodeID)
+	}
+
+	// 3. Check if we have cached audio (optimization - use local file if available)
+	var sourceURL string
+	if s.audioCacheService != nil {
+		cache, err := s.audioCacheService.GetCachedAudio(ctx, params.PodcastIndexEpisodeID)
+		if err == nil && cache != nil && cache.OriginalPath != "" {
+			// Use cached local file (MUCH faster - no download needed!)
+			sourceURL = cache.OriginalPath
+			log.Printf("[DEBUG] Using cached audio for episode %d: %s", params.PodcastIndexEpisodeID, sourceURL)
+		}
+	}
+
+	// 4. Fall back to episode audio URL if not cached
+	if sourceURL == "" {
+		sourceURL = episode.AudioURL
+		log.Printf("[DEBUG] Using remote audio URL for episode %d: %s", params.PodcastIndexEpisodeID, sourceURL)
+	}
+
 	// Generate unique filename
 	clipID := uuid.New().String()
 	filename := fmt.Sprintf("clip_%s.wav", clipID)
 
-	// Create clip record with queued status (will be processed by job system)
+	// Determine initial status based on approval
+	initialStatus := "detected" // Default for unapproved clips
+	if params.Approved {
+		initialStatus = "queued" // Will be processed by job system
+	}
+
+	// Create clip record
 	clip := &models.Clip{
 		UUID:                  clipID,
 		PodcastIndexEpisodeID: params.PodcastIndexEpisodeID,
-		SourceEpisodeURL:      params.SourceEpisodeURL,
+		SourceEpisodeURL:      sourceURL, // Store the determined source (URL or local path)
 		OriginalStartTime:     params.OriginalStartTime,
 		OriginalEndTime:       params.OriginalEndTime,
 		Label:                 params.Label,
 		ClipFilename:          &filename,
-		Status:                "queued",
-		Extracted:             false, // Will be updated after extraction
+		Status:                initialStatus,
+		Extracted:             false,
+		Approved:              params.Approved,
+		LabelMethod:           "manual", // Default to manual
 		CreatedAt:             time.Now(),
 		UpdatedAt:             time.Now(),
 	}
@@ -107,18 +161,23 @@ func (s *ServiceImpl) CreateClip(ctx context.Context, params CreateClipParams) (
 		return nil, fmt.Errorf("failed to create clip record: %w", err)
 	}
 
-	// Enqueue job for background processing
-	payload := models.JobPayload{
-		"clip_uuid": clipID,
-	}
+	// Only enqueue extraction job for approved clips
+	if params.Approved {
+		payload := models.JobPayload{
+			"clip_uuid": clipID,
+		}
 
-	if _, err := s.jobService.EnqueueJob(ctx, models.JobTypeClipExtraction, payload); err != nil {
-		// Update clip status to failed if we can't enqueue the job
-		s.db.Model(clip).Updates(map[string]interface{}{
-			"status":        "failed",
-			"error_message": fmt.Sprintf("failed to enqueue extraction job: %v", err),
-		})
-		return nil, fmt.Errorf("failed to enqueue clip extraction job: %w", err)
+		if _, err := s.jobService.EnqueueJob(ctx, models.JobTypeClipExtraction, payload); err != nil {
+			// Update clip status to failed if we can't enqueue the job
+			s.db.Model(clip).Updates(map[string]interface{}{
+				"status":        "failed",
+				"error_message": fmt.Sprintf("failed to enqueue extraction job: %v", err),
+			})
+			return nil, fmt.Errorf("failed to enqueue clip extraction job: %w", err)
+		}
+		log.Printf("[DEBUG] Enqueued clip extraction job for %s (approved)", clipID)
+	} else {
+		log.Printf("[DEBUG] Created clip %s with status='detected' (needs approval)", clipID)
 	}
 
 	return clip, nil
@@ -223,11 +282,17 @@ func (s *ServiceImpl) ListClips(ctx context.Context, filters ListClipsFilters) (
 	query := s.db.Model(&models.Clip{})
 
 	// Apply filters
+	if filters.EpisodeID != nil {
+		query = query.Where("podcast_index_episode_id = ?", *filters.EpisodeID)
+	}
 	if filters.Label != "" {
 		query = query.Where("label = ?", filters.Label)
 	}
 	if filters.Status != "" {
 		query = query.Where("status = ?", filters.Status)
+	}
+	if filters.Approved != nil {
+		query = query.Where("approved = ?", *filters.Approved)
 	}
 
 	// Apply pagination

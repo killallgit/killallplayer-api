@@ -119,6 +119,7 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "queued",
                             "processing",
                             "ready",
                             "failed"
@@ -165,7 +166,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Extract a labeled audio segment from a podcast episode for machine learning training datasets.\nThe clip will be automatically converted to 16kHz mono WAV format, padded or cropped to 15 seconds,\nand stored with the specified label. Processing is asynchronous - the clip status will be \"processing\"\ninitially and change to \"ready\" when extraction completes or \"failed\" if an error occurs.",
+                "description": "Extract a labeled audio segment from a podcast episode for machine learning training datasets.\nThe clip will be automatically converted to 16kHz mono WAV format, padded or cropped to 15 seconds,\nand stored with the specified label. Processing is asynchronous - the clip status will be \"queued\"\ninitially, then \"processing\" when a worker picks it up, and finally \"ready\" when extraction completes or \"failed\" if an error occurs.",
                 "consumes": [
                     "application/json"
                 ],
@@ -421,9 +422,117 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/episodes/{id}/analyze": {
+            "post": {
+                "description": "Scans the entire episode audio for volume anomalies (loud sections that may be ads or music) and automatically creates clips from detected spikes. Uses cached audio if available to avoid re-downloading. Created clips are labeled as 'volume_spike' for review.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Analyze episode for volume spikes",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Podcast Index Episode ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Analysis completed successfully with list of created clip UUIDs",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.AnalysisResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid episode ID",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Episode not found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Analysis failed",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/episodes/{id}/clips": {
             "get": {
-                "description": "Retrieve time-based clips for an episode. Clips can be used for auto-skipping commercials or\ncreating ML training datasets. If clips don't exist, analysis will be automatically queued\nand the response will include status:\"processing\". Poll this endpoint until status:\"ok\" to get clips.",
+                "description": "Get all clips created for this episode with optional status and approval filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "List clips for episode",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "queued",
+                            "processing",
+                            "ready",
+                            "failed",
+                            "detected"
+                        ],
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by approval status (true/false)",
+                        "name": "approved",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/episodes.EpisodeClipResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new audio clip from this episode at the specified time range. Manual clips are automatically approved and queued for extraction.",
                 "consumes": [
                     "application/json"
                 ],
@@ -433,39 +542,260 @@ const docTemplate = `{
                 "tags": [
                     "episodes"
                 ],
-                "summary": "Get clips/skip regions for an episode",
+                "summary": "Create clip for episode",
                 "parameters": [
                     {
-                        "minimum": 1,
                         "type": "integer",
-                        "format": "int64",
-                        "description": "Episode's Podcast Index ID",
+                        "description": "Episode ID",
                         "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Clip creation parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/episodes.CreateClipRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Clip created and queued for extraction (approved=true, status=queued)",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.EpisodeClipResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/{id}/clips/{uuid}": {
+            "get": {
+                "description": "Get details of a specific clip for this episode",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Get clip details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Clip UUID",
+                        "name": "uuid",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Clips ready (status:ok)",
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/episodes.ClipsResponse"
-                        }
-                    },
-                    "202": {
-                        "description": "Analysis in progress (status:processing or queued)",
-                        "schema": {
-                            "$ref": "#/definitions/episodes.ClipsResponse"
+                            "$ref": "#/definitions/episodes.EpisodeClipResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid episode ID format",
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a clip and its audio file from this episode",
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Delete clip",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Clip UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted successfully"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/{id}/clips/{uuid}/approve": {
+            "put": {
+                "description": "Mark a clip as approved for extraction. This is used for clips created by analysis (status=detected, approved=false) to trigger audio extraction. Sets approved=true and queues the clip for processing.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Approve clip for extraction",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Clip UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Clip approved and queued for extraction",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.EpisodeClipResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/episodes/{id}/clips/{uuid}/label": {
+            "put": {
+                "description": "Update the classification label for a clip",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "episodes"
+                ],
+                "summary": "Update clip label",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Episode ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Clip UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New label",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/episodes.UpdateLabelRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/episodes.EpisodeClipResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/types.ErrorResponse"
                         }
@@ -1064,6 +1394,10 @@ const docTemplate = `{
             "description": "Complete information about an audio clip",
             "type": "object",
             "properties": {
+                "auto_labeled": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "created_at": {
                     "type": "string",
                     "example": "2025-09-25T16:36:45Z"
@@ -1076,6 +1410,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "failed to download source audio: HTTP 403"
                 },
+                "extracted": {
+                    "type": "boolean",
+                    "example": true
+                },
                 "filename": {
                     "type": "string",
                     "example": "clip_052f3b9b-cc02-418c-a9ab-8f49534c01c8.wav"
@@ -1084,6 +1422,14 @@ const docTemplate = `{
                     "type": "string",
                     "example": "advertisement"
                 },
+                "label_confidence": {
+                    "type": "number",
+                    "example": 0.85
+                },
+                "label_method": {
+                    "type": "string",
+                    "example": "manual"
+                },
                 "original_end_time": {
                     "type": "number",
                     "example": 45
@@ -1091,6 +1437,10 @@ const docTemplate = `{
                 "original_start_time": {
                     "type": "number",
                     "example": 30
+                },
+                "podcast_index_episode_id": {
+                    "type": "integer",
+                    "example": 12345
                 },
                 "size_bytes": {
                     "type": "integer",
@@ -1102,6 +1452,12 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string",
+                    "enum": [
+                        "queued",
+                        "processing",
+                        "ready",
+                        "failed"
+                    ],
                     "example": "ready"
                 },
                 "updated_at": {
@@ -1115,13 +1471,12 @@ const docTemplate = `{
             }
         },
         "clips.CreateClipRequest": {
-            "description": "Request body for creating a new audio clip",
+            "description": "Request body for creating a new audio clip. Audio URL is automatically retrieved from cached episode data. If episode not cached, it will be fetched from Podcast Index API and synced to database.",
             "type": "object",
             "required": [
                 "end_time",
                 "label",
-                "podcast_index_episode_id",
-                "source_episode_url"
+                "podcast_index_episode_id"
             ],
             "properties": {
                 "end_time": {
@@ -1137,10 +1492,6 @@ const docTemplate = `{
                     "type": "integer",
                     "minimum": 1,
                     "example": 12345
-                },
-                "source_episode_url": {
-                    "type": "string",
-                    "example": "https://example.com/episode.mp3"
                 },
                 "start_time": {
                     "type": "number",
@@ -1163,73 +1514,133 @@ const docTemplate = `{
                 }
             }
         },
-        "episodes.ClipResponse": {
-            "description": "Audio clip time range for skipping or ML training",
+        "episodes.AnalysisResponse": {
             "type": "object",
             "properties": {
-                "auto_labeled": {
+                "clip_uuids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "052f3b9b-cc02-418c-a9ab-8f49534c01c8",
+                        "123e4567-e89b-12d3-a456-426614174000"
+                    ]
+                },
+                "clips_created": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "episode_id": {
+                    "type": "integer",
+                    "example": 12345
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Successfully analyzed episode and created 3 clips from volume spikes"
+                }
+            }
+        },
+        "episodes.CreateClipRequest": {
+            "type": "object",
+            "required": [
+                "end_time",
+                "label"
+            ],
+            "properties": {
+                "end_time": {
+                    "type": "number",
+                    "example": 45
+                },
+                "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "advertisement"
+                },
+                "start_time": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 30
+                }
+            }
+        },
+        "episodes.EpisodeClipResponse": {
+            "type": "object",
+            "properties": {
+                "approved": {
                     "type": "boolean",
                     "example": true
                 },
-                "confidence": {
-                    "type": "number",
-                    "example": 0.85
+                "auto_labeled": {
+                    "type": "boolean",
+                    "example": false
                 },
                 "created_at": {
                     "type": "string",
-                    "example": "2025-10-01T12:00:00Z"
+                    "example": "2025-10-02T13:00:00Z"
                 },
-                "end_time": {
+                "duration": {
                     "type": "number",
-                    "example": 45.2
+                    "example": 15
+                },
+                "error_message": {
+                    "type": "string",
+                    "example": ""
                 },
                 "extracted": {
                     "type": "boolean",
                     "example": false
                 },
+                "filename": {
+                    "type": "string",
+                    "example": "clip_a1b2c3d4.wav"
+                },
                 "label": {
                     "type": "string",
                     "example": "advertisement"
                 },
-                "start_time": {
+                "label_confidence": {
                     "type": "number",
-                    "example": 30.5
+                    "example": 0.95
                 },
-                "user_confirmed": {
-                    "type": "boolean",
-                    "example": false
+                "label_method": {
+                    "type": "string",
+                    "enum": [
+                        "manual",
+                        "peak_detection"
+                    ],
+                    "example": "manual"
+                },
+                "original_end_time": {
+                    "type": "number",
+                    "example": 45
+                },
+                "original_start_time": {
+                    "type": "number",
+                    "example": 30
+                },
+                "size_bytes": {
+                    "type": "integer",
+                    "example": 480332
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "detected",
+                        "queued",
+                        "processing",
+                        "ready",
+                        "failed"
+                    ],
+                    "example": "queued"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2025-10-02T13:00:00Z"
                 },
                 "uuid": {
                     "type": "string",
-                    "example": "052f3b9b-cc02-418c-a9ab-8f49534c01c8"
-                }
-            }
-        },
-        "episodes.ClipsResponse": {
-            "description": "Response containing clips for an episode",
-            "type": "object",
-            "properties": {
-                "clips": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/episodes.ClipResponse"
-                    }
-                },
-                "episode_id": {
-                    "type": "integer",
-                    "example": 123
-                },
-                "message": {
-                    "description": "Human-readable message",
-                    "type": "string"
-                },
-                "progress": {
-                    "type": "integer",
-                    "example": 45
-                },
-                "status": {
-                    "description": "One of the Status constants above",
-                    "type": "string"
+                    "example": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
                 }
             }
         },
@@ -1322,6 +1733,19 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "success"
+                }
+            }
+        },
+        "episodes.UpdateLabelRequest": {
+            "type": "object",
+            "required": [
+                "label"
+            ],
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "music"
                 }
             }
         },

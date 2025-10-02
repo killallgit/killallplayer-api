@@ -22,17 +22,37 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// Mock episode service for tests
+type mockEpisodeService struct {
+	audioURL string
+}
+
+func (m *mockEpisodeService) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error) {
+	return &models.Episode{
+		PodcastIndexID: podcastIndexID,
+		AudioURL:       m.audioURL,
+	}, nil
+}
+
+// Mock audio cache service for tests (returns nil - no cache)
+type mockAudioCacheService struct{}
+
+func (m *mockAudioCacheService) GetCachedAudio(ctx context.Context, podcastIndexEpisodeID int64) (*models.AudioCache, error) {
+	return nil, fmt.Errorf("no cache available")
+}
+
 // ClipTestSuite holds all dependencies for clip integration tests
 type ClipTestSuite struct {
-	t            *testing.T
-	db           *gorm.DB
-	jobService   jobs.Service
-	clipService  clips.Service
-	workerPool   *workers.WorkerPool
-	tempDir      string
-	clipsDir     string
-	testAudioURL string
-	cleanupFuncs []func()
+	t                *testing.T
+	db               *gorm.DB
+	jobService       jobs.Service
+	clipService      clips.Service
+	workerPool       *workers.WorkerPool
+	tempDir          string
+	clipsDir         string
+	testAudioURL     string
+	mockEpisodeSvc   *mockEpisodeService
+	cleanupFuncs     []func()
 }
 
 // setupClipTestSuite initializes an isolated test environment
@@ -69,7 +89,11 @@ func setupClipTestSuite(t *testing.T) *ClipTestSuite {
 	storage, err := clips.NewLocalClipStorage(clipsDir)
 	require.NoError(t, err, "Failed to create clip storage")
 
-	clipService := clips.NewService(db, storage, extractor, jobService)
+	// Create mock episode service (will be updated with actual URL after server starts if needed)
+	mockEpisodeSvc := &mockEpisodeService{audioURL: "https://example.com/test.mp3"}
+	mockAudioCacheSvc := &mockAudioCacheService{}
+
+	clipService := clips.NewService(db, storage, extractor, jobService, mockEpisodeSvc, mockAudioCacheSvc)
 
 	// Create worker pool with short poll interval for tests
 	workerPool := workers.NewWorkerPool(jobService, 2, 100*time.Millisecond)
@@ -83,15 +107,17 @@ func setupClipTestSuite(t *testing.T) *ClipTestSuite {
 	err = workerPool.Start(ctx)
 	require.NoError(t, err, "Failed to start worker pool")
 
+	// Create suite with all dependencies
 	suite := &ClipTestSuite{
-		t:            t,
-		db:           db,
-		jobService:   jobService,
-		clipService:  clipService,
-		workerPool:   workerPool,
-		tempDir:      tempDir,
-		clipsDir:     clipsDir,
-		cleanupFuncs: make([]func(), 0),
+		t:              t,
+		db:             db,
+		jobService:     jobService,
+		clipService:    clipService,
+		workerPool:     workerPool,
+		tempDir:        tempDir,
+		clipsDir:       clipsDir,
+		mockEpisodeSvc: mockEpisodeSvc,
+		cleanupFuncs:   make([]func(), 0),
 	}
 
 	// Add cleanup for worker pool
@@ -129,6 +155,8 @@ func (suite *ClipTestSuite) startTestAudioServer() {
 	}))
 
 	suite.testAudioURL = server.URL
+	// Update mock episode service with the test audio URL
+	suite.mockEpisodeSvc.audioURL = server.URL
 	suite.cleanupFuncs = append(suite.cleanupFuncs, server.Close)
 }
 
@@ -165,10 +193,10 @@ func TestClipCreationEnqueuesJob(t *testing.T) {
 
 	// Create a clip
 	params := clips.CreateClipParams{
-		SourceEpisodeURL:  "https://example.com/episode.mp3",
-		OriginalStartTime: 10.0,
-		OriginalEndTime:   25.0,
-		Label:             "test",
+		PodcastIndexEpisodeID: 12345,
+		OriginalStartTime:     10.0,
+		OriginalEndTime:       25.0,
+		Label:                 "test",
 	}
 
 	clip, err := suite.clipService.CreateClip(context.Background(), params)
@@ -201,10 +229,10 @@ func TestEndToEndClipProcessing(t *testing.T) {
 
 	// Create a clip
 	params := clips.CreateClipParams{
-		SourceEpisodeURL:  suite.testAudioURL,
-		OriginalStartTime: 0.5,
-		OriginalEndTime:   3.5,
-		Label:             "speech",
+		PodcastIndexEpisodeID: 12345,
+		OriginalStartTime:     0.5,
+		OriginalEndTime:       3.5,
+		Label:                 "speech",
 	}
 
 	clip, err := suite.clipService.CreateClip(context.Background(), params)
@@ -243,12 +271,12 @@ func TestClipProcessingWithInvalidURL(t *testing.T) {
 	suite := setupClipTestSuite(t)
 	defer suite.cleanup()
 
-	// Create clip with invalid URL
+	// Create clip with episode ID (mock will return URL)
 	params := clips.CreateClipParams{
-		SourceEpisodeURL:  "https://invalid-domain-that-does-not-exist.example/audio.mp3",
-		OriginalStartTime: 0.0,
-		OriginalEndTime:   10.0,
-		Label:             "test",
+		PodcastIndexEpisodeID: 99999, // Different episode ID
+		OriginalStartTime:     0.0,
+		OriginalEndTime:       10.0,
+		Label:                 "test",
 	}
 
 	clip, err := suite.clipService.CreateClip(context.Background(), params)
@@ -287,10 +315,10 @@ func TestConcurrentClipProcessing(t *testing.T) {
 
 	for i := 0; i < numClips; i++ {
 		params := clips.CreateClipParams{
-			SourceEpisodeURL:  suite.testAudioURL,
-			OriginalStartTime: float64(i),
-			OriginalEndTime:   float64(i + 3),
-			Label:             fmt.Sprintf("label-%d", i),
+			PodcastIndexEpisodeID: 12345,
+			OriginalStartTime:     float64(i),
+			OriginalEndTime:       float64(i + 3),
+			Label:                 fmt.Sprintf("label-%d", i),
 		}
 
 		clip, err := suite.clipService.CreateClip(context.Background(), params)
@@ -337,10 +365,10 @@ func TestClipStorageOrganization(t *testing.T) {
 	// Create clips with different labels
 	for _, label := range labels {
 		params := clips.CreateClipParams{
-			SourceEpisodeURL:  suite.testAudioURL,
-			OriginalStartTime: 0.0,
-			OriginalEndTime:   5.0,
-			Label:             label,
+			PodcastIndexEpisodeID: 12345,
+			OriginalStartTime:     0.0,
+			OriginalEndTime:       5.0,
+			Label:                 label,
 		}
 
 		clip, err := suite.clipService.CreateClip(context.Background(), params)
@@ -382,10 +410,10 @@ func TestListClipsWithFilters(t *testing.T) {
 	for label, count := range labels {
 		for i := 0; i < count; i++ {
 			params := clips.CreateClipParams{
-				SourceEpisodeURL:  suite.testAudioURL,
-				OriginalStartTime: float64(i),
-				OriginalEndTime:   float64(i + 3),
-				Label:             label,
+				PodcastIndexEpisodeID: 12345,
+				OriginalStartTime:     float64(i),
+				OriginalEndTime:       float64(i + 3),
+				Label:                 label,
 			}
 			_, err := suite.clipService.CreateClip(context.Background(), params)
 			require.NoError(t, err, "Failed to create clip")

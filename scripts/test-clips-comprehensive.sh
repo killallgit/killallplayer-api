@@ -52,14 +52,39 @@ run_test "Server health check" \
 CLIP_COUNT=$(curl -s $API_URL/api/v1/clips | jq '. | length')
 echo -e "${BLUE}Found $CLIP_COUNT existing clips${NC}"
 
-# 3. Create a new clip
-echo -e "${YELLOW}Creating test audio file...${NC}"
-ffmpeg -f lavfi -i "sine=frequency=880:duration=30" -ar 44100 -ac 2 /tmp/test_comprehensive.mp3 2>/dev/null
-echo -e "${GREEN}✓ Test audio created${NC}\n"
+# 3. Get a test episode from trending
+echo -e "${YELLOW}Getting test episode from trending...${NC}"
+TRENDING_RESPONSE=$(curl -s -X POST $API_URL/api/v1/trending \
+    -H "Content-Type: application/json" \
+    -d '{"limit": 1}')
 
+FEED_ID=$(echo "$TRENDING_RESPONSE" | jq -r '.[0].id // empty')
+if [ -z "$FEED_ID" ] || [ "$FEED_ID" = "null" ]; then
+    echo -e "${RED}✗ Failed to get podcast feed ID${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ Got podcast feed ID: $FEED_ID${NC}"
+
+# Sync episodes for this podcast
+echo -e "${YELLOW}Syncing episodes for podcast...${NC}"
+SYNC_RESPONSE=$(curl -s -X POST $API_URL/api/v1/podcasts/$FEED_ID/episodes/sync)
+sleep 2  # Give sync time to complete
+
+# Get first episode
+EPISODES_RESPONSE=$(curl -s -X GET "$API_URL/api/v1/podcasts/$FEED_ID/episodes?limit=1")
+EPISODE_ID=$(echo "$EPISODES_RESPONSE" | jq -r '.[0].podcast_index_episode_id // empty')
+
+if [ -z "$EPISODE_ID" ] || [ "$EPISODE_ID" = "null" ]; then
+    echo -e "${RED}✗ Failed to get episode ID${NC}"
+    echo "Episodes response: $EPISODES_RESPONSE"
+    exit 1
+fi
+echo -e "${GREEN}✓ Got test episode ID: $EPISODE_ID${NC}\n"
+
+# Create a new clip using the episode ID
 NEW_UUID=$(curl -s -X POST $API_URL/api/v1/clips \
     -H "Content-Type: application/json" \
-    -d '{"source_episode_url":"/tmp/test_comprehensive.mp3","start_time":5,"end_time":20,"label":"test_comprehensive"}' \
+    -d "{\"podcast_index_episode_id\":$EPISODE_ID,\"start_time\":5,\"end_time\":20,\"label\":\"test_comprehensive\"}" \
     | jq -r '.uuid')
 
 run_test "Create new clip" \

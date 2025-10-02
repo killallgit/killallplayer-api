@@ -39,19 +39,7 @@ type ClipsResponse struct {
 }
 
 // GetClips returns clips for an episode, triggering analysis if needed
-// @Summary Get clips/skip regions for an episode
-// @Description Retrieve time-based clips for an episode. Clips can be used for auto-skipping commercials or
-// @Description creating ML training datasets. If clips don't exist, analysis will be automatically queued
-// @Description and the response will include status:"processing". Poll this endpoint until status:"ok" to get clips.
-// @Tags episodes
-// @Accept json
-// @Produce json
-// @Param id path int64 true "Episode's Podcast Index ID" minimum(1)
-// @Success 200 {object} ClipsResponse "Clips ready (status:ok)"
-// @Success 202 {object} ClipsResponse "Analysis in progress (status:processing or queued)"
-// @Failure 400 {object} types.ErrorResponse "Invalid episode ID format"
-// @Failure 500 {object} types.ErrorResponse "Internal server error"
-// @Router /api/v1/episodes/{id}/clips [get]
+// DEPRECATED: This handler is not currently registered. Use ListClipsForEpisode in clips_handlers.go instead.
 func GetClips(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		episodeIDStr := c.Param("id")

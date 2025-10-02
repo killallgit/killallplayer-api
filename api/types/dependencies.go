@@ -5,6 +5,7 @@ import (
 	"github.com/killallgit/player-api/internal/services/audiocache"
 	"github.com/killallgit/player-api/internal/services/auth"
 	"github.com/killallgit/player-api/internal/services/clips"
+	episodeanalysis "github.com/killallgit/player-api/internal/services/episode_analysis"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/jobs"
@@ -15,16 +16,17 @@ import (
 
 // Dependencies holds all the dependencies needed by handlers
 type Dependencies struct {
-	DB                   *database.DB
-	EpisodeService       episodes.EpisodeService
-	EpisodeTransformer   episodes.EpisodeTransformer
-	WaveformService      waveforms.WaveformService
-	TranscriptionService transcription.TranscriptionService
-	AudioCacheService    audiocache.Service
-	ClipService          clips.Service // New clip service for ML training data
-	JobService           jobs.Service
-	WorkerPool           *workers.WorkerPool
-	PodcastClient        PodcastClient
-	ITunesClient         *itunes.Client
-	AuthService          *auth.Service
+	DB                      *database.DB
+	EpisodeService          episodes.EpisodeService
+	EpisodeTransformer      episodes.EpisodeTransformer
+	WaveformService         waveforms.WaveformService
+	TranscriptionService    transcription.TranscriptionService
+	AudioCacheService       audiocache.Service
+	ClipService             clips.Service // New clip service for ML training data
+	EpisodeAnalysisService  episodeanalysis.Service
+	JobService              jobs.Service
+	WorkerPool              *workers.WorkerPool
+	PodcastClient           PodcastClient
+	ITunesClient            *itunes.Client
+	AuthService             *auth.Service
 }

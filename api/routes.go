@@ -12,7 +12,6 @@ import (
 
 	authAPI "github.com/killallgit/player-api/api/auth"
 	"github.com/killallgit/player-api/api/categories"
-	"github.com/killallgit/player-api/api/clips"
 	"github.com/killallgit/player-api/api/episodes"
 	"github.com/killallgit/player-api/api/health"
 	"github.com/killallgit/player-api/api/middleware"
@@ -26,8 +25,10 @@ import (
 	"github.com/killallgit/player-api/api/waveform"
 	_ "github.com/killallgit/player-api/docs"
 	authService "github.com/killallgit/player-api/internal/services/auth"
+	"github.com/killallgit/player-api/internal/services/audiocache"
 	"github.com/killallgit/player-api/internal/services/cache"
 	clipsService "github.com/killallgit/player-api/internal/services/clips"
+	episodeanalysis "github.com/killallgit/player-api/internal/services/episode_analysis"
 	episodesService "github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/jobs"
@@ -236,10 +237,7 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 		}
 		podcasts.RegisterRoutes(podcastGroup, deps, episodesMiddleware)
 
-		// Register clips routes with rate limiting
-		clipsGroup := v1.Group("/clips")
-		clipsGroup.Use(PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst))
-		clips.RegisterRoutes(clipsGroup, deps)
+		// Clips are now handled under /episodes/:id/clips (see episodes routes)
 
 	}
 
@@ -258,6 +256,11 @@ func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
 		initializeEpisodeService(deps, cfg)
 	}
 
+	// Initialize audio cache service (required by waveform, transcription, episode analysis)
+	if deps.AudioCacheService == nil {
+		initializeAudioCacheService(deps)
+	}
+
 	// Initialize waveform service if not set
 	if deps.WaveformService == nil {
 		initializeWaveformService(deps)
@@ -271,6 +274,11 @@ func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
 	// Initialize clip service if not set (depends on JobService)
 	if deps.ClipService == nil {
 		initializeClipService(deps)
+	}
+
+	// Initialize episode analysis service if not set (depends on AudioCacheService, ClipService, EpisodeService)
+	if deps.EpisodeAnalysisService == nil {
+		initializeEpisodeAnalysisService(deps)
 	}
 
 	// Initialize iTunes client if not set
@@ -385,8 +393,69 @@ func initializeClipService(deps *types.Dependencies) {
 		log.Printf("[WARN] JobService not initialized, clip service will not be able to process clips")
 		return
 	}
-	deps.ClipService = clipsService.NewService(deps.DB.DB, storage, extractor, deps.JobService)
+
+	// Ensure episode service and audio cache service are available
+	// Episode service is required to fetch episode URLs, audio cache is optional but improves performance
+	if deps.EpisodeService == nil {
+		log.Printf("[ERROR] EpisodeService not initialized, clip service requires it to fetch episode URLs")
+		return
+	}
+
+	deps.ClipService = clipsService.NewService(
+		deps.DB.DB,
+		storage,
+		extractor,
+		deps.JobService,
+		deps.EpisodeService,
+		deps.AudioCacheService, // May be nil, service will fall back to remote URLs
+	)
 	log.Printf("[INFO] Clip service initialized with storage at %s", clipsBasePath)
+}
+
+// initializeEpisodeAnalysisService creates and configures the episode analysis service
+func initializeAudioCacheService(deps *types.Dependencies) {
+	// Create audio cache repository
+	audioCacheRepo := audiocache.NewRepository(deps.DB.DB)
+	
+	// Get cache directory from config (default to ./audio-cache)
+	cacheDir := viper.GetString("audio_cache.directory")
+	if cacheDir == "" {
+		cacheDir = "./audio-cache"
+	}
+	
+	// Create filesystem storage backend
+	storage, err := audiocache.NewFilesystemStorage(cacheDir)
+	if err != nil {
+		log.Printf("[ERROR] Failed to initialize audio cache storage: %v", err)
+		return
+	}
+	
+	// Create audio cache service
+	deps.AudioCacheService = audiocache.NewService(audioCacheRepo, storage)
+	log.Printf("[INFO] Audio cache service initialized with storage at %s", cacheDir)
+}
+
+func initializeEpisodeAnalysisService(deps *types.Dependencies) {
+	// Ensure required services are available
+	if deps.AudioCacheService == nil {
+		log.Printf("[ERROR] AudioCacheService not initialized, episode analysis service requires it")
+		return
+	}
+	if deps.ClipService == nil {
+		log.Printf("[ERROR] ClipService not initialized, episode analysis service requires it")
+		return
+	}
+	if deps.EpisodeService == nil {
+		log.Printf("[ERROR] EpisodeService not initialized, episode analysis service requires it")
+		return
+	}
+
+	deps.EpisodeAnalysisService = episodeanalysis.NewService(
+		deps.AudioCacheService,
+		deps.ClipService,
+		deps.EpisodeService,
+	)
+	log.Printf("[INFO] Episode analysis service initialized")
 }
 
 // initializeJobService creates and configures the job service

@@ -16,6 +16,9 @@ definitions:
   clips.ClipResponse:
     description: Complete information about an audio clip
     properties:
+      auto_labeled:
+        example: false
+        type: boolean
       created_at:
         example: "2025-09-25T16:36:45Z"
         type: string
@@ -25,11 +28,20 @@ definitions:
       error_message:
         example: 'failed to download source audio: HTTP 403'
         type: string
+      extracted:
+        example: true
+        type: boolean
       filename:
         example: clip_052f3b9b-cc02-418c-a9ab-8f49534c01c8.wav
         type: string
       label:
         example: advertisement
+        type: string
+      label_confidence:
+        example: 0.85
+        type: number
+      label_method:
+        example: manual
         type: string
       original_end_time:
         example: 45
@@ -37,6 +49,9 @@ definitions:
       original_start_time:
         example: 30
         type: number
+      podcast_index_episode_id:
+        example: 12345
+        type: integer
       size_bytes:
         example: 480078
         type: integer
@@ -44,6 +59,11 @@ definitions:
         example: https://example.com/episode.mp3
         type: string
       status:
+        enum:
+        - queued
+        - processing
+        - ready
+        - failed
         example: ready
         type: string
       updated_at:
@@ -54,7 +74,9 @@ definitions:
         type: string
     type: object
   clips.CreateClipRequest:
-    description: Request body for creating a new audio clip
+    description: Request body for creating a new audio clip. Audio URL is automatically
+      retrieved from cached episode data. If episode not cached, it will be fetched
+      from Podcast Index API and synced to database.
     properties:
       end_time:
         example: 45
@@ -67,9 +89,6 @@ definitions:
         example: 12345
         minimum: 1
         type: integer
-      source_episode_url:
-        example: https://example.com/episode.mp3
-        type: string
       start_time:
         example: 30
         minimum: 0
@@ -78,7 +97,6 @@ definitions:
     - end_time
     - label
     - podcast_index_episode_id
-    - source_episode_url
     type: object
   clips.UpdateLabelRequest:
     description: Request body for updating a clip's label
@@ -90,55 +108,100 @@ definitions:
     required:
     - label
     type: object
-  episodes.ClipResponse:
-    description: Audio clip time range for skipping or ML training
+  episodes.AnalysisResponse:
     properties:
-      auto_labeled:
+      clip_uuids:
+        example:
+        - 052f3b9b-cc02-418c-a9ab-8f49534c01c8
+        - 123e4567-e89b-12d3-a456-426614174000
+        items:
+          type: string
+        type: array
+      clips_created:
+        example: 3
+        type: integer
+      episode_id:
+        example: 12345
+        type: integer
+      message:
+        example: Successfully analyzed episode and created 3 clips from volume spikes
+        type: string
+    type: object
+  episodes.CreateClipRequest:
+    properties:
+      end_time:
+        example: 45
+        type: number
+      label:
+        example: advertisement
+        minLength: 1
+        type: string
+      start_time:
+        example: 30
+        minimum: 0
+        type: number
+    required:
+    - end_time
+    - label
+    type: object
+  episodes.EpisodeClipResponse:
+    properties:
+      approved:
         example: true
         type: boolean
-      confidence:
-        example: 0.85
-        type: number
+      auto_labeled:
+        example: false
+        type: boolean
       created_at:
-        example: "2025-10-01T12:00:00Z"
+        example: "2025-10-02T13:00:00Z"
         type: string
-      end_time:
-        example: 45.2
+      duration:
+        example: 15
         type: number
+      error_message:
+        example: ""
+        type: string
       extracted:
         example: false
         type: boolean
+      filename:
+        example: clip_a1b2c3d4.wav
+        type: string
       label:
         example: advertisement
         type: string
-      start_time:
-        example: 30.5
+      label_confidence:
+        example: 0.95
         type: number
-      user_confirmed:
-        example: false
-        type: boolean
-      uuid:
-        example: 052f3b9b-cc02-418c-a9ab-8f49534c01c8
+      label_method:
+        enum:
+        - manual
+        - peak_detection
+        example: manual
         type: string
-    type: object
-  episodes.ClipsResponse:
-    description: Response containing clips for an episode
-    properties:
-      clips:
-        items:
-          $ref: '#/definitions/episodes.ClipResponse'
-        type: array
-      episode_id:
-        example: 123
-        type: integer
-      message:
-        description: Human-readable message
-        type: string
-      progress:
+      original_end_time:
         example: 45
+        type: number
+      original_start_time:
+        example: 30
+        type: number
+      size_bytes:
+        example: 480332
         type: integer
       status:
-        description: One of the Status constants above
+        enum:
+        - detected
+        - queued
+        - processing
+        - ready
+        - failed
+        example: queued
+        type: string
+      updated_at:
+        example: "2025-10-02T13:00:00Z"
+        type: string
+      uuid:
+        example: a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d
         type: string
     type: object
   episodes.Review:
@@ -204,6 +267,15 @@ definitions:
       status:
         example: success
         type: string
+    type: object
+  episodes.UpdateLabelRequest:
+    properties:
+      label:
+        example: music
+        minLength: 1
+        type: string
+    required:
+    - label
     type: object
   models.EpisodeResponse:
     properties:
@@ -698,6 +770,7 @@ paths:
         type: string
       - description: Filter by processing status
         enum:
+        - queued
         - processing
         - ready
         - failed
@@ -739,8 +812,8 @@ paths:
       description: |-
         Extract a labeled audio segment from a podcast episode for machine learning training datasets.
         The clip will be automatically converted to 16kHz mono WAV format, padded or cropped to 15 seconds,
-        and stored with the specified label. Processing is asynchronous - the clip status will be "processing"
-        initially and change to "ready" when extraction completes or "failed" if an error occurs.
+        and stored with the specified label. Processing is asynchronous - the clip status will be "queued"
+        initially, then "processing" when a worker picks it up, and finally "ready" when extraction completes or "failed" if an error occurs.
       parameters:
       - description: Audio clip extraction parameters with source URL and time range
           in seconds
@@ -925,19 +998,15 @@ paths:
       summary: Get episode details by Podcast Index ID
       tags:
       - episodes
-  /api/v1/episodes/{id}/clips:
-    get:
-      consumes:
-      - application/json
-      description: |-
-        Retrieve time-based clips for an episode. Clips can be used for auto-skipping commercials or
-        creating ML training datasets. If clips don't exist, analysis will be automatically queued
-        and the response will include status:"processing". Poll this endpoint until status:"ok" to get clips.
+  /api/v1/episodes/{id}/analyze:
+    post:
+      description: Scans the entire episode audio for volume anomalies (loud sections
+        that may be ads or music) and automatically creates clips from detected spikes.
+        Uses cached audio if available to avoid re-downloading. Created clips are
+        labeled as 'volume_spike' for review.
       parameters:
-      - description: Episode's Podcast Index ID
-        format: int64
+      - description: Podcast Index Episode ID
         in: path
-        minimum: 1
         name: id
         required: true
         type: integer
@@ -945,22 +1014,250 @@ paths:
       - application/json
       responses:
         "200":
-          description: Clips ready (status:ok)
+          description: Analysis completed successfully with list of created clip UUIDs
           schema:
-            $ref: '#/definitions/episodes.ClipsResponse'
-        "202":
-          description: Analysis in progress (status:processing or queued)
-          schema:
-            $ref: '#/definitions/episodes.ClipsResponse'
+            $ref: '#/definitions/episodes.AnalysisResponse'
         "400":
-          description: Invalid episode ID format
+          description: Invalid episode ID
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "404":
+          description: Episode not found
           schema:
             $ref: '#/definitions/types.ErrorResponse'
         "500":
-          description: Internal server error
+          description: Analysis failed
           schema:
             $ref: '#/definitions/types.ErrorResponse'
-      summary: Get clips/skip regions for an episode
+      summary: Analyze episode for volume spikes
+      tags:
+      - episodes
+  /api/v1/episodes/{id}/clips:
+    get:
+      description: Get all clips created for this episode with optional status and
+        approval filters
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Filter by status
+        enum:
+        - queued
+        - processing
+        - ready
+        - failed
+        - detected
+        in: query
+        name: status
+        type: string
+      - description: Filter by approval status (true/false)
+        in: query
+        name: approved
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/episodes.EpisodeClipResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: List clips for episode
+      tags:
+      - episodes
+    post:
+      consumes:
+      - application/json
+      description: Create a new audio clip from this episode at the specified time
+        range. Manual clips are automatically approved and queued for extraction.
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Clip creation parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/episodes.CreateClipRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Clip created and queued for extraction (approved=true, status=queued)
+          schema:
+            $ref: '#/definitions/episodes.EpisodeClipResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Create clip for episode
+      tags:
+      - episodes
+  /api/v1/episodes/{id}/clips/{uuid}:
+    delete:
+      description: Delete a clip and its audio file from this episode
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Clip UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Deleted successfully
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Delete clip
+      tags:
+      - episodes
+    get:
+      description: Get details of a specific clip for this episode
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Clip UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/episodes.EpisodeClipResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Get clip details
+      tags:
+      - episodes
+  /api/v1/episodes/{id}/clips/{uuid}/approve:
+    put:
+      description: Mark a clip as approved for extraction. This is used for clips
+        created by analysis (status=detected, approved=false) to trigger audio extraction.
+        Sets approved=true and queues the clip for processing.
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Clip UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Clip approved and queued for extraction
+          schema:
+            $ref: '#/definitions/episodes.EpisodeClipResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Approve clip for extraction
+      tags:
+      - episodes
+  /api/v1/episodes/{id}/clips/{uuid}/label:
+    put:
+      consumes:
+      - application/json
+      description: Update the classification label for a clip
+      parameters:
+      - description: Episode ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Clip UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: New label
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/episodes.UpdateLabelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/episodes.EpisodeClipResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/types.ErrorResponse'
+      summary: Update clip label
       tags:
       - episodes
   /api/v1/episodes/{id}/reviews:
