@@ -10,27 +10,22 @@ import (
 	"github.com/killallgit/player-api/internal/models"
 )
 
-// Default configuration values
 const (
 	DefaultMaxRetries = 3
 	DefaultPriority   = 0
 )
 
-// service implements the Service interface
 type service struct {
 	repo Repository
 }
 
-// NewService creates a new job service
 func NewService(repo Repository) Service {
 	return &service{
 		repo: repo,
 	}
 }
 
-// EnqueueJob creates and enqueues a new job
 func (s *service) EnqueueJob(ctx context.Context, jobType models.JobType, payload models.JobPayload, opts ...JobOption) (*models.Job, error) {
-	// Apply options
 	cfg := &jobConfig{
 		Priority:   DefaultPriority,
 		MaxRetries: DefaultMaxRetries,
@@ -39,7 +34,6 @@ func (s *service) EnqueueJob(ctx context.Context, jobType models.JobType, payloa
 		opt(cfg)
 	}
 
-	// Create the job
 	job := &models.Job{
 		Type:       jobType,
 		Status:     models.JobStatusPending,
@@ -49,7 +43,6 @@ func (s *service) EnqueueJob(ctx context.Context, jobType models.JobType, payloa
 		CreatedBy:  cfg.CreatedBy,
 	}
 
-	// Save to repository
 	if err := s.repo.CreateJob(ctx, job); err != nil {
 		return nil, fmt.Errorf("creating job: %w", err)
 	}
@@ -59,9 +52,7 @@ func (s *service) EnqueueJob(ctx context.Context, jobType models.JobType, payloa
 	return job, nil
 }
 
-// EnqueueUniqueJob creates a job only if a similar one doesn't already exist
 func (s *service) EnqueueUniqueJob(ctx context.Context, jobType models.JobType, payload models.JobPayload, uniqueKey string, opts ...JobOption) (*models.Job, error) {
-	// Check if a similar job already exists
 	uniqueValue, ok := payload[uniqueKey]
 	if !ok {
 		return nil, fmt.Errorf("unique key %s not found in payload", uniqueKey)
@@ -69,7 +60,6 @@ func (s *service) EnqueueUniqueJob(ctx context.Context, jobType models.JobType, 
 
 	existingJob, err := s.repo.GetJobByTypeAndPayload(ctx, jobType, uniqueKey, fmt.Sprintf("%v", uniqueValue))
 	if err == nil && existingJob != nil {
-		// Check if the existing job is in a terminal state
 		if !existingJob.IsTerminal() {
 			log.Printf("[DEBUG] Job already exists for %s with %s=%v (ID: %d, Status: %s)",
 				jobType, uniqueKey, uniqueValue, existingJob.ID, existingJob.Status)
@@ -77,11 +67,9 @@ func (s *service) EnqueueUniqueJob(ctx context.Context, jobType models.JobType, 
 		}
 	}
 
-	// No existing job or existing job is terminal, create a new one
 	return s.EnqueueJob(ctx, jobType, payload, opts...)
 }
 
-// GetJob retrieves a job by ID
 func (s *service) GetJob(ctx context.Context, jobID uint) (*models.Job, error) {
 	job, err := s.repo.GetJob(ctx, jobID)
 	if err != nil {
@@ -93,7 +81,6 @@ func (s *service) GetJob(ctx context.Context, jobID uint) (*models.Job, error) {
 	return job, nil
 }
 
-// GetJobStatus retrieves just the status of a job
 func (s *service) GetJobStatus(ctx context.Context, jobID uint) (models.JobStatus, error) {
 	job, err := s.GetJob(ctx, jobID)
 	if err != nil {
@@ -102,7 +89,6 @@ func (s *service) GetJobStatus(ctx context.Context, jobID uint) (models.JobStatu
 	return job.Status, nil
 }
 
-// GetJobForWaveform finds a waveform generation job for an episode
 func (s *service) GetJobForWaveform(ctx context.Context, podcastIndexEpisodeID int64) (*models.Job, error) {
 	job, err := s.repo.GetJobByTypeAndPayload(ctx, models.JobTypeWaveformGeneration, "episode_id", fmt.Sprintf("%d", podcastIndexEpisodeID))
 	if err != nil {
@@ -114,7 +100,6 @@ func (s *service) GetJobForWaveform(ctx context.Context, podcastIndexEpisodeID i
 	return job, nil
 }
 
-// GetJobForTranscription finds a transcription generation job for an episode
 func (s *service) GetJobForTranscription(ctx context.Context, podcastIndexEpisodeID int64) (*models.Job, error) {
 	job, err := s.repo.GetJobByTypeAndPayload(ctx, models.JobTypeTranscriptionGeneration, "episode_id", fmt.Sprintf("%d", podcastIndexEpisodeID))
 	if err != nil {
@@ -126,7 +111,6 @@ func (s *service) GetJobForTranscription(ctx context.Context, podcastIndexEpisod
 	return job, nil
 }
 
-// ClaimNextJob claims the next available job for a worker
 func (s *service) ClaimNextJob(ctx context.Context, workerID string, jobTypes []models.JobType) (*models.Job, error) {
 	job, err := s.repo.ClaimNextJob(ctx, workerID, jobTypes)
 	if err != nil {
@@ -141,7 +125,6 @@ func (s *service) ClaimNextJob(ctx context.Context, workerID string, jobTypes []
 	return job, nil
 }
 
-// UpdateProgress updates the progress of a job
 func (s *service) UpdateProgress(ctx context.Context, jobID uint, progress int) error {
 	if err := s.repo.UpdateJobProgress(ctx, jobID, progress); err != nil {
 		if errors.Is(err, ErrJobNotFound) {
@@ -157,7 +140,6 @@ func (s *service) UpdateProgress(ctx context.Context, jobID uint, progress int) 
 	return nil
 }
 
-// CompleteJob marks a job as completed
 func (s *service) CompleteJob(ctx context.Context, jobID uint, result models.JobResult) error {
 	if err := s.repo.CompleteJob(ctx, jobID, result); err != nil {
 		if errors.Is(err, ErrJobNotFound) {
@@ -171,7 +153,6 @@ func (s *service) CompleteJob(ctx context.Context, jobID uint, result models.Job
 	return nil
 }
 
-// FailJob marks a job as failed
 func (s *service) FailJob(ctx context.Context, jobID uint, err error) error {
 	errorMsg := err.Error()
 
@@ -193,7 +174,6 @@ func (s *service) FailJob(ctx context.Context, jobID uint, err error) error {
 	return nil
 }
 
-// ReleaseJob releases a job back to pending status
 func (s *service) ReleaseJob(ctx context.Context, jobID uint) error {
 	if err := s.repo.ReleaseJob(ctx, jobID); err != nil {
 		if errors.Is(err, ErrJobNotFound) {
@@ -207,7 +187,6 @@ func (s *service) ReleaseJob(ctx context.Context, jobID uint) error {
 	return nil
 }
 
-// FailJobWithDetails marks a job as failed with detailed error information
 func (s *service) FailJobWithDetails(ctx context.Context, jobID uint, errorType models.JobErrorType, errorCode, errorMsg, errorDetails string) error {
 	if err := s.repo.FailJobWithDetails(ctx, jobID, errorType, errorCode, errorMsg, errorDetails); err != nil {
 		if errors.Is(err, ErrJobNotFound) {
@@ -229,9 +208,7 @@ func (s *service) FailJobWithDetails(ctx context.Context, jobID uint, errorType 
 	return nil
 }
 
-// RetryFailedJob manually retries a failed job by resetting it to pending status
 func (s *service) RetryFailedJob(ctx context.Context, jobID uint) (*models.Job, error) {
-	// Get the current job to check its state
 	job, err := s.repo.GetJob(ctx, jobID)
 	if err != nil {
 		if errors.Is(err, ErrJobNotFound) {
@@ -265,7 +242,6 @@ func (s *service) RetryFailedJob(ctx context.Context, jobID uint) (*models.Job, 
 	return updatedJob, nil
 }
 
-// CleanupOldJobs removes old completed/failed jobs
 func (s *service) CleanupOldJobs(ctx context.Context, retentionDays int) (int64, error) {
 	if retentionDays <= 0 {
 		return 0, fmt.Errorf("retention days must be positive")
@@ -285,7 +261,6 @@ func (s *service) CleanupOldJobs(ctx context.Context, retentionDays int) (int64,
 	return deleted, nil
 }
 
-// DeletePermanentlyFailedJob deletes a permanently failed job by ID
 func (s *service) DeletePermanentlyFailedJob(ctx context.Context, jobID uint) error {
 	return s.repo.DeletePermanentlyFailedJob(ctx, jobID)
 }

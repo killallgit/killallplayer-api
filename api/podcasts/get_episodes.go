@@ -40,7 +40,26 @@ func GetEpisodesForPodcast(deps *types.Dependencies) gin.HandlerFunc {
 			max = 20
 		}
 
-		// Fetch episodes from API (cache middleware will handle caching)
+		// Try to get episodes from cache/database first (more efficient)
+		dbEpisodes, _, dbErr := deps.EpisodeService.GetEpisodesByPodcastID(c.Request.Context(), uint(podcastID), 0, max)
+
+		// If we have episodes in the database, use them
+		if dbErr == nil && len(dbEpisodes) > 0 {
+			log.Printf("[DEBUG] Cache/DB HIT: Found %d episodes for podcast %d", len(dbEpisodes), podcastID)
+			episodes := types.FromModelEpisodeList(dbEpisodes)
+			c.JSON(http.StatusOK, types.EpisodesResponse{
+				BaseResponse: types.BaseResponse{
+					Status:  types.StatusOK,
+					Message: fmt.Sprintf("Fetched %d episodes for podcast", len(episodes)),
+				},
+				Episodes: episodes,
+				Count:    len(episodes),
+			})
+			return
+		}
+
+		// No episodes in cache/DB - fetch from API and sync
+		log.Printf("[DEBUG] Cache/DB MISS: Fetching episodes for podcast %d from API", podcastID)
 		apiResponse, err := deps.EpisodeService.FetchAndSyncEpisodes(c.Request.Context(), podcastID, max)
 		if err != nil {
 			log.Printf("[ERROR] Failed to fetch episodes for podcast %d: %v", podcastID, err)

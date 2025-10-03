@@ -11,13 +11,11 @@ import (
 	"github.com/killallgit/player-api/internal/services/jobs"
 )
 
-// JobProcessor defines the interface for processing different job types
 type JobProcessor interface {
 	ProcessJob(ctx context.Context, job *models.Job) error
 	CanProcess(jobType models.JobType) bool
 }
 
-// Worker represents a background worker that processes jobs
 type Worker struct {
 	id           string
 	jobService   jobs.Service
@@ -27,7 +25,6 @@ type Worker struct {
 	pollInterval time.Duration
 }
 
-// NewWorker creates a new worker instance
 func NewWorker(id string, jobService jobs.Service, pollInterval time.Duration) *Worker {
 	return &Worker{
 		id:           id,
@@ -38,24 +35,20 @@ func NewWorker(id string, jobService jobs.Service, pollInterval time.Duration) *
 	}
 }
 
-// RegisterProcessor registers a job processor
 func (w *Worker) RegisterProcessor(processor JobProcessor) {
 	w.processors = append(w.processors, processor)
 }
 
-// Start starts the worker in a goroutine
 func (w *Worker) Start(ctx context.Context) {
 	w.wg.Add(1)
 	go w.run(ctx)
 }
 
-// Stop stops the worker gracefully
 func (w *Worker) Stop() {
 	close(w.stopChan)
 	w.wg.Wait()
 }
 
-// run is the main worker loop
 func (w *Worker) run(ctx context.Context) {
 	defer w.wg.Done()
 
@@ -79,13 +72,10 @@ func (w *Worker) run(ctx context.Context) {
 	}
 }
 
-// processNextJob claims and processes the next available job
 func (w *Worker) processNextJob(ctx context.Context) error {
-	// Get supported job types from processors
 	var supportedTypes []models.JobType
 	typeMap := make(map[models.JobType]bool)
 
-	// Collect all unique job types from all processors
 	allJobTypes := []models.JobType{
 		models.JobTypeWaveformGeneration,
 		models.JobTypeTranscriptionGeneration,
@@ -107,20 +97,17 @@ func (w *Worker) processNextJob(ctx context.Context) error {
 		return fmt.Errorf("no job processors registered")
 	}
 
-	// Claim next job
 	job, err := w.jobService.ClaimNextJob(ctx, w.id, supportedTypes)
 	if err != nil {
 		// No jobs available is not an error
 		return nil
 	}
 	if job == nil {
-		// No jobs available
 		return nil
 	}
 
 	log.Printf("Worker %s claimed job %d (type: %s)", w.id, job.ID, job.Type)
 
-	// Find appropriate processor
 	var processor JobProcessor
 	for _, p := range w.processors {
 		if p.CanProcess(job.Type) {
@@ -133,18 +120,14 @@ func (w *Worker) processNextJob(ctx context.Context) error {
 		return fmt.Errorf("no processor found for job type %s", job.Type)
 	}
 
-	// Process the job
 	err = processor.ProcessJob(ctx, job)
 	if err != nil {
-		// Check if error is a structured error from waveform processor
 		if structuredErr, ok := err.(*models.StructuredJobError); ok {
-			// Use enhanced FailJob with error details
 			failErr := w.jobService.FailJobWithDetails(ctx, job.ID, structuredErr.Type, structuredErr.Code, structuredErr.Message, structuredErr.Details)
 			if failErr != nil {
 				log.Printf("Worker %s: failed to mark job %d as failed: %v", w.id, job.ID, failErr)
 			}
 		} else {
-			// Use standard FailJob for unstructured errors
 			failErr := w.jobService.FailJob(ctx, job.ID, err)
 			if failErr != nil {
 				log.Printf("Worker %s: failed to mark job %d as failed: %v", w.id, job.ID, failErr)
@@ -157,7 +140,6 @@ func (w *Worker) processNextJob(ctx context.Context) error {
 	return nil
 }
 
-// WorkerPool manages multiple workers
 type WorkerPool struct {
 	workers    []*Worker
 	jobService jobs.Service
@@ -165,14 +147,12 @@ type WorkerPool struct {
 	started    bool
 }
 
-// NewWorkerPool creates a new worker pool
 func NewWorkerPool(jobService jobs.Service, workerCount int, pollInterval time.Duration) *WorkerPool {
 	pool := &WorkerPool{
 		jobService: jobService,
 		workers:    make([]*Worker, workerCount),
 	}
 
-	// Create workers
 	for i := 0; i < workerCount; i++ {
 		workerID := fmt.Sprintf("worker-%d", i+1)
 		pool.workers[i] = NewWorker(workerID, jobService, pollInterval)
@@ -181,7 +161,6 @@ func NewWorkerPool(jobService jobs.Service, workerCount int, pollInterval time.D
 	return pool
 }
 
-// RegisterProcessor registers a processor with all workers
 func (p *WorkerPool) RegisterProcessor(processor JobProcessor) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -191,7 +170,6 @@ func (p *WorkerPool) RegisterProcessor(processor JobProcessor) {
 	}
 }
 
-// Start starts all workers
 func (p *WorkerPool) Start(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -210,7 +188,6 @@ func (p *WorkerPool) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops all workers gracefully
 func (p *WorkerPool) Stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()

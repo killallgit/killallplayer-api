@@ -16,17 +16,17 @@ import (
 
 // Dependencies holds all the dependencies needed by handlers
 type Dependencies struct {
-	DB                      *database.DB
-	EpisodeService          episodes.EpisodeService
-	EpisodeTransformer      episodes.EpisodeTransformer
-	WaveformService         waveforms.WaveformService
-	TranscriptionService    transcription.TranscriptionService
-	AudioCacheService       audiocache.Service
-	ClipService             clips.Service // New clip service for ML training data
-	EpisodeAnalysisService  episodeanalysis.Service
-	JobService              jobs.Service
-	WorkerPool              *workers.WorkerPool
-	PodcastClient           PodcastClient
-	ITunesClient            *itunes.Client
-	AuthService             *auth.Service
+	DB                     *database.DB
+	EpisodeService         episodes.EpisodeService
+	EpisodeTransformer     episodes.EpisodeTransformer
+	WaveformService        waveforms.WaveformService
+	TranscriptionService   transcription.TranscriptionService
+	AudioCacheService      audiocache.Service
+	ClipService            clips.Service // New clip service for ML training data
+	EpisodeAnalysisService episodeanalysis.Service
+	JobService             jobs.Service
+	WorkerPool             *workers.WorkerPool
+	PodcastClient          PodcastClient
+	ITunesClient           *itunes.Client
+	AuthService            *auth.Service
 }

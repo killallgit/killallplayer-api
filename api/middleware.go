@@ -15,7 +15,6 @@ type clientLimiter struct {
 	lastSeen time.Time
 }
 
-// CORS handles CORS headers
 func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -32,15 +31,12 @@ func CORS() gin.HandlerFunc {
 	}
 }
 
-// RequestSizeLimit limits request body size to 1MB
 func RequestSizeLimit() gin.HandlerFunc {
-	return RequestSizeLimitWithSize(1024 * 1024) // 1MB default
+	return RequestSizeLimitWithSize(1024 * 1024)
 }
 
-// RequestSizeLimitWithSize limits request body size to specified bytes
 func RequestSizeLimitWithSize(maxBytes int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Only limit body size for methods that have a body
 		if c.Request.Method == http.MethodPost ||
 			c.Request.Method == http.MethodPut ||
 			c.Request.Method == http.MethodPatch {
@@ -50,18 +46,14 @@ func RequestSizeLimitWithSize(maxBytes int64) gin.HandlerFunc {
 	}
 }
 
-// PerClientRateLimit creates a per-client rate limiting middleware
 func PerClientRateLimit(rateLimiters *sync.Map, cleanupStop chan struct{}, cleanupInitialized *sync.Once, rps int, burst int) gin.HandlerFunc {
-	// Start cleanup goroutine only once
 	cleanupInitialized.Do(func() {
 		go cleanupOldRateLimiters(rateLimiters, cleanupStop)
 	})
 
 	return func(c *gin.Context) {
-		// Get client identifier (IP address)
 		clientIP := c.ClientIP()
 
-		// Load or create rate limiter for this client
 		limiterInterface, _ := rateLimiters.LoadOrStore(clientIP, &clientLimiter{
 			limiter:  rate.NewLimiter(rate.Every(time.Second/time.Duration(rps)), burst),
 			lastSeen: time.Now(),
@@ -70,7 +62,6 @@ func PerClientRateLimit(rateLimiters *sync.Map, cleanupStop chan struct{}, clean
 		cl := limiterInterface.(*clientLimiter)
 		cl.lastSeen = time.Now()
 
-		// Check rate limit
 		if !cl.limiter.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": "Rate limit exceeded. Please slow down your requests.",
@@ -82,7 +73,6 @@ func PerClientRateLimit(rateLimiters *sync.Map, cleanupStop chan struct{}, clean
 	}
 }
 
-// cleanupOldRateLimiters removes rate limiters that haven't been used for 10 minutes
 func cleanupOldRateLimiters(rateLimiters *sync.Map, cleanupStop chan struct{}) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()

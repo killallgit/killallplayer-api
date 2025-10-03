@@ -53,7 +53,6 @@ type UpdateLabelRequest struct {
 	Label string `json:"label" binding:"required,min=1" example:"music" description:"New label for the clip"`
 }
 
-// CreateClip handles clip creation
 // @Summary Create a new audio clip for ML training
 // @Description Extract a labeled audio segment from a podcast episode for machine learning training datasets.
 // @Description The clip will be automatically converted to 16kHz mono WAV format, padded or cropped to 15 seconds,
@@ -117,7 +116,6 @@ func CreateClip(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// GetClip retrieves a specific clip
 // @Summary Get clip details by UUID
 // @Description Retrieve detailed information about a specific clip including its processing status,
 // @Description audio properties, and label. Check the 'status' field to determine if the clip is ready for use.
@@ -168,7 +166,6 @@ func GetClip(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// UpdateClipLabel updates a clip's label
 // @Summary Update a clip's label for re-categorization
 // @Description Change the label of an existing clip to reorganize training datasets.
 // @Description This operation moves the clip file to a new label directory in storage.
@@ -229,7 +226,6 @@ func UpdateClipLabel(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// DeleteClip deletes a clip
 // @Summary Delete a clip and its audio file
 // @Description Permanently delete a clip from the database and remove its associated audio file from storage.
 // @Description This operation cannot be undone. If the clip is already deleted, returns success (idempotent).
@@ -256,7 +252,6 @@ func DeleteClip(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// ListClips lists clips with optional filters
 // @Summary List clips with optional filtering
 // @Description Retrieve a paginated list of clips with optional filtering by label and processing status.
 // @Description Results are ordered by creation time (newest first). Use this endpoint to monitor clip processing
@@ -320,7 +315,6 @@ func ListClips(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// ExportDataset exports all clips as a dataset
 // @Summary Export ML training dataset as ZIP
 // @Description Export all clips with status "ready" as a ZIP archive for machine learning training.
 // @Description The archive contains audio files organized by label directories and a JSONL manifest file

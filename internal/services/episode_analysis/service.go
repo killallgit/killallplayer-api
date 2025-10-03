@@ -18,10 +18,10 @@ type Service interface {
 }
 
 type serviceImpl struct {
-	audioCache      audiocache.Service
-	clipService     clips.Service
-	episodeService  episodes.EpisodeService
-	analyzer        *VolumeAnalyzer
+	audioCache     audiocache.Service
+	clipService    clips.Service
+	episodeService episodes.EpisodeService
+	analyzer       *VolumeAnalyzer
 }
 
 // NewService creates a new episode analysis service

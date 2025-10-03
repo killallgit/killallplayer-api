@@ -43,7 +43,6 @@ type UpdateLabelRequest struct {
 	Label string `json:"label" binding:"required,min=1" example:"music"`
 }
 
-// CreateClipForEpisode creates a new clip for the specified episode
 // @Summary Create clip for episode
 // @Description Create a new audio clip from this episode at the specified time range. Manual clips are automatically approved and queued for extraction.
 // @Tags episodes
@@ -95,7 +94,6 @@ func CreateClipForEpisode(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// ListClipsForEpisode lists all clips for the specified episode
 // @Summary List clips for episode
 // @Description Get all clips created for this episode with optional status and approval filters
 // @Tags episodes
@@ -151,7 +149,6 @@ func ListClipsForEpisode(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// GetClipForEpisode retrieves a specific clip for the episode
 // @Summary Get clip details
 // @Description Get details of a specific clip for this episode
 // @Tags episodes
@@ -199,7 +196,6 @@ func GetClipForEpisode(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// UpdateClipLabel updates a clip's label
 // @Summary Update clip label
 // @Description Update the classification label for a clip
 // @Tags episodes
@@ -263,7 +259,6 @@ func UpdateClipLabel(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// DeleteClipFromEpisode deletes a clip
 // @Summary Delete clip
 // @Description Delete a clip and its audio file from this episode
 // @Tags episodes
@@ -318,7 +313,6 @@ func DeleteClipFromEpisode(deps *types.Dependencies) gin.HandlerFunc {
 	}
 }
 
-// ApproveClip marks a clip as approved for extraction
 // @Summary Approve clip for extraction
 // @Description Mark a clip as approved for extraction. This is used for clips created by analysis (status=detected, approved=false) to trigger audio extraction. Sets approved=true and queues the clip for processing.
 // @Tags episodes

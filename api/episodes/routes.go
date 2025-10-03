@@ -17,10 +17,10 @@ func RegisterRoutes(router *gin.RouterGroup, deps *types.Dependencies) {
 	router.POST("/:id/analyze", AnalyzeVolumeSpikes(deps))
 
 	// Clip management endpoints (scoped to episode)
-	router.POST("/:id/clips", CreateClipForEpisode(deps))            // Create clip for this episode
-	router.GET("/:id/clips", ListClipsForEpisode(deps))              // List all clips for this episode
-	router.GET("/:id/clips/:uuid", GetClipForEpisode(deps))          // Get specific clip
-	router.PUT("/:id/clips/:uuid/label", UpdateClipLabel(deps))      // Update clip label
-	router.PUT("/:id/clips/:uuid/approve", ApproveClip(deps))        // Approve clip for extraction
-	router.DELETE("/:id/clips/:uuid", DeleteClipFromEpisode(deps))   // Delete clip
+	router.POST("/:id/clips", CreateClipForEpisode(deps))          // Create clip for this episode
+	router.GET("/:id/clips", ListClipsForEpisode(deps))            // List all clips for this episode
+	router.GET("/:id/clips/:uuid", GetClipForEpisode(deps))        // Get specific clip
+	router.PUT("/:id/clips/:uuid/label", UpdateClipLabel(deps))    // Update clip label
+	router.PUT("/:id/clips/:uuid/approve", ApproveClip(deps))      // Approve clip for extraction
+	router.DELETE("/:id/clips/:uuid", DeleteClipFromEpisode(deps)) // Delete clip
 }

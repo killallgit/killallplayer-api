@@ -13,7 +13,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// ClipExtractionProcessor processes clip extraction jobs
 type ClipExtractionProcessor struct {
 	jobService jobs.Service
 	db         *gorm.DB
@@ -21,7 +20,6 @@ type ClipExtractionProcessor struct {
 	storage    clips.ClipStorage
 }
 
-// NewClipExtractionProcessor creates a new clip extraction processor
 func NewClipExtractionProcessor(
 	jobService jobs.Service,
 	db *gorm.DB,
@@ -36,12 +34,10 @@ func NewClipExtractionProcessor(
 	}
 }
 
-// CanProcess returns true if this processor can handle the job type
 func (p *ClipExtractionProcessor) CanProcess(jobType models.JobType) bool {
 	return jobType == models.JobTypeClipExtraction
 }
 
-// ProcessJob processes a clip extraction job
 func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Job) error {
 	if !p.CanProcess(job.Type) {
 		return fmt.Errorf("unsupported job type: %s", job.Type)
@@ -49,7 +45,6 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 
 	log.Printf("[DEBUG] Processing clip extraction job %d", job.ID)
 
-	// Parse job payload to get clip UUID
 	clipUUID, err := p.parseClipUUID(job.Payload)
 	if err != nil {
 		return models.NewSystemError(
@@ -60,12 +55,10 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		)
 	}
 
-	// Update progress: Starting
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 5); err != nil {
 		log.Printf("[WARN] Failed to update job progress: %v", err)
 	}
 
-	// Get clip from database
 	var clip models.Clip
 	if err := p.db.Where("uuid = ?", clipUUID).First(&clip).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -84,7 +77,6 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		)
 	}
 
-	// Update clip status to processing
 	if err := p.db.Model(&clip).Updates(map[string]interface{}{
 		"status":     "processing",
 		"updated_at": time.Now(),
@@ -92,12 +84,10 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		log.Printf("[WARN] Failed to update clip status to processing: %v", err)
 	}
 
-	// Update progress: Downloading/extracting
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 10); err != nil {
 		log.Printf("[WARN] Failed to update job progress: %v", err)
 	}
 
-	// Set timeout for extraction
 	extractCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
@@ -111,10 +101,8 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		)
 	}
 
-	// Use temp directory for extraction
 	tempPath := fmt.Sprintf("/tmp/%s", *clip.ClipFilename)
 
-	// Extract the clip to temp location
 	log.Printf("[DEBUG] Extracting clip %s from %s (%.2fs - %.2fs)",
 		clipUUID, clip.SourceEpisodeURL, clip.OriginalStartTime, clip.OriginalEndTime)
 
@@ -126,11 +114,9 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 	})
 
 	if err != nil {
-		// Classify the error
 		errMsg := err.Error()
 		log.Printf("[ERROR] Clip extraction failed for %s: %v", clipUUID, err)
 
-		// Update clip status to failed
 		p.db.Model(&clip).Updates(map[string]interface{}{
 			"status":        "failed",
 			"error_message": errMsg,
@@ -141,19 +127,16 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		return p.classifyExtractionError(err, clipUUID)
 	}
 
-	// Ensure temp file cleanup
 	defer func() {
 		if err := os.Remove(result.FilePath); err != nil {
 			log.Printf("[WARN] Failed to cleanup temp file %s: %v", result.FilePath, err)
 		}
 	}()
 
-	// Update progress: Saving to storage
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 50); err != nil {
 		log.Printf("[WARN] Failed to update job progress: %v", err)
 	}
 
-	// Open the extracted file for storage
 	file, err := os.Open(result.FilePath)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to open extracted file: %v", err)
@@ -171,7 +154,6 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 	}
 	defer file.Close()
 
-	// Save to storage (uses label-based directory structure)
 	log.Printf("[DEBUG] Saving clip %s to storage (label: %s)", clipUUID, clip.Label)
 	if clip.ClipFilename == nil {
 		return models.NewSystemError(
@@ -196,17 +178,15 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		)
 	}
 
-	// Update progress: Updating database
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 85); err != nil {
 		log.Printf("[WARN] Failed to update job progress: %v", err)
 	}
 
-	// Update clip record with success
 	if err := p.db.Model(&clip).Updates(map[string]interface{}{
 		"status":          "ready",
 		"clip_duration":   result.Duration,
 		"clip_size_bytes": result.SizeBytes,
-		"extracted":       true, // Mark as extracted
+		"extracted":       true,
 		"error_message":   nil,
 		"updated_at":      time.Now(),
 	}).Error; err != nil {
@@ -219,12 +199,10 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		)
 	}
 
-	// Update progress: Complete
 	if err := p.jobService.UpdateProgress(ctx, job.ID, 100); err != nil {
 		log.Printf("[WARN] Failed to update job progress: %v", err)
 	}
 
-	// Create job result
 	var storagePath string
 	if clip.ClipFilename != nil {
 		storagePath = p.storage.GetClipPath(clip.Label, *clip.ClipFilename)
@@ -241,7 +219,6 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 		"original_range": fmt.Sprintf("%.2f-%.2f", clip.OriginalStartTime, clip.OriginalEndTime),
 	}
 
-	// Complete the job
 	if err := p.jobService.CompleteJob(ctx, job.ID, models.JobResult(jobResult)); err != nil {
 		return fmt.Errorf("failed to complete job: %w", err)
 	}
@@ -261,7 +238,6 @@ func (p *ClipExtractionProcessor) ProcessJob(ctx context.Context, job *models.Jo
 	return nil
 }
 
-// parseClipUUID extracts the clip UUID from the job payload
 func (p *ClipExtractionProcessor) parseClipUUID(payload models.JobPayload) (string, error) {
 	clipUUIDValue, exists := payload["clip_uuid"]
 	if !exists {
@@ -280,11 +256,9 @@ func (p *ClipExtractionProcessor) parseClipUUID(payload models.JobPayload) (stri
 	return clipUUID, nil
 }
 
-// classifyExtractionError classifies extraction errors for proper retry handling
 func (p *ClipExtractionProcessor) classifyExtractionError(err error, clipUUID string) error {
 	errMsg := err.Error()
 
-	// Download errors (network, 403, 404, etc.)
 	if containsAny(errMsg, []string{"download", "http", "403", "404", "timeout", "connection"}) {
 		return models.NewDownloadError(
 			"download_failed",
@@ -294,7 +268,6 @@ func (p *ClipExtractionProcessor) classifyExtractionError(err error, clipUUID st
 		)
 	}
 
-	// FFmpeg processing errors
 	if containsAny(errMsg, []string{"ffmpeg", "extract", "convert", "codec", "invalid data"}) {
 		return models.NewProcessingError(
 			"extraction_failed",
@@ -304,7 +277,6 @@ func (p *ClipExtractionProcessor) classifyExtractionError(err error, clipUUID st
 		)
 	}
 
-	// Default to system error
 	return models.NewSystemError(
 		"unknown_error",
 		fmt.Sprintf("Clip extraction failed for %s", clipUUID),
@@ -313,7 +285,6 @@ func (p *ClipExtractionProcessor) classifyExtractionError(err error, clipUUID st
 	)
 }
 
-// containsAny checks if a string contains any of the given substrings
 func containsAny(s string, substrs []string) bool {
 	for _, substr := range substrs {
 		if len(s) >= len(substr) {

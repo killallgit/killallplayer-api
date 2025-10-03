@@ -179,13 +179,10 @@ func validateAPIKeys(isTestMode bool) error {
 	return nil
 }
 
-// Validate validates a Config struct (for testing)
 func (c *Config) Validate() error {
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
 		return fmt.Errorf("invalid server port: %d", c.Server.Port)
 	}
-
-	// Database is optional - no validation needed for empty path
 
 	if c.Processing.Workers <= 0 {
 		c.Processing.Workers = 2
@@ -198,29 +195,23 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// setDefaults sets default configuration values
 func setDefaults() {
-	// Core server defaults
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 9000)
 	viper.SetDefault("server.shutdown_timeout", "10s")
 	viper.SetDefault("server.read_timeout", "30s")
 	viper.SetDefault("server.write_timeout", "30s")
 
-	// Database defaults
 	viper.SetDefault("database.path", "./data/podcast.db")
 	viper.SetDefault("database.verbose", false)
 
-	// Podcast Index API defaults
 	viper.SetDefault("podcast_index.api_url", "https://api.podcastindex.org/api/1.0")
 	viper.SetDefault("podcast_index.timeout", "30s")
 	viper.SetDefault("podcast_index.user_agent", "PodcastPlayerAPI/1.0")
 
-	// Episode service defaults
 	viper.SetDefault("episodes.max_concurrent_sync", 5)
 	viper.SetDefault("episodes.sync_timeout", "30s")
 
-	// Security defaults
 	viper.SetDefault("security.cors_enabled", true)
 	viper.SetDefault("security.cors_origins", "*")
 	viper.SetDefault("security.cors_methods", "GET,POST,PUT,DELETE,OPTIONS")
@@ -229,28 +220,22 @@ func setDefaults() {
 	viper.SetDefault("security.rate_limit_rps", 10)
 	viper.SetDefault("security.rate_limit_burst", 20)
 
-	// Development auth defaults
 	viper.SetDefault("dev.auth_enabled", false)
 	viper.SetDefault("dev.auth_token", "")
 
-	// Processing defaults
 	viper.SetDefault("processing.workers", 2)
 	viper.SetDefault("processing.max_queue_size", 100)
 	viper.SetDefault("processing.timeout", "5m")
 
-	// Transcription defaults
 	viper.SetDefault("transcription.prefer_existing", true)
 	viper.SetDefault("transcription.fetch_timeout", "30s")
 	viper.SetDefault("transcription.allowed_transcript_formats", "vtt,srt,txt,json")
 
-	// Cache defaults
 	viper.SetDefault("cache.enabled", true)
 	viper.SetDefault("cache.type", "memory")
 	viper.SetDefault("cache.max_size_mb", 100)
 	viper.SetDefault("cache.default_ttl", "30m")
 	viper.SetDefault("cache.cleanup_interval", "1m")
-
-	// Cache TTL defaults (in minutes)
 	viper.SetDefault("cache.ttl_search", 15)
 	viper.SetDefault("cache.ttl_trending", 60)
 	viper.SetDefault("cache.ttl_podcast", 120)
@@ -259,7 +244,6 @@ func setDefaults() {
 	viper.SetDefault("cache.ttl_categories", 240)
 	viper.SetDefault("cache.ttl_waveform", 1440)
 
-	// Logging defaults
 	viper.SetDefault("logging.level", "info")
 	viper.SetDefault("logging.format", "json")
 	viper.SetDefault("logging.output", "stdout")

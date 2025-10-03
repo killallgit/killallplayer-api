@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
@@ -156,6 +157,61 @@ func FromServiceEpisodeList(episodes []episodes.PodcastIndexEpisode) []Episode {
 	result := make([]Episode, 0, len(episodes))
 	for _, e := range episodes {
 		if transformed := FromServiceEpisode(&e); transformed != nil {
+			result = append(result, *transformed)
+		}
+	}
+	return result
+}
+
+// FromModelEpisode transforms a database model episode to our simplified Episode type
+func FromModelEpisode(e *models.Episode) *Episode {
+	if e == nil {
+		return nil
+	}
+
+	duration := 0
+	if e.Duration != nil {
+		duration = *e.Duration
+	}
+
+	episode := 0
+	if e.EpisodeNumber != nil {
+		episode = *e.EpisodeNumber
+	}
+
+	season := 0
+	if e.Season != nil {
+		season = *e.Season
+	}
+
+	// Use episode image if available, otherwise fall back to feed image
+	image := e.Image
+	if image == "" {
+		image = e.FeedImage
+	}
+
+	return &Episode{
+		ID:            e.PodcastIndexID,
+		PodcastID:     int64(e.PodcastID),
+		Title:         e.Title,
+		Description:   e.Description,
+		Link:          e.Link,
+		AudioURL:      e.AudioURL,
+		Duration:      duration,
+		PublishedAt:   e.PublishedAt.Unix(),
+		Image:         image,
+		TranscriptURL: "", // Not stored in models.Episode yet
+		ChaptersURL:   "", // Not stored in models.Episode yet
+		Episode:       episode,
+		Season:        season,
+	}
+}
+
+// FromModelEpisodeList transforms a list of database model episodes
+func FromModelEpisodeList(episodes []models.Episode) []Episode {
+	result := make([]Episode, 0, len(episodes))
+	for _, e := range episodes {
+		if transformed := FromModelEpisode(&e); transformed != nil {
 			result = append(result, *transformed)
 		}
 	}

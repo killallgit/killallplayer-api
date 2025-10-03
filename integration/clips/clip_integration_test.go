@@ -43,16 +43,16 @@ func (m *mockAudioCacheService) GetCachedAudio(ctx context.Context, podcastIndex
 
 // ClipTestSuite holds all dependencies for clip integration tests
 type ClipTestSuite struct {
-	t                *testing.T
-	db               *gorm.DB
-	jobService       jobs.Service
-	clipService      clips.Service
-	workerPool       *workers.WorkerPool
-	tempDir          string
-	clipsDir         string
-	testAudioURL     string
-	mockEpisodeSvc   *mockEpisodeService
-	cleanupFuncs     []func()
+	t              *testing.T
+	db             *gorm.DB
+	jobService     jobs.Service
+	clipService    clips.Service
+	workerPool     *workers.WorkerPool
+	tempDir        string
+	clipsDir       string
+	testAudioURL   string
+	mockEpisodeSvc *mockEpisodeService
+	cleanupFuncs   []func()
 }
 
 // setupClipTestSuite initializes an isolated test environment
@@ -197,6 +197,7 @@ func TestClipCreationEnqueuesJob(t *testing.T) {
 		OriginalStartTime:     10.0,
 		OriginalEndTime:       25.0,
 		Label:                 "test",
+		Approved:              true,
 	}
 
 	clip, err := suite.clipService.CreateClip(context.Background(), params)

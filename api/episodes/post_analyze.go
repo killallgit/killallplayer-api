@@ -16,7 +16,6 @@ type AnalysisResponse struct {
 	Message      string   `json:"message" example:"Successfully analyzed episode and created 3 clips from volume spikes"`
 }
 
-// AnalyzeVolumeSpikes analyzes an episode for volume spikes and creates clips
 // @Summary Analyze episode for volume spikes
 // @Description Scans the entire episode audio for volume anomalies (loud sections that may be ads or music) and automatically creates clips from detected spikes. Uses cached audio if available to avoid re-downloading. Created clips are labeled as 'volume_spike' for review.
 // @Tags episodes
@@ -29,7 +28,6 @@ type AnalysisResponse struct {
 // @Router /api/v1/episodes/{id}/analyze [post]
 func AnalyzeVolumeSpikes(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Parse episode ID from path parameter
 		episodeIDStr := c.Param("id")
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil {
@@ -37,14 +35,12 @@ func AnalyzeVolumeSpikes(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		// Run analysis (synchronous for simplicity)
 		clipUUIDs, err := deps.EpisodeAnalysisService.AnalyzeAndCreateClips(c.Request.Context(), episodeID)
 		if err != nil {
 			types.SendInternalError(c, err.Error())
 			return
 		}
 
-		// Build response message
 		message := "No volume spikes detected"
 		if len(clipUUIDs) > 0 {
 			message = "Successfully analyzed episode and created clips from volume spikes"
