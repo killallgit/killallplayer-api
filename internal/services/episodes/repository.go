@@ -108,6 +108,29 @@ func (r *Repository) GetEpisodesByPodcastID(ctx context.Context, podcastID uint,
 	return episodes, total, nil
 }
 
+func (r *Repository) GetEpisodesByPodcastIndexFeedID(ctx context.Context, feedID int64, page, limit int) ([]models.Episode, int64, error) {
+	var episodes []models.Episode
+	var total int64
+
+	offset := (page - 1) * limit
+
+	query := r.db.WithContext(ctx).Model(&models.Episode{}).Where("podcast_index_feed_id = ?", feedID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("counting episodes: %w", err)
+	}
+
+	if err := query.
+		Order("published_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&episodes).Error; err != nil {
+		return nil, 0, fmt.Errorf("getting episodes: %w", err)
+	}
+
+	return episodes, total, nil
+}
+
 func (r *Repository) GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error) {
 	var episodes []models.Episode
 

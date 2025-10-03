@@ -28,9 +28,6 @@ type ClipStorage interface {
 
 	// ListClipsByLabel lists all clips for a given label
 	ListClipsByLabel(ctx context.Context, label string) ([]string, error)
-
-	// ExportDataset exports all clips to a directory for ML training
-	ExportDataset(ctx context.Context, exportPath string, labels []string) error
 }
 
 // LocalClipStorage implements ClipStorage using the local filesystem
@@ -181,48 +178,6 @@ func (s *LocalClipStorage) ListClipsByLabel(ctx context.Context, label string) (
 	}
 
 	return clips, nil
-}
-
-// ExportDataset exports all clips to a directory structure for ML training
-func (s *LocalClipStorage) ExportDataset(ctx context.Context, exportPath string, labels []string) error {
-	// Create export directory
-	if err := os.MkdirAll(exportPath, 0755); err != nil {
-		return fmt.Errorf("failed to create export directory: %w", err)
-	}
-
-	// Copy clips for each label
-	for _, label := range labels {
-		sanitizedLabel := s.sanitizeLabel(label)
-		sourceLabelDir := filepath.Join(s.basePath, sanitizedLabel)
-		destLabelDir := filepath.Join(exportPath, sanitizedLabel)
-
-		// Skip if source doesn't exist
-		if _, err := os.Stat(sourceLabelDir); os.IsNotExist(err) {
-			continue
-		}
-
-		// Create destination label directory
-		if err := os.MkdirAll(destLabelDir, 0755); err != nil {
-			return fmt.Errorf("failed to create export label directory %s: %w", label, err)
-		}
-
-		// Copy all clips in this label
-		clips, err := s.ListClipsByLabel(ctx, label)
-		if err != nil {
-			return fmt.Errorf("failed to list clips for label %s: %w", label, err)
-		}
-
-		for _, clipName := range clips {
-			srcPath := filepath.Join(sourceLabelDir, clipName)
-			destPath := filepath.Join(destLabelDir, clipName)
-
-			if err := s.copyFile(srcPath, destPath); err != nil {
-				return fmt.Errorf("failed to copy clip %s: %w", clipName, err)
-			}
-		}
-	}
-
-	return nil
 }
 
 // sanitizeLabel makes a label safe for use as a directory name

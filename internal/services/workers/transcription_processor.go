@@ -43,9 +43,9 @@ func NewTranscriptionProcessor(
 ) *TranscriptionProcessor {
 	// Create downloader with default options
 	downloadOpts := download.DefaultOptions()
-	downloadOpts.TempDir = viper.GetString("storage.temp_dir")
+	downloadOpts.TempDir = viper.GetString("temp_dir")
 	if downloadOpts.TempDir == "" {
-		downloadOpts.TempDir = "/tmp"
+		downloadOpts.TempDir = "./tmp"
 	}
 
 	// Get whisper configuration
@@ -160,14 +160,14 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 
 				// Create transcription model
 				transcriptionModel := &models.Transcription{
-					EpisodeID: episodeID,
-					Text:      parsedTranscript.ToPlainText(),
-					Language:  p.language, // We might want to detect this from the transcript
-					Model:     fmt.Sprintf("fetched-%s", parsedTranscript.Format),
-					Duration:  parsedTranscript.Duration.Seconds(),
-					Source:    "fetched",
-					SourceURL: episode.TranscriptURL,
-					Format:    string(parsedTranscript.Format),
+					PodcastIndexEpisodeID: int64(episodeID),
+					Text:                  parsedTranscript.ToPlainText(),
+					Language:              p.language, // We might want to detect this from the transcript
+					Model:                 fmt.Sprintf("fetched-%s", parsedTranscript.Format),
+					Duration:              parsedTranscript.Duration.Seconds(),
+					Source:                "fetched",
+					SourceURL:             episode.TranscriptURL,
+					Format:                string(parsedTranscript.Format),
 				}
 
 				// Save transcription to database
@@ -285,14 +285,14 @@ func (p *TranscriptionProcessor) ProcessJob(ctx context.Context, job *models.Job
 
 	// Create transcription model
 	transcriptionModel := &models.Transcription{
-		EpisodeID: episodeID,
-		Text:      transcriptionText,
-		Language:  p.language,
-		Model:     filepath.Base(p.modelPath),
-		Duration:  duration,
-		Source:    "generated",
-		SourceURL: "",        // No source URL for generated transcripts
-		Format:    "whisper", // Whisper output format
+		PodcastIndexEpisodeID: int64(episodeID),
+		Text:                  transcriptionText,
+		Language:              p.language,
+		Model:                 filepath.Base(p.modelPath),
+		Duration:              duration,
+		Source:                "generated",
+		SourceURL:             "",        // No source URL for generated transcripts
+		Format:                "whisper", // Whisper output format
 	}
 
 	// Save transcription to database

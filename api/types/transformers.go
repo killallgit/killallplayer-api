@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/json"
+
 	"github.com/killallgit/player-api/internal/models"
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
@@ -212,6 +214,63 @@ func FromModelEpisodeList(episodes []models.Episode) []Episode {
 	result := make([]Episode, 0, len(episodes))
 	for _, e := range episodes {
 		if transformed := FromModelEpisode(&e); transformed != nil {
+			result = append(result, *transformed)
+		}
+	}
+	return result
+}
+
+// FromModelPodcast transforms a database model podcast to our simplified Podcast type
+func FromModelPodcast(p *models.Podcast) *Podcast {
+	if p == nil {
+		return nil
+	}
+
+	// Extract categories from JSON
+	categories := []string{}
+	if len(p.Categories) > 0 {
+		// Categories is stored as JSON map[int]string
+		var categoryMap map[string]string
+		if err := json.Unmarshal(p.Categories, &categoryMap); err == nil {
+			for _, category := range categoryMap {
+				if category != "" {
+					categories = append(categories, category)
+				}
+			}
+		}
+	}
+
+	itunesID := int64(0)
+	if p.ITunesID != nil {
+		itunesID = *p.ITunesID
+	}
+
+	lastUpdated := int64(0)
+	if p.LastUpdateTime != nil {
+		lastUpdated = p.LastUpdateTime.Unix()
+	}
+
+	return &Podcast{
+		ID:           p.PodcastIndexID,
+		Title:        p.Title,
+		Author:       p.Author,
+		Description:  p.Description,
+		Link:         p.Link,
+		Image:        p.Image,
+		FeedURL:      p.FeedURL,
+		ITunesID:     itunesID,
+		Language:     p.Language,
+		Categories:   categories,
+		EpisodeCount: p.EpisodeCount,
+		LastUpdated:  lastUpdated,
+	}
+}
+
+// FromModelPodcastList transforms a list of database model podcasts
+func FromModelPodcastList(podcasts []models.Podcast) []Podcast {
+	result := make([]Podcast, 0, len(podcasts))
+	for _, p := range podcasts {
+		if transformed := FromModelPodcast(&p); transformed != nil {
 			result = append(result, *transformed)
 		}
 	}

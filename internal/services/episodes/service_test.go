@@ -95,6 +95,14 @@ func (m *MockRepository) GetEpisodesByPodcastID(ctx context.Context, podcastID u
 	return args.Get(0).([]models.Episode), args.Get(1).(int64), args.Error(2)
 }
 
+func (m *MockRepository) GetEpisodesByPodcastIndexFeedID(ctx context.Context, feedID int64, page, limit int) ([]models.Episode, int64, error) {
+	args := m.Called(ctx, feedID, page, limit)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]models.Episode), args.Get(1).(int64), args.Error(2)
+}
+
 func (m *MockRepository) GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error) {
 	args := m.Called(ctx, limit)
 	if args.Get(0) == nil {
@@ -175,7 +183,7 @@ func TestService_GetEpisodeByID_CacheHit(t *testing.T) {
 	mockCache := new(MockCache)
 	mockFetcher := new(MockFetcher)
 
-	service := NewService(mockFetcher, mockRepo, mockCache)
+	service := NewService(mockFetcher, mockRepo, mockCache, nil)
 
 	expectedEpisode := &models.Episode{
 		Title: "Test Episode",
@@ -204,7 +212,7 @@ func TestService_GetEpisodeByID_CacheMiss(t *testing.T) {
 	mockCache := new(MockCache)
 	mockFetcher := new(MockFetcher)
 
-	service := NewService(mockFetcher, mockRepo, mockCache)
+	service := NewService(mockFetcher, mockRepo, mockCache, nil)
 
 	expectedEpisode := &models.Episode{
 		Title: "Test Episode",
@@ -239,7 +247,7 @@ func TestService_GetEpisodeByID_NotFound(t *testing.T) {
 	mockCache := new(MockCache)
 	mockFetcher := new(MockFetcher)
 
-	service := NewService(mockFetcher, mockRepo, mockCache)
+	service := NewService(mockFetcher, mockRepo, mockCache, nil)
 
 	// Mock cache miss
 	mockCache.On("GetEpisode", "episode:id:999").Return(nil, false)
@@ -265,7 +273,7 @@ func TestService_FetchAndSyncEpisodes(t *testing.T) {
 	mockCache := new(MockCache)
 	mockFetcher := new(MockFetcher)
 
-	service := NewService(mockFetcher, mockRepo, mockCache)
+	service := NewService(mockFetcher, mockRepo, mockCache, nil)
 
 	// Create test response
 	duration := 3600
@@ -318,7 +326,7 @@ func TestService_FetchAndSyncEpisodes_UpdateExisting(t *testing.T) {
 	mockCache := new(MockCache)
 	mockFetcher := new(MockFetcher)
 
-	service := NewService(mockFetcher, mockRepo, mockCache)
+	service := NewService(mockFetcher, mockRepo, mockCache, nil)
 
 	// Create test response
 	duration := 3600
@@ -378,7 +386,7 @@ func TestService_GetRecentEpisodes_CacheHit(t *testing.T) {
 	mockCache := new(MockCache)
 	mockFetcher := new(MockFetcher)
 
-	service := NewService(mockFetcher, mockRepo, mockCache)
+	service := NewService(mockFetcher, mockRepo, mockCache, nil)
 
 	expectedEpisodes := []models.Episode{
 		{Title: "Episode 1"},

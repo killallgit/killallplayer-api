@@ -54,15 +54,15 @@ type UpdateLabelRequest struct {
 }
 
 // @Summary Create a new audio clip for ML training
-// @Description Extract a labeled audio segment from a podcast episode for machine learning training datasets.
-// @Description The clip will be automatically converted to 16kHz mono WAV format, padded or cropped to 15 seconds,
-// @Description and stored with the specified label. Processing is asynchronous - the clip status will be "queued"
-// @Description initially, then "processing" when a worker picks it up, and finally "ready" when extraction completes or "failed" if an error occurs.
+// @Description Create a labeled audio segment from a podcast episode for machine learning training datasets.
+// @Description The clip is stored as metadata (time range + label) and will be extracted during dataset export.
+// @Description No audio processing occurs immediately - clips are materialized only when exporting the dataset.
+// @Description The exact time range specified is preserved (no padding or cropping to fixed duration).
 // @Tags clips
 // @Accept json
 // @Produce json
-// @Param request body CreateClipRequest true "Audio clip extraction parameters with source URL and time range in seconds"
-// @Success 202 {object} ClipResponse "Clip creation accepted and processing started"
+// @Param request body CreateClipRequest true "Audio clip parameters with episode ID and time range in seconds"
+// @Success 202 {object} ClipResponse "Clip created successfully (status=pending, awaiting export)"
 // @Failure 400 {object} types.ErrorResponse "Invalid request parameters (e.g., end_time <= start_time)"
 // @Failure 500 {object} types.ErrorResponse "Internal server error during clip creation"
 // @Router /api/v1/clips [post]
@@ -316,11 +316,12 @@ func ListClips(deps *types.Dependencies) gin.HandlerFunc {
 }
 
 // @Summary Export ML training dataset as ZIP
-// @Description Export all clips with status "ready" as a ZIP archive for machine learning training.
+// @Description Export all approved clips as a ZIP archive for machine learning training.
+// @Description Audio extraction happens on-demand during export - clips are materialized from their time ranges.
 // @Description The archive contains audio files organized by label directories and a JSONL manifest file
-// @Description with metadata for each clip. Audio files are in 16kHz mono WAV format, suitable for
-// @Description training models like Whisper or Wav2Vec2. The manifest includes clip UUID, label, duration,
-// @Description source URL, and original time range for full traceability.
+// @Description with metadata for each clip. Audio files are in 16kHz mono WAV format with exact durations preserved.
+// @Description The manifest includes clip UUID, label, duration, source URL, and original time range for full traceability.
+// @Description Previously extracted clips are reused to avoid redundant processing.
 // @Tags clips
 // @Produce application/zip
 // @Success 200 {file} binary "ZIP archive containing labeled audio clips and manifest.jsonl"

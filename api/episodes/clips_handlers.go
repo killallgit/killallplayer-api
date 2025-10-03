@@ -44,13 +44,13 @@ type UpdateLabelRequest struct {
 }
 
 // @Summary Create clip for episode
-// @Description Create a new audio clip from this episode at the specified time range. Manual clips are automatically approved and queued for extraction.
+// @Description Create a new audio clip from this episode at the specified time range. Manual clips are automatically approved and will be extracted during dataset export.
 // @Tags episodes
 // @Accept json
 // @Produce json
 // @Param id path int true "Episode ID"
 // @Param request body CreateClipRequest true "Clip creation parameters"
-// @Success 202 {object} EpisodeClipResponse "Clip created and queued for extraction (approved=true, status=queued)"
+// @Success 202 {object} EpisodeClipResponse "Clip created successfully (approved=true, status=pending)"
 // @Failure 400 {object} types.ErrorResponse
 // @Failure 500 {object} types.ErrorResponse
 // @Router /api/v1/episodes/{id}/clips [post]
@@ -357,16 +357,12 @@ func ApproveClip(deps *types.Dependencies) gin.HandlerFunc {
 			return
 		}
 
-		// Update approved status
-		// Note: We'll need to add an ApproveClip method to the clip service
-		// For now, we can update directly via GORM
-		if err := deps.DB.DB.Model(&models.Clip{}).Where("uuid = ?", uuid).Update("approved", true).Error; err != nil {
+		// Approve the clip via service
+		clip, err = deps.ClipService.ApproveClip(c.Request.Context(), uuid)
+		if err != nil {
 			types.SendInternalError(c, fmt.Sprintf("Failed to approve clip: %v", err))
 			return
 		}
-
-		// Fetch updated clip
-		clip.Approved = true
 		c.JSON(http.StatusOK, toClipResponse(clip))
 	}
 }

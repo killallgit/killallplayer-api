@@ -94,6 +94,9 @@ type PodcastResponse struct {
 	Description string  `json:"description"`
 }
 
+// PodcastByIDResponse is an alias for PodcastResponse (used by podcasts/byfeedid endpoint)
+type PodcastByIDResponse = PodcastResponse
+
 // Category represents a podcast category
 type Category struct {
 	ID   int    `json:"id"`

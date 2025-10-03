@@ -32,11 +32,11 @@ func (r *repository) Create(ctx context.Context, transcription *models.Transcrip
 	return nil
 }
 
-// GetByEpisodeID retrieves a transcription by episode ID
-func (r *repository) GetByEpisodeID(ctx context.Context, episodeID uint) (*models.Transcription, error) {
+// GetByEpisodeID retrieves a transcription by podcast index episode ID
+func (r *repository) GetByEpisodeID(ctx context.Context, podcastIndexEpisodeID int64) (*models.Transcription, error) {
 	var transcription models.Transcription
 
-	result := r.db.WithContext(ctx).Where("episode_id = ?", episodeID).First(&transcription)
+	result := r.db.WithContext(ctx).Where("podcast_index_episode_id = ?", podcastIndexEpisodeID).First(&transcription)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -62,8 +62,8 @@ func (r *repository) Update(ctx context.Context, transcription *models.Transcrip
 }
 
 // Delete removes a transcription
-func (r *repository) Delete(ctx context.Context, episodeID uint) error {
-	result := r.db.WithContext(ctx).Where("episode_id = ?", episodeID).Delete(&models.Transcription{})
+func (r *repository) Delete(ctx context.Context, podcastIndexEpisodeID int64) error {
+	result := r.db.WithContext(ctx).Where("podcast_index_episode_id = ?", podcastIndexEpisodeID).Delete(&models.Transcription{})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -76,10 +76,10 @@ func (r *repository) Delete(ctx context.Context, episodeID uint) error {
 }
 
 // Exists checks if a transcription exists for an episode
-func (r *repository) Exists(ctx context.Context, episodeID uint) (bool, error) {
+func (r *repository) Exists(ctx context.Context, podcastIndexEpisodeID int64) (bool, error) {
 	var count int64
 
-	result := r.db.WithContext(ctx).Model(&models.Transcription{}).Where("episode_id = ?", episodeID).Count(&count)
+	result := r.db.WithContext(ctx).Model(&models.Transcription{}).Where("podcast_index_episode_id = ?", podcastIndexEpisodeID).Count(&count)
 	if result.Error != nil {
 		return false, result.Error
 	}

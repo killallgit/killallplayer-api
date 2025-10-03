@@ -55,10 +55,8 @@ func NewFFmpegExtractor(tempDir string, targetDuration float64) (*FFmpegExtracto
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
-	// Default to 15 seconds if not specified
-	if targetDuration <= 0 {
-		targetDuration = 15.0
-	}
+	// targetDuration of 0 means no normalization - preserve exact duration
+	// Any positive value will pad/crop to that duration
 
 	return &FFmpegExtractor{
 		ffmpegPath:     ffmpegPath,
@@ -93,10 +91,25 @@ func (e *FFmpegExtractor) ExtractClip(ctx context.Context, params ExtractParams)
 		return nil, fmt.Errorf("failed to extract clip: %w", err)
 	}
 
-	// Apply padding or cropping to reach target duration
-	processedPath, actualDuration, err := e.applyTargetDuration(ctx, params.OutputPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to apply target duration: %w", err)
+	var processedPath string
+	var actualDuration float64
+
+	// Only apply normalization if targetDuration is set
+	if e.targetDuration > 0 {
+		// Apply padding or cropping to reach target duration
+		var err error
+		processedPath, actualDuration, err = e.applyTargetDuration(ctx, params.OutputPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to apply target duration: %w", err)
+		}
+	} else {
+		// No normalization - use extracted duration as-is
+		var err error
+		actualDuration, err = e.getAudioDuration(ctx, params.OutputPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get duration: %w", err)
+		}
+		processedPath = params.OutputPath
 	}
 
 	// Get file info

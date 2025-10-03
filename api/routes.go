@@ -33,6 +33,7 @@ import (
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/jobs"
 	"github.com/killallgit/player-api/internal/services/podcastindex"
+	podcastsService "github.com/killallgit/player-api/internal/services/podcasts"
 	"github.com/killallgit/player-api/internal/services/transcription"
 	"github.com/killallgit/player-api/internal/services/waveforms"
 	"github.com/killallgit/player-api/pkg/config"
@@ -135,10 +136,6 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 	var cacheMiddleware gin.HandlerFunc
 	if viper.GetBool("cache.enabled") {
 		maxSizeMB := viper.GetInt64("cache.max_size_mb")
-		if maxSizeMB == 0 {
-			maxSizeMB = 100
-		}
-
 		memCache := cache.NewMemoryCache(maxSizeMB)
 
 		ttlByPath := make(map[string]time.Duration)
@@ -194,14 +191,19 @@ func RegisterRoutes(engine *gin.Engine, deps *types.Dependencies, rateLimiters *
 
 		episodes.RegisterRoutes(episodeGroup, deps)
 		waveform.RegisterRoutes(episodeGroup, deps)
-		transcriptionAPI.RegisterRoutes(episodeGroup, deps)
+
+		if viper.GetBool("transcription.enabled") {
+			transcriptionAPI.RegisterRoutes(episodeGroup, deps)
+			log.Println("[INFO] Transcription routes enabled")
+		}
 
 		podcastGroup := v1.Group("/podcasts")
+		podcastMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst)
 		episodesMiddleware := PerClientRateLimit(rateLimiters, cleanupStop, cleanupInitialized, GeneralRateLimit, GeneralRateLimitBurst)
 		if cacheMiddleware != nil {
 			podcastGroup.Use(cacheMiddleware)
 		}
-		podcasts.RegisterRoutes(podcastGroup, deps, episodesMiddleware)
+		podcasts.RegisterRoutes(podcastGroup, deps, podcastMiddleware, episodesMiddleware)
 
 		// Clips are now handled under /episodes/:id/clips (see episodes routes)
 	}
@@ -213,6 +215,11 @@ func initializeAllServices(deps *types.Dependencies, cfg *config.Config) {
 	// Initialize job service FIRST - other services depend on it
 	if deps.JobService == nil {
 		initializeJobService(deps)
+	}
+
+	// Initialize podcast service before episode service (episode service depends on it)
+	if deps.PodcastService == nil {
+		initializePodcastService(deps)
 	}
 
 	if deps.EpisodeService == nil || deps.EpisodeTransformer == nil {
@@ -258,6 +265,7 @@ func initializeEpisodeService(deps *types.Dependencies, _ *config.Config) {
 			nil,
 			episodeRepo,
 			episodeCache,
+			deps.PodcastService, // May be nil
 		)
 		deps.EpisodeTransformer = episodesService.NewTransformer()
 		return
@@ -274,23 +282,35 @@ func initializeEpisodeService(deps *types.Dependencies, _ *config.Config) {
 	episodeCache := episodesService.NewCache(time.Hour)
 
 	maxConcurrentSync := config.GetInt("episodes.max_concurrent_sync")
-	if maxConcurrentSync <= 0 {
-		maxConcurrentSync = 5
-	}
 	syncTimeout := config.GetDuration("episodes.sync_timeout")
-	if syncTimeout <= 0 {
-		syncTimeout = 30 * time.Second
-	}
 
 	deps.EpisodeService = episodesService.NewService(
 		episodeFetcher,
 		episodeRepo,
 		episodeCache,
+		deps.PodcastService,
 		episodesService.WithMaxConcurrentSync(maxConcurrentSync),
 		episodesService.WithSyncTimeout(syncTimeout),
 	)
 
 	deps.EpisodeTransformer = episodesService.NewTransformer()
+}
+
+func initializePodcastService(deps *types.Dependencies) {
+	if deps.PodcastClient == nil {
+		log.Printf("[WARN] PodcastClient is nil - podcast service will not be able to fetch from API")
+		return
+	}
+
+	podcastClient, ok := deps.PodcastClient.(*podcastindex.Client)
+	if !ok {
+		log.Printf("[ERROR] PodcastClient is not of expected type *podcastindex.Client")
+		return
+	}
+
+	podcastRepo := podcastsService.NewRepository(deps.DB.DB)
+	deps.PodcastService = podcastsService.NewService(podcastRepo, podcastClient)
+	log.Printf("[INFO] Podcast service initialized successfully")
 }
 
 func initializeWaveformService(deps *types.Dependencies) {
@@ -305,19 +325,8 @@ func initializeTranscriptionService(deps *types.Dependencies) {
 
 func initializeClipService(deps *types.Dependencies) {
 	clipsBasePath := viper.GetString("clips.storage_path")
-	if clipsBasePath == "" {
-		clipsBasePath = "./clips"
-	}
-
-	tempDir := viper.GetString("clips.temp_dir")
-	if tempDir == "" {
-		tempDir = "/tmp/clips"
-	}
-
+	tempDir := viper.GetString("temp_dir")
 	targetDuration := viper.GetFloat64("clips.target_duration")
-	if targetDuration <= 0 {
-		targetDuration = 15.0
-	}
 
 	extractor, err := clipsService.NewFFmpegExtractor(tempDir, targetDuration)
 	if err != nil {
@@ -355,12 +364,7 @@ func initializeClipService(deps *types.Dependencies) {
 
 func initializeAudioCacheService(deps *types.Dependencies) {
 	audioCacheRepo := audiocache.NewRepository(deps.DB.DB)
-
 	cacheDir := viper.GetString("audio_cache.directory")
-	if cacheDir == "" {
-		cacheDir = "./audio-cache"
-	}
-
 	storage, err := audiocache.NewFilesystemStorage(cacheDir)
 	if err != nil {
 		log.Printf("[ERROR] Failed to initialize audio cache storage: %v", err)

@@ -15,7 +15,7 @@ type WaveformData struct {
 // TranscriptionData represents transcription data in API responses
 // This is the consolidated version replacing duplicates in api/episodes and api/transcription packages
 type TranscriptionData struct {
-	EpisodeID uint    `json:"episode_id,omitempty"`                        // Episode ID (optional for some responses)
+	EpisodeID int64   `json:"episode_id,omitempty"`                        // Podcast Index Episode ID (optional for some responses)
 	Text      string  `json:"text" example:"This is the transcription..."` // Full transcription text
 	Language  string  `json:"language" example:"en"`                       // Detected or specified language
 	Duration  float64 `json:"duration" example:"300.5"`                    // Duration in seconds

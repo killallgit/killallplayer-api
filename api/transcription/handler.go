@@ -17,13 +17,13 @@ import (
 // @Description  Trigger transcription for a podcast episode. The system first checks if a transcript is available
 // @Description  at the episode's transcriptURL (from RSS feed). If found, it fetches and stores it. Otherwise, if
 // @Description  Whisper is configured, it generates a transcription using speech-to-text. Transcription is an async
-// @Description  process that may take several minutes depending on episode duration. Use the job_id to track progress.
+// @Description  process that may take several minutes depending on episode duration. Poll the status endpoint with job_id to track progress.
 // @Tags         transcription
 // @Accept       json
 // @Produce      json
 // @Param        id path int64 true "Episode's Podcast Index ID" minimum(1)
-// @Success      200 {object} types.JobStatusResponse "Transcription already exists (check 'source' field for origin)"
-// @Success      202 {object} types.JobStatusResponse "Transcription job queued (includes job_id for tracking)"
+// @Success      200 {object} types.JobStatusResponse "Transcription already exists and is ready"
+// @Success      202 {object} types.JobStatusResponse "Transcription job queued successfully (use job_id to track)"
 // @Failure      400 {object} types.ErrorResponse "Invalid episode ID format"
 // @Failure      500 {object} types.ErrorResponse "Service unavailable or configuration error"
 // @Router       /api/v1/episodes/{id}/transcribe [post]
@@ -34,24 +34,27 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil || episodeID < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Podcast Index Episode ID"})
+			c.JSON(http.StatusBadRequest, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Invalid Podcast Index Episode ID",
+			})
 			return
 		}
 
 		// Check if TranscriptionService is available
 		if deps.TranscriptionService == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":      "Transcription service not available",
-				"episode_id": episodeID,
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Transcription service not available",
 			})
 			return
 		}
 
 		// Check if JobService is available
 		if deps.JobService == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":      "Job service not available",
-				"episode_id": episodeID,
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Job service not available",
 			})
 			return
 		}
@@ -61,13 +64,13 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 		defer cancel()
 
 		// Check if transcription already exists
-		existingTranscription, err := deps.TranscriptionService.GetTranscription(ctx, uint(episodeID))
+		existingTranscription, err := deps.TranscriptionService.GetTranscription(ctx, episodeID)
 		if err == nil && existingTranscription != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"message":    "Transcription already exists",
-				"episode_id": episodeID,
-				"status":     "completed",
-				"progress":   100,
+			c.JSON(http.StatusOK, types.JobStatusResponse{
+				EpisodeID: episodeID,
+				Status:    "completed",
+				Progress:  100,
+				Message:   "Transcription already exists",
 			})
 			return
 		}
@@ -78,22 +81,22 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 			// Job already exists, return status based on job state
 			switch existingJob.Status {
 			case models.JobStatusPending, models.JobStatusProcessing:
-				c.JSON(http.StatusAccepted, gin.H{
-					"message":    "Transcription generation already in progress",
-					"episode_id": episodeID,
-					"job_id":     existingJob.ID,
-					"status":     string(existingJob.Status),
-					"progress":   existingJob.Progress,
+				c.JSON(http.StatusAccepted, types.JobStatusResponse{
+					EpisodeID: episodeID,
+					JobID:     existingJob.ID,
+					Status:    string(existingJob.Status),
+					Progress:  existingJob.Progress,
+					Message:   "Transcription generation already in progress",
 				})
 				return
 			case models.JobStatusCompleted:
 				// Job completed but transcription not found? Try to return success anyway
-				c.JSON(http.StatusOK, gin.H{
-					"message":    "Transcription generation completed",
-					"episode_id": episodeID,
-					"job_id":     existingJob.ID,
-					"status":     "completed",
-					"progress":   100,
+				c.JSON(http.StatusOK, types.JobStatusResponse{
+					EpisodeID: episodeID,
+					JobID:     existingJob.ID,
+					Status:    "completed",
+					Progress:  100,
+					Message:   "Transcription generation completed",
 				})
 				return
 			case models.JobStatusFailed:
@@ -110,20 +113,21 @@ func TriggerTranscription(deps *types.Dependencies) gin.HandlerFunc {
 		job, err := deps.JobService.EnqueueJob(ctx, models.JobTypeTranscriptionGeneration, payload)
 		if err != nil {
 			log.Printf("Failed to enqueue transcription job for episode %d: %v", episodeID, err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":      "Failed to trigger transcription generation",
-				"episode_id": episodeID,
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Failed to trigger transcription generation",
+				Details: err.Error(),
 			})
 			return
 		}
 
 		log.Printf("Enqueued transcription generation job %d for episode %d", job.ID, episodeID)
-		c.JSON(http.StatusAccepted, gin.H{
-			"message":    "Transcription generation triggered",
-			"episode_id": episodeID,
-			"job_id":     job.ID,
-			"status":     string(job.Status),
-			"progress":   job.Progress,
+		c.JSON(http.StatusAccepted, types.JobStatusResponse{
+			EpisodeID: episodeID,
+			JobID:     job.ID,
+			Status:    string(job.Status),
+			Progress:  job.Progress,
+			Message:   "Transcription generation triggered",
 		})
 	}
 }
@@ -150,15 +154,18 @@ func GetTranscription(deps *types.Dependencies) gin.HandlerFunc {
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil || episodeID < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Podcast Index Episode ID"})
+			c.JSON(http.StatusBadRequest, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Invalid Podcast Index Episode ID",
+			})
 			return
 		}
 
 		// Check if TranscriptionService is available
 		if deps.TranscriptionService == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":      "Transcription service not available",
-				"episode_id": episodeID,
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Transcription service not available",
 			})
 			return
 		}
@@ -168,27 +175,28 @@ func GetTranscription(deps *types.Dependencies) gin.HandlerFunc {
 		defer cancel()
 
 		// Get transcription from database
-		transcriptionModel, err := deps.TranscriptionService.GetTranscription(ctx, uint(episodeID))
+		transcriptionModel, err := deps.TranscriptionService.GetTranscription(ctx, episodeID)
 		if err != nil {
 			// Check if it's a not found error
 			if err.Error() == "transcription not found" {
-				c.JSON(http.StatusNotFound, gin.H{
-					"error":      "Transcription not found for episode",
-					"episode_id": episodeID,
+				c.JSON(http.StatusNotFound, types.ErrorResponse{
+					Status:  types.StatusError,
+					Message: "Transcription not found for episode",
 				})
 				return
 			}
 
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":      "Failed to retrieve transcription",
-				"episode_id": episodeID,
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Failed to retrieve transcription",
+				Details: err.Error(),
 			})
 			return
 		}
 
 		// Convert to response format
 		transcriptionData := &types.TranscriptionData{
-			EpisodeID: uint(episodeID),
+			EpisodeID: episodeID,
 			Text:      transcriptionModel.Text,
 			Language:  transcriptionModel.Language,
 			Duration:  transcriptionModel.Duration,
@@ -219,15 +227,18 @@ func GetTranscriptionStatus(deps *types.Dependencies) gin.HandlerFunc {
 		// Parse episode ID
 		episodeID, err := strconv.ParseInt(episodeIDStr, 10, 64)
 		if err != nil || episodeID < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Podcast Index Episode ID"})
+			c.JSON(http.StatusBadRequest, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Invalid Podcast Index Episode ID",
+			})
 			return
 		}
 
 		// Check if TranscriptionService is available
 		if deps.TranscriptionService == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":      "Transcription service not available",
-				"episode_id": episodeID,
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Transcription service not available",
 			})
 			return
 		}
@@ -237,15 +248,14 @@ func GetTranscriptionStatus(deps *types.Dependencies) gin.HandlerFunc {
 		defer cancel()
 
 		// Check if transcription exists
-		transcriptionModel, err := deps.TranscriptionService.GetTranscription(ctx, uint(episodeID))
+		transcriptionModel, err := deps.TranscriptionService.GetTranscription(ctx, episodeID)
 		if err == nil && transcriptionModel != nil {
-			status := gin.H{
-				"episode_id": episodeID,
-				"status":     "completed",
-				"progress":   100,
-				"message":    "Transcription ready",
-			}
-			c.JSON(http.StatusOK, status)
+			c.JSON(http.StatusOK, types.JobStatusResponse{
+				EpisodeID: episodeID,
+				Status:    "completed",
+				Progress:  100,
+				Message:   "Transcription ready",
+			})
 			return
 		}
 
@@ -253,30 +263,29 @@ func GetTranscriptionStatus(deps *types.Dependencies) gin.HandlerFunc {
 		if deps.JobService != nil {
 			job, jobErr := deps.JobService.GetJobForTranscription(ctx, int64(episodeID))
 			if jobErr == nil && job != nil {
-				status := gin.H{
-					"episode_id": episodeID,
-					"job_id":     job.ID,
-					"status":     string(job.Status),
-					"progress":   job.Progress,
-					"message":    "Transcription generation in progress",
+				response := types.JobStatusResponse{
+					EpisodeID: episodeID,
+					JobID:     job.ID,
+					Status:    string(job.Status),
+					Progress:  job.Progress,
+					Message:   "Transcription generation in progress",
 				}
 
 				if job.Status == models.JobStatusFailed {
-					status["message"] = "Transcription generation failed"
-					status["error"] = job.Error
+					response.Message = "Transcription generation failed"
+					response.Error = job.Error
 				}
 
-				c.JSON(http.StatusOK, status)
+				c.JSON(http.StatusOK, response)
 				return
 			}
 		}
 
-		status := gin.H{
-			"episode_id": episodeID,
-			"status":     "not_found",
-			"progress":   0,
-			"message":    "Transcription not available",
-		}
-		c.JSON(http.StatusNotFound, status)
+		c.JSON(http.StatusNotFound, types.JobStatusResponse{
+			EpisodeID: episodeID,
+			Status:    "not_found",
+			Progress:  0,
+			Message:   "Transcription not available",
+		})
 	}
 }

@@ -18,9 +18,9 @@ func NewService(repo Repository) TranscriptionService {
 	return &Service{repo: repo}
 }
 
-// GetTranscription retrieves a transcription by episode ID
-func (s *Service) GetTranscription(ctx context.Context, episodeID uint) (*models.Transcription, error) {
-	return s.repo.GetByEpisodeID(ctx, episodeID)
+// GetTranscription retrieves a transcription by podcast index episode ID
+func (s *Service) GetTranscription(ctx context.Context, podcastIndexEpisodeID int64) (*models.Transcription, error) {
+	return s.repo.GetByEpisodeID(ctx, podcastIndexEpisodeID)
 }
 
 // SaveTranscription saves a new transcription or updates an existing one
@@ -30,7 +30,7 @@ func (s *Service) SaveTranscription(ctx context.Context, transcription *models.T
 	}
 
 	// Check if transcription already exists
-	existing, err := s.repo.GetByEpisodeID(ctx, transcription.EpisodeID)
+	existing, err := s.repo.GetByEpisodeID(ctx, transcription.PodcastIndexEpisodeID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
@@ -48,12 +48,12 @@ func (s *Service) SaveTranscription(ctx context.Context, transcription *models.T
 	return s.repo.Create(ctx, transcription)
 }
 
-// DeleteTranscription removes a transcription by episode ID
-func (s *Service) DeleteTranscription(ctx context.Context, episodeID uint) error {
-	return s.repo.Delete(ctx, episodeID)
+// DeleteTranscription removes a transcription by podcast index episode ID
+func (s *Service) DeleteTranscription(ctx context.Context, podcastIndexEpisodeID int64) error {
+	return s.repo.Delete(ctx, podcastIndexEpisodeID)
 }
 
 // ExistsTranscription checks if a transcription exists for an episode
-func (s *Service) ExistsTranscription(ctx context.Context, episodeID uint) (bool, error) {
-	return s.repo.Exists(ctx, episodeID)
+func (s *Service) ExistsTranscription(ctx context.Context, podcastIndexEpisodeID int64) (bool, error) {
+	return s.repo.Exists(ctx, podcastIndexEpisodeID)
 }

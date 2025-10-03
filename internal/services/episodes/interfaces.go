@@ -18,6 +18,7 @@ type EpisodeRepository interface {
 	GetEpisodeByGUID(ctx context.Context, guid string) (*models.Episode, error)
 	GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error)
 	GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error)
+	GetEpisodesByPodcastIndexFeedID(ctx context.Context, feedID int64, page, limit int) ([]models.Episode, int64, error)
 	GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error)
 
 	// Update operations
@@ -56,13 +57,14 @@ type EpisodeCache interface {
 type EpisodeService interface {
 	// Fetch and sync operations
 	FetchAndSyncEpisodes(ctx context.Context, podcastID int64, limit int) (*PodcastIndexResponse, error)
-	SyncEpisodesToDatabase(ctx context.Context, episodes []PodcastIndexEpisode, podcastID uint) (int, error)
+	SyncEpisodesToDatabase(ctx context.Context, episodes []PodcastIndexEpisode, podcastID uint, podcastIndexFeedID int64) (int, error)
 
 	// Get operations with caching and fallback
 	GetEpisodeByID(ctx context.Context, id uint) (*models.Episode, error)
 	GetEpisodeByGUID(ctx context.Context, guid string) (*models.Episode, error)
 	GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID int64) (*models.Episode, error)
 	GetEpisodesByPodcastID(ctx context.Context, podcastID uint, page, limit int) ([]models.Episode, int64, error)
+	GetEpisodesByPodcastIndexFeedID(ctx context.Context, feedID int64, page, limit int) ([]models.Episode, int64, error)
 	GetRecentEpisodes(ctx context.Context, limit int) ([]models.Episode, error)
 }
 

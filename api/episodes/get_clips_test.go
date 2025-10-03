@@ -51,6 +51,10 @@ func (s *testClipService) UpdateClipLabel(ctx context.Context, uuid, newLabel st
 	return nil, fmt.Errorf("not implemented")
 }
 
+func (s *testClipService) ApproveClip(ctx context.Context, uuid string) (*models.Clip, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 func (s *testClipService) DeleteClip(ctx context.Context, uuid string) error {
 	return fmt.Errorf("not implemented")
 }

@@ -612,3 +612,32 @@ func (c *Client) GetEpisodeByID(ctx context.Context, episodeID int64) (*Episode,
 
 	return nil, fmt.Errorf("unexpected response structure for episode ID %d", episodeID)
 }
+
+// GetPodcastByID fetches a single podcast by its Podcast Index ID
+func (c *Client) GetPodcastByID(ctx context.Context, podcastID int64) (*PodcastByIDResponse, error) {
+	if podcastID <= 0 {
+		return nil, fmt.Errorf("invalid podcast ID: %d", podcastID)
+	}
+
+	params := url.Values{}
+	params.Set("id", fmt.Sprintf("%d", podcastID))
+
+	endpoint := fmt.Sprintf("podcasts/byfeedid?%s", params.Encode())
+
+	var podcastResp PodcastByIDResponse
+	if err := c.makeAPIRequest(ctx, endpoint, &podcastResp); err != nil {
+		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
+			return nil, fmt.Errorf("podcast not found: ID %d", podcastID)
+		}
+		return nil, fmt.Errorf("fetching podcast by ID: %w", err)
+	}
+
+	if podcastResp.Status != "true" {
+		if strings.Contains(strings.ToLower(podcastResp.Description), "not found") {
+			return nil, fmt.Errorf("podcast not found: ID %d", podcastID)
+		}
+		return nil, fmt.Errorf("API error: %s", podcastResp.Description)
+	}
+
+	return &podcastResp, nil
+}

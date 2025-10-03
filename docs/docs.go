@@ -62,7 +62,7 @@ const docTemplate = `{
         },
         "/api/v1/categories": {
             "get": {
-                "description": "Get a list of all available podcast categories from the Podcast Index API",
+                "description": "Get a list of all available podcast categories from the Podcast Index API.\nCategories help filter search and trending results. Results are cached for 24 hours.",
                 "consumes": [
                     "application/json"
                 ],
@@ -75,26 +75,15 @@ const docTemplate = `{
                 "summary": "Get all podcast categories",
                 "responses": {
                     "200": {
-                        "description": "Categories response",
+                        "description": "Categories response with ID and name for each category",
                         "schema": {
                             "$ref": "#/definitions/podcastindex.CategoriesResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Service unavailable or API communication failure",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "details": {
-                                    "type": "string"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -166,7 +155,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Extract a labeled audio segment from a podcast episode for machine learning training datasets.\nThe clip will be automatically converted to 16kHz mono WAV format, padded or cropped to 15 seconds,\nand stored with the specified label. Processing is asynchronous - the clip status will be \"queued\"\ninitially, then \"processing\" when a worker picks it up, and finally \"ready\" when extraction completes or \"failed\" if an error occurs.",
+                "description": "Create a labeled audio segment from a podcast episode for machine learning training datasets.\nThe clip is stored as metadata (time range + label) and will be extracted during dataset export.\nNo audio processing occurs immediately - clips are materialized only when exporting the dataset.\nThe exact time range specified is preserved (no padding or cropping to fixed duration).",
                 "consumes": [
                     "application/json"
                 ],
@@ -179,7 +168,7 @@ const docTemplate = `{
                 "summary": "Create a new audio clip for ML training",
                 "parameters": [
                     {
-                        "description": "Audio clip extraction parameters with source URL and time range in seconds",
+                        "description": "Audio clip parameters with episode ID and time range in seconds",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -190,7 +179,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "202": {
-                        "description": "Clip creation accepted and processing started",
+                        "description": "Clip created successfully (status=pending, awaiting export)",
                         "schema": {
                             "$ref": "#/definitions/clips.ClipResponse"
                         }
@@ -212,7 +201,7 @@ const docTemplate = `{
         },
         "/api/v1/clips/export": {
             "get": {
-                "description": "Export all clips with status \"ready\" as a ZIP archive for machine learning training.\nThe archive contains audio files organized by label directories and a JSONL manifest file\nwith metadata for each clip. Audio files are in 16kHz mono WAV format, suitable for\ntraining models like Whisper or Wav2Vec2. The manifest includes clip UUID, label, duration,\nsource URL, and original time range for full traceability.",
+                "description": "Export all approved clips as a ZIP archive for machine learning training.\nAudio extraction happens on-demand during export - clips are materialized from their time ranges.\nThe archive contains audio files organized by label directories and a JSONL manifest file\nwith metadata for each clip. Audio files are in 16kHz mono WAV format with exact durations preserved.\nThe manifest includes clip UUID, label, duration, source URL, and original time range for full traceability.\nPreviously extracted clips are reused to avoid redundant processing.",
                 "produces": [
                     "application/zip"
                 ],
@@ -532,7 +521,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a new audio clip from this episode at the specified time range. Manual clips are automatically approved and queued for extraction.",
+                "description": "Create a new audio clip from this episode at the specified time range. Manual clips are automatically approved and will be extracted during dataset export.",
                 "consumes": [
                     "application/json"
                 ],
@@ -563,7 +552,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "202": {
-                        "description": "Clip created and queued for extraction (approved=true, status=queued)",
+                        "description": "Clip created successfully (approved=true, status=pending)",
                         "schema": {
                             "$ref": "#/definitions/episodes.EpisodeClipResponse"
                         }
@@ -921,7 +910,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Trigger transcription for a podcast episode. The system first checks if a transcript is available\nat the episode's transcriptURL (from RSS feed). If found, it fetches and stores it. Otherwise, if\nWhisper is configured, it generates a transcription using speech-to-text. Transcription is an async\nprocess that may take several minutes depending on episode duration. Use the job_id to track progress.",
+                "description": "Trigger transcription for a podcast episode. The system first checks if a transcript is available\nat the episode's transcriptURL (from RSS feed). If found, it fetches and stores it. Otherwise, if\nWhisper is configured, it generates a transcription using speech-to-text. Transcription is an async\nprocess that may take several minutes depending on episode duration. Poll the status endpoint with job_id to track progress.",
                 "consumes": [
                     "application/json"
                 ],
@@ -945,13 +934,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Transcription already exists (check 'source' field for origin)",
+                        "description": "Transcription already exists and is ready",
                         "schema": {
                             "$ref": "#/definitions/types.JobStatusResponse"
                         }
                     },
                     "202": {
-                        "description": "Transcription job queued (includes job_id for tracking)",
+                        "description": "Transcription job queued successfully (use job_id to track)",
                         "schema": {
                             "$ref": "#/definitions/types.JobStatusResponse"
                         }
@@ -1114,6 +1103,59 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/podcasts/{id}": {
+            "get": {
+                "description": "Retrieve detailed information about a specific podcast using its Podcast Index ID.\nData is fetched from the database if available, otherwise retrieved from Podcast Index API.\nPodcast metadata is automatically cached and refreshed if older than 24 hours.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "podcasts"
+                ],
+                "summary": "Get podcast details",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 6780065,
+                        "description": "Podcast's Podcast Index ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Podcast details with full metadata",
+                        "schema": {
+                            "$ref": "#/definitions/types.SinglePodcastResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid podcast ID format",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Podcast not found",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to fetch podcast",
+                        "schema": {
+                            "$ref": "#/definitions/types.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/podcasts/{id}/episodes": {
             "get": {
                 "description": "Retrieve a list of episodes for a specific podcast using its Podcast Index ID (feedId).\nEpisodes are returned in reverse chronological order (newest first). This endpoint\nautomatically syncs with the Podcast Index API to ensure fresh data, then caches results.\nUse the podcast ID obtained from /search, /trending, or other podcast discovery endpoints.",
@@ -1178,24 +1220,28 @@ const docTemplate = `{
         },
         "/api/v1/random": {
             "get": {
-                "description": "Returns random podcast episodes from Podcast Index",
+                "description": "Returns random podcast episodes from Podcast Index with optional language and category filtering.\nUseful for discovering new content. Episodes are randomly selected from recent additions to the index.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Random"
+                    "random"
                 ],
                 "summary": "Get random podcast episodes",
                 "parameters": [
                     {
+                        "maximum": 100,
+                        "minimum": 1,
                         "type": "integer",
-                        "description": "Number of episodes to return (default 10, max 100)",
+                        "default": 10,
+                        "description": "Number of episodes to return (1-100)",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Language code (default 'en')",
+                        "default": "en",
+                        "description": "Language code filter (e.g., 'en', 'es', 'fr')",
                         "name": "lang",
                         "in": "query"
                     },
@@ -1208,23 +1254,15 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Random episodes with metadata",
                         "schema": {
                             "$ref": "#/definitions/models.EpisodeResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Podcast Index API unavailable or communication failure",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "description": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/types.ErrorResponse"
                         }
                     }
                 }
@@ -2186,6 +2224,22 @@ const docTemplate = `{
                 }
             }
         },
+        "types.SinglePodcastResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "description": "Human-readable message",
+                    "type": "string"
+                },
+                "podcast": {
+                    "$ref": "#/definitions/types.Podcast"
+                },
+                "status": {
+                    "description": "One of the Status constants above",
+                    "type": "string"
+                }
+            }
+        },
         "types.TranscriptionData": {
             "type": "object",
             "properties": {
@@ -2199,7 +2253,7 @@ const docTemplate = `{
                     "example": 300.5
                 },
                 "episode_id": {
-                    "description": "Episode ID (optional for some responses)",
+                    "description": "Podcast Index Episode ID (optional for some responses)",
                     "type": "integer"
                 },
                 "language": {

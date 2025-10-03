@@ -91,8 +91,12 @@ func (m *mockEpisodeService) GetEpisodesByPodcastID(ctx context.Context, podcast
 	return nil, 0, nil
 }
 
-func (m *mockEpisodeService) SyncEpisodesToDatabase(ctx context.Context, episodes []episodes.PodcastIndexEpisode, podcastID uint) (int, error) {
+func (m *mockEpisodeService) SyncEpisodesToDatabase(ctx context.Context, episodes []episodes.PodcastIndexEpisode, podcastID uint, podcastIndexFeedID int64) (int, error) {
 	return 0, nil
+}
+
+func (m *mockEpisodeService) GetEpisodesByPodcastIndexFeedID(ctx context.Context, feedID int64, page, limit int) ([]models.Episode, int64, error) {
+	return nil, 0, nil
 }
 
 // abs returns the absolute value of a float64

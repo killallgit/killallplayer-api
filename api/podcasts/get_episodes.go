@@ -40,29 +40,11 @@ func GetEpisodesForPodcast(deps *types.Dependencies) gin.HandlerFunc {
 			max = 20
 		}
 
-		// Try to get episodes from cache/database first (more efficient)
-		dbEpisodes, _, dbErr := deps.EpisodeService.GetEpisodesByPodcastID(c.Request.Context(), uint(podcastID), 0, max)
-
-		// If we have episodes in the database, use them
-		if dbErr == nil && len(dbEpisodes) > 0 {
-			log.Printf("[DEBUG] Cache/DB HIT: Found %d episodes for podcast %d", len(dbEpisodes), podcastID)
-			episodes := types.FromModelEpisodeList(dbEpisodes)
-			c.JSON(http.StatusOK, types.EpisodesResponse{
-				BaseResponse: types.BaseResponse{
-					Status:  types.StatusOK,
-					Message: fmt.Sprintf("Fetched %d episodes for podcast", len(episodes)),
-				},
-				Episodes: episodes,
-				Count:    len(episodes),
-			})
-			return
-		}
-
-		// No episodes in cache/DB - fetch from API and sync
-		log.Printf("[DEBUG] Cache/DB MISS: Fetching episodes for podcast %d from API", podcastID)
-		apiResponse, err := deps.EpisodeService.FetchAndSyncEpisodes(c.Request.Context(), podcastID, max)
+		// Get episodes using DB-first approach with automatic API fallback
+		// The service will check DB first, and fetch from API if needed
+		episodes, _, err := deps.EpisodeService.GetEpisodesByPodcastIndexFeedID(c.Request.Context(), podcastID, 1, max)
 		if err != nil {
-			log.Printf("[ERROR] Failed to fetch episodes for podcast %d: %v", podcastID, err)
+			log.Printf("[ERROR] Failed to get episodes for podcast %d: %v", podcastID, err)
 
 			// Check if it's a configuration issue
 			if err.Error() == "podcast API client not available - check Podcast Index API credentials" {
@@ -75,23 +57,23 @@ func GetEpisodesForPodcast(deps *types.Dependencies) gin.HandlerFunc {
 			}
 
 			// Return error to client
-			c.JSON(http.StatusBadGateway, types.ErrorResponse{
+			c.JSON(http.StatusNotFound, types.ErrorResponse{
 				Status:  types.StatusError,
-				Message: "Failed to fetch episodes from Podcast Index API",
+				Message: "Failed to fetch episodes",
 				Details: err.Error(),
 			})
 			return
 		}
 
-		// Transform to unified response type
-		episodes := types.FromServiceEpisodeList(apiResponse.Items)
+		// Transform database episodes to API response type
+		responseEpisodes := types.FromModelEpisodeList(episodes)
 		c.JSON(http.StatusOK, types.EpisodesResponse{
 			BaseResponse: types.BaseResponse{
 				Status:  types.StatusOK,
-				Message: fmt.Sprintf("Fetched %d episodes for podcast", len(episodes)),
+				Message: fmt.Sprintf("Fetched %d episodes for podcast", len(responseEpisodes)),
 			},
-			Episodes: episodes,
-			Count:    len(episodes),
+			Episodes: responseEpisodes,
+			Count:    len(responseEpisodes),
 		})
 	}
 }

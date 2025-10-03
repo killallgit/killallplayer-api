@@ -148,34 +148,6 @@ func validateAPIKeys(isTestMode bool) error {
 		}
 	}
 
-	// Check OpenAI API key
-	openaiKey := viper.GetString("ai.openai_api_key")
-	for _, placeholder := range placeholders {
-		if openaiKey == placeholder {
-			if isProduction {
-				return fmt.Errorf("ai.openai_api_key cannot use placeholder values in production")
-			}
-			if !isTestMode {
-				fmt.Println("Warning: OpenAI API key is using a placeholder value")
-			}
-			break
-		}
-	}
-
-	// Check JWT secret
-	jwtSecret := viper.GetString("auth.jwt_secret")
-	for _, placeholder := range placeholders {
-		if jwtSecret == placeholder {
-			if isProduction {
-				return fmt.Errorf("auth.jwt_secret cannot use placeholder values in production")
-			}
-			if !isTestMode {
-				fmt.Println("Warning: JWT secret is using a placeholder value - this is insecure!")
-			}
-			break
-		}
-	}
-
 	return nil
 }
 
@@ -227,6 +199,7 @@ func setDefaults() {
 	viper.SetDefault("processing.max_queue_size", 100)
 	viper.SetDefault("processing.timeout", "5m")
 
+	viper.SetDefault("transcription.enabled", false)
 	viper.SetDefault("transcription.prefer_existing", true)
 	viper.SetDefault("transcription.fetch_timeout", "30s")
 	viper.SetDefault("transcription.allowed_transcript_formats", "vtt,srt,txt,json")
@@ -244,7 +217,24 @@ func setDefaults() {
 	viper.SetDefault("cache.ttl_categories", 240)
 	viper.SetDefault("cache.ttl_waveform", 1440)
 
+	viper.SetDefault("clips.storage_path", "./clips")
+	viper.SetDefault("clips.target_duration", 0.0)
+
+	viper.SetDefault("ffmpeg.path", "ffmpeg")
+	viper.SetDefault("ffmpeg.ffprobe_path", "ffprobe")
+	viper.SetDefault("ffmpeg.timeout", "300s")
+
+	viper.SetDefault("temp_dir", "./tmp")
+
+	viper.SetDefault("transcription.model_path", "./models/ggml-base.en.bin")
+	viper.SetDefault("transcription.whisper_path", "whisper-cpp")
+	viper.SetDefault("transcription.language", "en")
+
+	viper.SetDefault("audio_cache.directory", "./audio-cache")
+
+	viper.SetDefault("cleanup.interval", "5m")
+	viper.SetDefault("cleanup.max_age", "1h")
+
 	viper.SetDefault("logging.level", "info")
-	viper.SetDefault("logging.format", "json")
-	viper.SetDefault("logging.output", "stdout")
+	viper.SetDefault("logging.format", "text")
 }

@@ -16,21 +16,22 @@ type CategoriesProvider interface {
 
 // Get returns all available podcast categories
 // @Summary      Get all podcast categories
-// @Description  Get a list of all available podcast categories from the Podcast Index API
+// @Description  Get a list of all available podcast categories from the Podcast Index API.
+// @Description  Categories help filter search and trending results. Results are cached for 24 hours.
 // @Tags         categories
 // @Accept       json
 // @Produce      json
-// @Success      200 {object} podcastindex.CategoriesResponse "Categories response"
-// @Failure      500 {object} object{status=string,message=string,details=string} "Internal server error"
+// @Success      200 {object} podcastindex.CategoriesResponse "Categories response with ID and name for each category"
+// @Failure      500 {object} types.ErrorResponse "Service unavailable or API communication failure"
 // @Router       /api/v1/categories [get]
 func Get(deps *types.Dependencies) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get podcast client from dependencies
 		podcastClient, ok := deps.PodcastClient.(CategoriesProvider)
 		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "Categories service not available",
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Categories service not available",
 			})
 			return
 		}
@@ -38,10 +39,10 @@ func Get(deps *types.Dependencies) gin.HandlerFunc {
 		// Get categories
 		categories, err := podcastClient.GetCategories()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status":  "error",
-				"message": "Failed to fetch categories",
-				"details": err.Error(),
+			c.JSON(http.StatusInternalServerError, types.ErrorResponse{
+				Status:  types.StatusError,
+				Message: "Failed to fetch categories",
+				Details: err.Error(),
 			})
 			return
 		}

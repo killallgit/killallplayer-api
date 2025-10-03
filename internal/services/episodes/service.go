@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/killallgit/player-api/internal/models"
+	"github.com/killallgit/player-api/internal/services/podcasts"
 )
 
 // Service implements the EpisodeService interface with business logic
@@ -16,6 +17,7 @@ type Service struct {
 	fetcher           EpisodeFetcher
 	repository        EpisodeRepository
 	cache             EpisodeCache
+	podcastService    podcasts.PodcastService
 	keyGen            CacheKeyGenerator
 	maxConcurrentSync int
 	syncTimeout       time.Duration
@@ -43,11 +45,12 @@ func WithSyncTimeout(timeout time.Duration) ServiceOption {
 }
 
 // NewService creates a new episode service with optional configuration
-func NewService(fetcher EpisodeFetcher, repository EpisodeRepository, cache EpisodeCache, opts ...ServiceOption) *Service {
+func NewService(fetcher EpisodeFetcher, repository EpisodeRepository, cache EpisodeCache, podcastService podcasts.PodcastService, opts ...ServiceOption) *Service {
 	s := &Service{
 		fetcher:           fetcher,
 		repository:        repository,
 		cache:             cache,
+		podcastService:    podcastService,
 		keyGen:            NewKeyGenerator("episode"),
 		maxConcurrentSync: DefaultMaxConcurrentSyncs,
 		syncTimeout:       DefaultSyncTimeout,
@@ -62,37 +65,59 @@ func NewService(fetcher EpisodeFetcher, repository EpisodeRepository, cache Epis
 }
 
 // FetchAndSyncEpisodes fetches episodes from external API and syncs to database
-func (s *Service) FetchAndSyncEpisodes(ctx context.Context, podcastID int64, limit int) (*PodcastIndexResponse, error) {
+func (s *Service) FetchAndSyncEpisodes(ctx context.Context, podcastIndexID int64, limit int) (*PodcastIndexResponse, error) {
 	// Check if fetcher is available
 	if s.fetcher == nil {
 		return nil, fmt.Errorf("podcast API client not available - check Podcast Index API credentials")
 	}
 
-	// Try to fetch from external API first
-	response, err := s.fetcher.GetEpisodesByPodcastID(ctx, podcastID, limit)
+	// STEP 1: Ensure podcast exists in DB (will fetch from API if needed)
+	if s.podcastService != nil {
+		podcast, err := s.podcastService.GetPodcastByPodcastIndexID(ctx, podcastIndexID)
+		if err != nil {
+			return nil, fmt.Errorf("ensuring podcast exists: %w", err)
+		}
+		log.Printf("[DEBUG] Podcast %d exists in DB (ID=%d): %s", podcastIndexID, podcast.ID, podcast.Title)
+	}
+
+	// STEP 2: Fetch episodes from external API
+	response, err := s.fetcher.GetEpisodesByPodcastID(ctx, podcastIndexID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("fetching episodes from API: %w", err)
 	}
 
-	// Sync to database in background with detached context but respecting cancellation
+	// STEP 3: Sync to database in background
 	go func() {
-		// Recover from any panics in the goroutine
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("[ERROR] Panic in background sync for podcast %d: %v", podcastID, r)
+				log.Printf("[ERROR] Panic in background sync for podcast %d: %v", podcastIndexID, r)
 			}
 		}()
 
-		// Create a new context that inherits values but not cancellation from parent
-		// This allows the sync to continue even if the HTTP request is cancelled
 		syncCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), s.syncTimeout)
 		defer cancel()
 
-		synced, err := s.SyncEpisodesToDatabase(syncCtx, response.Items, uint(podcastID))
+		// Get podcast record (should be in DB now)
+		var podcastDBID uint
+		if s.podcastService != nil {
+			podcast, err := s.podcastService.GetPodcastByPodcastIndexID(syncCtx, podcastIndexID)
+			if err != nil {
+				log.Printf("[ERROR] Failed to get podcast for sync: %v", err)
+				return
+			}
+			podcastDBID = podcast.ID
+		}
+
+		synced, err := s.SyncEpisodesToDatabase(syncCtx, response.Items, podcastDBID, podcastIndexID)
 		if err != nil {
-			log.Printf("[ERROR] Failed to sync episodes for podcast %d: %v", podcastID, err)
+			log.Printf("[ERROR] Failed to sync episodes for podcast %d: %v", podcastIndexID, err)
 		} else {
-			log.Printf("[DEBUG] Successfully synced %d episodes for podcast %d", synced, podcastID)
+			log.Printf("[INFO] Successfully synced %d episodes for podcast %d", synced, podcastIndexID)
+
+			// Update podcast episode count
+			if s.podcastService != nil && podcastDBID > 0 {
+				_ = s.podcastService.UpdatePodcastMetrics(syncCtx, podcastDBID, synced)
+			}
 		}
 	}()
 
@@ -100,7 +125,7 @@ func (s *Service) FetchAndSyncEpisodes(ctx context.Context, podcastID int64, lim
 }
 
 // SyncEpisodesToDatabase syncs episodes from external API to database
-func (s *Service) SyncEpisodesToDatabase(ctx context.Context, episodes []PodcastIndexEpisode, podcastID uint) (int, error) {
+func (s *Service) SyncEpisodesToDatabase(ctx context.Context, episodes []PodcastIndexEpisode, podcastID uint, podcastIndexFeedID int64) (int, error) {
 	var (
 		successCount int
 		failureCount int
@@ -134,6 +159,8 @@ func (s *Service) SyncEpisodesToDatabase(ctx context.Context, episodes []Podcast
 			}()
 
 			episode := transformer.PodcastIndexToModel(pie, podcastID)
+			// Set the Podcast Index Feed ID for fast queries
+			episode.PodcastIndexFeedID = podcastIndexFeedID
 
 			// Check if episode exists
 			existing, err := s.repository.GetEpisodeByGUID(ctx, episode.GUID)
@@ -249,20 +276,31 @@ func (s *Service) GetEpisodeByPodcastIndexID(ctx context.Context, podcastIndexID
 			}
 
 			// We have the episode from the API, now sync it to the database
-			// We need a podcast ID - use the FeedID from the API episode
+			// We need a podcast ID - use the podcast service to resolve it
 			var podcastID uint
+			var feedID int64
 			if apiEpisode.FeedID > 0 {
-				// Try to find the podcast in our database
-				// For now, we'll use the FeedID as the podcast ID (this may need adjustment based on your schema)
-				podcastID = uint(apiEpisode.FeedID)
+				feedID = apiEpisode.FeedID
+				// Ensure the podcast exists in our database
+				if s.podcastService != nil {
+					podcast, err := s.podcastService.GetPodcastByPodcastIndexID(ctx, feedID)
+					if err != nil {
+						log.Printf("[ERROR] Service.GetEpisodeByPodcastIndexID: Failed to get/create podcast %d: %v", feedID, err)
+						return nil, fmt.Errorf("failed to resolve podcast for episode: %w", err)
+					}
+					podcastID = podcast.ID
+					log.Printf("[DEBUG] Service.GetEpisodeByPodcastIndexID: Resolved podcast %d to DB ID %d", feedID, podcastID)
+				} else {
+					log.Printf("[WARN] Service.GetEpisodeByPodcastIndexID: Podcast service not available, using FeedID as podcast ID")
+					podcastID = uint(feedID)
+				}
 			} else {
-				// If no FeedID, we can't properly associate the episode
-				log.Printf("[WARN] Service.GetEpisodeByPodcastIndexID: Episode %d has no FeedID, using 0 as podcast ID", podcastIndexID)
-				podcastID = 0
+				log.Printf("[ERROR] Service.GetEpisodeByPodcastIndexID: Episode %d has no FeedID, cannot associate with podcast", podcastIndexID)
+				return nil, fmt.Errorf("episode %d has no feed ID", podcastIndexID)
 			}
 
 			// Sync this single episode to the database
-			syncedCount, syncErr := s.SyncEpisodesToDatabase(ctx, []PodcastIndexEpisode{*apiEpisode}, podcastID)
+			syncedCount, syncErr := s.SyncEpisodesToDatabase(ctx, []PodcastIndexEpisode{*apiEpisode}, podcastID, feedID)
 			if syncErr != nil {
 				log.Printf("[ERROR] Service.GetEpisodeByPodcastIndexID: Failed to sync episode %d to database: %v", podcastIndexID, syncErr)
 				return nil, fmt.Errorf("failed to sync episode from API: %w", syncErr)
@@ -312,6 +350,38 @@ func (s *Service) GetEpisodesByPodcastID(ctx context.Context, podcastID uint, pa
 
 	// Cache the result
 	s.cache.SetEpisodeList(key, episodes, total)
+	return episodes, total, nil
+}
+
+// GetEpisodesByPodcastIndexFeedID retrieves episodes for a podcast by Podcast Index feed ID
+func (s *Service) GetEpisodesByPodcastIndexFeedID(ctx context.Context, feedID int64, page, limit int) ([]models.Episode, int64, error) {
+	// First check if we have episodes in the database
+	episodes, total, err := s.repository.GetEpisodesByPodcastIndexFeedID(ctx, feedID, page, limit)
+
+	// If we found episodes, return them
+	if err == nil && len(episodes) > 0 {
+		return episodes, total, nil
+	}
+
+	// No episodes in DB - try to fetch and sync from API
+	log.Printf("[INFO] No episodes found for feed %d, fetching from Podcast Index API", feedID)
+
+	// Fetch from API (this will also ensure podcast exists and sync episodes)
+	_, fetchErr := s.FetchAndSyncEpisodes(ctx, feedID, 100) // Fetch up to 100 episodes
+	if fetchErr != nil {
+		// If API fetch fails, return the original error or empty result
+		if err != nil {
+			return nil, 0, err
+		}
+		return nil, 0, fetchErr
+	}
+
+	// Try again from repository after sync
+	episodes, total, err = s.repository.GetEpisodesByPodcastIndexFeedID(ctx, feedID, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	return episodes, total, nil
 }
 

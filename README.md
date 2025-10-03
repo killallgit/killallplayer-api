@@ -8,12 +8,15 @@ A robust REST API for podcast discovery and episode management built with Go, us
 - 📋 **Episode Management** - Sync, store, and retrieve podcast episodes
 - 🔖 **Playback Regions** - Save bookmarks and regions within episodes
 - 📊 **Waveform Generation** - Generate audio waveforms for visual representation
+- 🎯 **ML Training Clips** - Extract labeled audio segments for machine learning
+- 🤖 **Auto-Analysis** - Automatic episode analysis for segment detection
 - 🔐 **Supabase Authentication** - JWT-based authentication with custom permissions via JWKS
 - 🛡️ **Permission System** - Role-based access control with scoped permissions
 - 🆔 **Podcast Index IDs** - Uses Podcast Index IDs throughout, no ID mapping needed
 - 💾 **Local Database** - SQLite storage for offline episode access
 - ⚡ **Rate Limiting** - Built-in rate limiting for API endpoints
 - 🔄 **CORS Support** - Full CORS support for web clients
+- 🔄 **Job Queue System** - Async processing with status tracking
 
 ## Quick Start
 
@@ -73,6 +76,8 @@ The OpenAPI specification is generated automatically from code annotations and a
 - `GET /api/v1/episodes/:id` - Get episode details (using Podcast Index ID)
 - `GET /api/v1/episodes/:id/reviews` - Get iTunes reviews for the podcast
 - `GET /api/v1/episodes/:id/waveform` - Generate/retrieve waveform data with status
+- `POST /api/v1/episodes/:id/analyze` - Auto-analyze episode for clips
+- `GET /api/v1/episodes/:id/clips` - Get clips for an episode
 - `POST /api/v1/clips` - Create ML training audio clip
 - `GET /api/v1/clips` - List all clips with optional filters
 - `GET /api/v1/clips/:uuid` - Get specific clip details
@@ -120,21 +125,32 @@ curl -X POST http://localhost:9000/api/v1/regions \
 killallplayer-api/
 ├── api/                  # API handlers and routes
 │   ├── auth/            # Authentication endpoints and middleware
+│   ├── clips/           # ML training clips endpoints
 │   ├── episodes/        # Episode endpoints
 │   ├── podcasts/        # Podcast endpoints
-│   ├── regions/         # Playback regions/bookmarks
 │   ├── search/          # Search functionality
 │   ├── trending/        # Trending podcasts
-│   ├── waveform/        # Audio waveform generation
 │   └── types/           # Shared types
 ├── cmd/                 # CLI commands
 ├── internal/            # Internal packages
 │   ├── database/        # Database layer
 │   ├── models/          # Data models
 │   └── services/        # Business logic
-│       └── auth/        # Supabase JWT authentication service
+│       ├── auth/        # Supabase JWT authentication service
+│       ├── audiocache/  # Local audio caching
+│       ├── autolabel/   # Automatic clip labeling
+│       ├── clips/       # Clip extraction and storage
+│       ├── episode_analysis/ # Episode analysis orchestration
+│       ├── episodes/    # Episode service
+│       ├── jobs/        # Job queue management
+│       ├── transcription/ # Audio transcription
+│       ├── waveforms/   # Waveform generation
+│       └── workers/     # Background job processors
 ├── pkg/                 # Public packages
-│   └── config/          # Configuration management
+│   ├── config/          # Configuration management
+│   ├── download/        # HTTP download utilities
+│   ├── ffmpeg/          # FFmpeg wrappers
+│   └── transcript/      # Transcript fetching & parsing
 ├── scripts/             # Setup and testing scripts
 └── docs/                # Documentation
 ```

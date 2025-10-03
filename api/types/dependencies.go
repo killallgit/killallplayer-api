@@ -9,6 +9,7 @@ import (
 	"github.com/killallgit/player-api/internal/services/episodes"
 	"github.com/killallgit/player-api/internal/services/itunes"
 	"github.com/killallgit/player-api/internal/services/jobs"
+	"github.com/killallgit/player-api/internal/services/podcasts"
 	"github.com/killallgit/player-api/internal/services/transcription"
 	"github.com/killallgit/player-api/internal/services/waveforms"
 	"github.com/killallgit/player-api/internal/services/workers"
@@ -17,6 +18,7 @@ import (
 // Dependencies holds all the dependencies needed by handlers
 type Dependencies struct {
 	DB                     *database.DB
+	PodcastService         podcasts.PodcastService
 	EpisodeService         episodes.EpisodeService
 	EpisodeTransformer     episodes.EpisodeTransformer
 	WaveformService        waveforms.WaveformService

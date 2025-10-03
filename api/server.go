@@ -111,24 +111,9 @@ func (s *Server) initializeWorkerPool() error {
 	}
 
 	numWorkers := viper.GetInt("processing.workers")
-	if numWorkers == 0 {
-		numWorkers = 2
-	}
-
-	ffmpegPath := viper.GetString("processing.ffmpeg_path")
-	if ffmpegPath == "" {
-		ffmpegPath = "ffmpeg"
-	}
-
-	ffprobePath := viper.GetString("processing.ffprobe_path")
-	if ffprobePath == "" {
-		ffprobePath = "ffprobe"
-	}
-
-	ffmpegTimeout := viper.GetDuration("processing.ffmpeg_timeout")
-	if ffmpegTimeout == 0 {
-		ffmpegTimeout = 5 * time.Minute
-	}
+	ffmpegPath := viper.GetString("ffmpeg.path")
+	ffprobePath := viper.GetString("ffmpeg.ffprobe_path")
+	ffmpegTimeout := viper.GetDuration("ffmpeg.timeout")
 
 	ffmpegInstance := ffmpeg.New(ffmpegPath, ffprobePath, ffmpegTimeout)
 
@@ -138,7 +123,6 @@ func (s *Server) initializeWorkerPool() error {
 		// The processor will handle errors gracefully
 	}
 
-	// Note: EpisodeService is already the correct interface type
 	waveformProcessor := workers.NewEnhancedWaveformProcessor(
 		s.dependencies.JobService,
 		s.dependencies.WaveformService,
@@ -168,22 +152,9 @@ func (s *Server) initializeWorkerPool() error {
 
 	var clipProcessor *workers.ClipExtractionProcessor
 	if s.dependencies.ClipService != nil {
-		// Processor needs its own extractor and storage instances
-		// to avoid shared state issues in concurrent processing
 		clipsBasePath := viper.GetString("clips.storage_path")
-		if clipsBasePath == "" {
-			clipsBasePath = "./clips"
-		}
-
-		tempDir := viper.GetString("clips.temp_dir")
-		if tempDir == "" {
-			tempDir = "/tmp/clips"
-		}
-
+		tempDir := viper.GetString("temp_dir")
 		targetDuration := viper.GetFloat64("clips.target_duration")
-		if targetDuration <= 0 {
-			targetDuration = 15.0
-		}
 
 		extractor, err := clips.NewFFmpegExtractor(tempDir, targetDuration)
 		if err == nil {
@@ -207,9 +178,6 @@ func (s *Server) initializeWorkerPool() error {
 
 	if s.dependencies.ClipService != nil {
 		clipsBasePath := viper.GetString("clips.storage_path")
-		if clipsBasePath == "" {
-			clipsBasePath = "./clips"
-		}
 
 		peakDetector := autolabel.NewFFmpegPeakDetector("")
 		autolabelSvc := autolabel.NewService(s.dependencies.DB.DB, peakDetector)
@@ -240,27 +208,14 @@ func (s *Server) initializeWorkerPool() error {
 }
 
 func (s *Server) initializeCleanupService() {
-	tempDir := viper.GetString("processing.temp_dir")
-	if tempDir == "" {
-		tempDir = "/tmp"
-	}
-
-	cleanupInterval := viper.GetDuration("processing.cleanup_interval")
-	if cleanupInterval == 0 {
-		cleanupInterval = 1 * time.Hour
-	}
-
-	maxTempAge := viper.GetDuration("processing.max_temp_age")
-	if maxTempAge == 0 {
-		maxTempAge = 24 * time.Hour
-	}
+	tempDir := viper.GetString("temp_dir")
+	cleanupInterval := viper.GetDuration("cleanup.interval")
+	maxTempAge := viper.GetDuration("cleanup.max_age")
 
 	s.cleanupService = cleanup.NewService(tempDir, maxTempAge, cleanupInterval)
 	s.cleanupService.Start(context.Background())
 
 	log.Printf("[INFO] Cleanup service started for %s (interval: %v, max age: %v)", tempDir, cleanupInterval, maxTempAge)
-
-	// Note: No token cleanup needed for Supabase auth - tokens are managed by Supabase
 }
 
 func (s *Server) Start() error {
